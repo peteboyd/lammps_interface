@@ -1,6 +1,16 @@
 #!/usr/bin/env python
 from datetime import date
 
+class Structure(object):
+
+    def __init__(self):
+        pass
+
+class Atom(object):
+    
+    def __init__(self):
+        pass
+
 class CIF(object):
 
     def __init__(self, name="structure", file=None):
@@ -12,6 +22,9 @@ class CIF(object):
         self.block_order = ["data", "sym", "sym_loop", "cell", "atoms", "bonds"]
         if file is not None:
             self._readfile(file)
+
+    def read(self, filename):
+        self._readfile(filename)
 
     def _readfile(self, filename):
         filestream = open(filename, 'r')
