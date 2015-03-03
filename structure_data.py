@@ -2,7 +2,8 @@
 from datetime import date
 import numpy as np
 from atomic import MASS
-
+from ccdc import CCDC_BOND_ORDERS
+DEG2RAD=np.pi/180.
 class Structure(object):
 
     def __init__(self, name):
@@ -10,19 +11,65 @@ class Structure(object):
         self.cell = Cell()
         self.atoms = []
         self.guests = []
+        self.bonds = {}
         
     def from_CIF(self, cifobj):
-        pass
+        """Reads the structure data from the CIF
+        - currently does not read the symmetry of the cell
+        - does not unpack the assymetric unit (assumes P1)
+        - assumes that the appropriate keys are in the cifobj (no error checking)
+        """
 
+        data = cifobj._data
+        # obtain atoms and cell
+        cellparams = [float(i) for i in [data['_cell_length_a'], 
+                                         data['_cell_length_b'], 
+                                         data['_cell_length_c'],
+                                         data['_cell_angle_alpha'], 
+                                         data['_cell_angle_beta'], 
+                                         data['_cell_angle_gamma']]]
+        self.cell.set_params(cellparams)
+
+        x, y, z = data['_atom_site_fract_x'], data['_atom_site_fract_y'], data['_atom_site_fract_z']
+        
+        label, element, ff_param = data['_atom_site_label'], data['_atom_site_type_symbol'], data['_atom_site_description']
+        index = 0
+        for l,e,ff,fx,fy,fz in zip(label,element,ff_param,x,y,z):
+            fcoord = np.array([float(j) for j in (fx, fy, fz)])
+            atom = Atom(element=e.strip(), coordinates = np.dot(fcoord, self.cell.cell))
+            atom.force_field_type = ff.strip()
+            atom.ciflabel = l.strip() 
+            self.atoms.append(atom)
+        # obtain bonds
+        a, b, type = data['_geom_bond_atom_site_label_1'], data['_geom_bond_atom_site_label_2'], data['_ccdc_geom_bond_type']
+
+        for label1, label2, t in zip(a,b,type):
+            atm1 = self.get_atom_from_label(label1.strip())
+            atm2 = self.get_atom_from_label(label2.strip())
+            #TODO(check if atm2 crosses a periodic boundary to bond with atm1)
+            atm1.neighbours.append(atm2)
+            atm2.neighbours.append(atm1)
+
+            self.bonds[(atm1.index, atm2.index)] = CCDC_BOND_ORDERS[t.strip()]
+
+        # unwrap symmetry elements if they exist
+
+    def get_atom_from_label(self, label):
+        for atom in self.atoms:
+            if atom.ciflabel == label:
+                return atom
 
 class Atom(object):
-    
+    __ID = 0
     def __init__(self, element="X", coordinates=np.zeros(3)):
         self.element = element
-        self.index = 0
+        self.index = self.__ID
         self.neighbours = []
+        self.ciflabel = None
         self.force_field_type = None
         self.coordinates = coordinates 
+
+        Atom.__ID += 1
 
     def scaled_pos(self, inv_cell):
         return np.dot(self.coordinates[:3], inv_cell)
@@ -43,6 +90,26 @@ class Cell(object):
         # cell parameters (a, b, c, alpha, beta, gamma)
         self._params = (1., 1., 1., 90., 90., 90.)
         self._inverse = None
+
+    @property
+    def volume(self):
+        """Calculate cell volume a.bxc."""
+        b_cross_c = cross(self.cell[1], self.cell[2])
+        return dot(self.cell[0], b_cross_c)
+
+    def get_cell(self):
+        """Get the 3x3 vector cell representation."""
+        return self._cell
+
+    def set_cell(self, value):
+        """Set cell and params from the cell representation."""
+        # Class internally expects an array
+        self._cell = np.array(value).reshape((3,3))
+        self.__mkparam()
+        self._inverse = np.linalg.inv(self.cell.T)
+
+    # Property so that params are updated when cell is set
+    cell = property(get_cell, set_cell)
 
     def get_params(self):
         """Get the six parameter cell representation as a tuple."""
@@ -121,6 +188,30 @@ class Cell(object):
             return 'trigonal'
         else:
             return 'triclinic'
+
+    def __mkcell(self):
+        """Update the cell representation to match the parameters."""
+        a_mag, b_mag, c_mag = self.params[:3]
+        alpha, beta, gamma = [x * DEG2RAD for x in self.params[3:]]
+        a_vec = np.array([a_mag, 0.0, 0.0])
+        b_vec = np.array([b_mag * np.cos(gamma), b_mag * np.sin(gamma), 0.0])
+        c_x = c_mag * np.cos(beta)
+        c_y = c_mag * (np.cos(alpha) - np.cos(gamma) * np.cos(beta)) / np.sin(gamma)
+        c_vec = np.array([c_x, c_y, (c_mag**2 - c_x**2 - c_y**2)**0.5])
+        self._cell = np.array([a_vec, b_vec, c_vec])
+
+    def __mkparam(self):
+        """Update the parameters to match the cell."""
+        cell_a = sqrt(sum(x**2 for x in self.cell[0]))
+        cell_b = sqrt(sum(x**2 for x in self.cell[1]))
+        cell_c = sqrt(sum(x**2 for x in self.cell[2]))
+        alpha = np.arccos(sum(self.cell[1, :] * self.cell[2, :]) /
+                       (cell_b * cell_c)) * 180 / pi
+        beta = np.arccos(sum(self.cell[0, :] * self.cell[2, :]) /
+                      (cell_a * cell_c)) * 180 / pi
+        gamma = np.arccos(sum(self.cell[0, :] * self.cell[1, :]) /
+                       (cell_a * cell_b)) * 180 / pi
+        self._params = (cell_a, cell_b, cell_c, alpha, beta, gamma)
 
     @property
     def a(self):

@@ -69,6 +69,3 @@ class UFF(object):
             return 'octahedral'
 
 
-
-
-
