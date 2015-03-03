@@ -1,15 +1,42 @@
 #!/usr/bin/env python
 from datetime import date
+import numpy as np
+from atomic import MASS
 
 class Structure(object):
 
-    def __init__(self):
+    def __init__(self, name):
+        self.name = name
+        self.cell = Cell()
+        self.atoms = []
+        self.guests = []
+        
+    def from_CIF(self, cifobj):
         pass
+
 
 class Atom(object):
     
-    def __init__(self):
-        pass
+    def __init__(self, element="X", coordinates=np.zeros(3)):
+        self.element = element
+        self.index = 0
+        self.neighbours = []
+        self.force_field_type = None
+        self.coordinates = coordinates 
+
+    def scaled_pos(self, inv_cell):
+        return np.dot(self.coordinates[:3], inv_cell)
+
+    def in_cell_scaled(self, inv_cell):
+        return np.array([i%1 for i in self.scaled_pos(inv_cell)])
+
+    def in_cell(self, cell, inv_cell):
+        return np.dot(self.in_cell_scaled(inv_cell), cell)
+
+    @property
+    def mass(self):
+        return MASS[self.element]
+
 
 class CIF(object):
 

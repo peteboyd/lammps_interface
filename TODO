@@ -1,4 +1,3 @@
-- read in .cif file
 - add library for UFF 
 - create interface between force field and cif atoms
 
