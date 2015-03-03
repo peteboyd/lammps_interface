@@ -37,6 +37,120 @@ class Atom(object):
     def mass(self):
         return MASS[self.element]
 
+class Cell(object):
+    def __init__(self):
+        self._cell = np.identity(3, dtype=np.float64)
+        # cell parameters (a, b, c, alpha, beta, gamma)
+        self._params = (1., 1., 1., 90., 90., 90.)
+        self._inverse = None
+
+    def get_params(self):
+        """Get the six parameter cell representation as a tuple."""
+        return tuple(self._params)
+
+    def set_params(self, value):
+        """Set cell and params from the cell parameters."""
+        self._params = value
+        self.__mkcell()
+        self._inverse = np.linalg.inv(self.cell.T)
+
+    params = property(get_params, set_params)
+
+    def minimum_supercell(self, cutoff):
+        """Calculate the smallest supercell with a half-cell width cutoff."""
+        a_cross_b = cross(self.cell[0], self.cell[1])
+        b_cross_c = cross(self.cell[1], self.cell[2])
+        c_cross_a = cross(self.cell[2], self.cell[0])
+
+        volume = dot(self.cell[0], b_cross_c)
+
+        widths = [volume / np.linalg.norm(b_cross_c),
+                  volume / np.linalg.norm(c_cross_a),
+                  volume / np.linalg.norm(a_cross_b)]
+
+        return tuple(int(ceil(2*cutoff/x)) for x in widths)
+
+    @property
+    def minimum_width(self):
+        """The shortest perpendicular distance within the cell."""
+        a_cross_b = cross(self.cell[0], self.cell[1])
+        b_cross_c = cross(self.cell[1], self.cell[2])
+        c_cross_a = cross(self.cell[2], self.cell[0])
+
+        volume = dot(self.cell[0], b_cross_c)
+
+        return volume / min(np.linalg.norm(b_cross_c), np.linalg.norm(c_cross_a), np.linalg.norm(a_cross_b))
+
+    @property
+    def inverse(self):
+        """Inverted cell matrix for converting to fractional coordinates."""
+        try:
+            if self._inverse is None:
+                self._inverse = np.linalg.inv(self.cell.T)
+        except AttributeError:
+            self._inverse = np.linalg.inv(self.cell.T)
+        return self._inverse
+
+    @property
+    def crystal_system(self):
+        """Return the IUCr designation for the crystal system."""
+        #FIXME(tdaff): must be aligned with x to work
+        if self.alpha == self.beta == self.gamma == 90:
+            if self.a == self.b == self.c:
+                return 'cubic'
+            elif self.a == self.b or self.a == self.c or self.b == self.c:
+                return 'tetragonal'
+            else:
+                return 'orthorhombic'
+        elif self.alpha == self.beta == 90:
+            if self.a == self.b and self.gamma == 120:
+                return 'hexagonal'
+            else:
+                return 'monoclinic'
+        elif self.alpha == self.gamma == 90:
+            if self.a == self.c and self.beta == 120:
+                return 'hexagonal'
+            else:
+                return 'monoclinic'
+        elif self.beta == self.gamma == 90:
+            if self.b == self.c and self.alpha == 120:
+                return 'hexagonal'
+            else:
+                return 'monoclinic'
+        elif self.a == self.b == self.c and self.alpha == self.beta == self.gamma:
+            return 'trigonal'
+        else:
+            return 'triclinic'
+
+    @property
+    def a(self):
+        """Magnitude of cell a vector."""
+        return self.params[0]
+
+    @property
+    def b(self):
+        """Magnitude of cell b vector."""
+        return self.params[1]
+
+    @property
+    def c(self):
+        """Magnitude of cell c vector."""
+        return self.params[2]
+
+    @property
+    def alpha(self):
+        """Cell angle alpha."""
+        return self.params[3]
+
+    @property
+    def beta(self):
+        """Cell angle beta."""
+        return self.params[4]
+
+    @property
+    def gamma(self):
+        """Cell angle gamma."""
+        return self.params[5]
 
 class CIF(object):
 

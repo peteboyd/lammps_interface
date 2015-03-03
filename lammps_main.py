@@ -39,6 +39,8 @@ def main():
     # set as the first argument for testing
     cif.read(sys.argv[1])
 
+    struct = Structure(name='test')
+    struct.from_CIF(cif)
 
 if __name__ == "__main__": 
     main()
