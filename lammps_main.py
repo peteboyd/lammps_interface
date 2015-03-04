@@ -41,6 +41,9 @@ def main():
 
     struct = Structure(name='test')
     struct.from_CIF(cif)
+    struct.unique_atoms()
+    struct.unique_bonds()
+    struct.unique_angles()
 
 if __name__ == "__main__": 
     main()

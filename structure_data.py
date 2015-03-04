@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from datetime import date
 import numpy as np
+import itertools
 from atomic import MASS
 from ccdc import CCDC_BOND_ORDERS
 DEG2RAD=np.pi/180.
@@ -11,7 +12,11 @@ class Structure(object):
         self.cell = Cell()
         self.atoms = []
         self.guests = []
-        self.bonds = {}
+        self.bonds = []
+        self.angles = {}
+        self.unique_atom_types = {}
+        self.unique_bond_types = {}
+        self.unique_angle_types = {}
         
     def from_CIF(self, cifobj):
         """Reads the structure data from the CIF
@@ -47,10 +52,12 @@ class Structure(object):
             atm1 = self.get_atom_from_label(label1.strip())
             atm2 = self.get_atom_from_label(label2.strip())
             #TODO(check if atm2 crosses a periodic boundary to bond with atm1)
-            atm1.neighbours.append(atm2)
-            atm2.neighbours.append(atm1)
+            atm1.neighbours.append(atm2.index)
+            atm2.neighbours.append(atm1.index)
+            bond = Bond(atid1=atm1.index, atid2=atm2.index, 
+                            order=CCDC_BOND_ORDERS[t.strip()])
 
-            self.bonds[(atm1.index, atm2.index)] = CCDC_BOND_ORDERS[t.strip()]
+            self.bonds.append(bond)
 
         # unwrap symmetry elements if they exist
 
@@ -58,6 +65,108 @@ class Structure(object):
         for atom in self.atoms:
             if atom.ciflabel == label:
                 return atom
+    
+    def unique_atoms(self):
+        # ff_type keeps track of the unique integer index
+        ff_type = {}
+        count = 0
+        for atom in self.atoms:
+            
+            if atom.force_field_type is None:
+                label = atom.element
+            else:
+                label = atom.force_field_type
+
+            try:
+                type = ff_type[label][0]
+            except KeyError:
+                count += 1
+                type = count
+                ff_type[type] = (count, atom.mass)
+                self.unique_atom_types[type] = (atom.mass, label)
+
+            atom.ff_type_index = type
+
+    def unique_bonds(self):
+        count = 0
+        bb_type = {}
+        for bond in self.bonds:
+            idx1, idx2 = bond.indices
+            atm1, atm2 = self.atoms[idx1], self.atoms[idx2]
+            
+            try:
+                type = bb_type[(atm1.ff_type_index, atm2.ff_type_index, bond.bond_order)]
+            except KeyError:
+                count += 1
+                type = count
+                bb_type[(atm1.ff_type_index, atm2.ff_type_index, bond.bond_order)] = type
+
+                self.unique_bond_types[type] = (bond.bond_order, atm1.force_field_type, 
+                                                atm2.force_field_type)
+                
+            bond.ff_type_index = type
+
+    def unique_angles(self):
+        count = 0
+        ang_type = {}
+        for atom in self.atoms:
+            angles = itertools.combinations(atom.neighbours, 2)
+            for (lid, rid) in angles:
+                left_atom = self.atoms[lid]
+                right_atom = self.atoms[rid]
+
+                try:
+                    type = ang_type[(left_atom.ff_type_index, 
+                                     atom.ff_type_index,
+                                     right_atom.ff_type_index,
+                                     len(atom.neighbours))]
+                except KeyError:
+                    count += 1
+                    type = count
+                    ang_type[(left_atom.ff_type_index, 
+                              atom.ff_type_index,
+                              right_atom.ff_type_index,
+                              len(atom.neighbours))] = type
+                    self.unique_angle_types[type] = (left_atom.ff_type_index,
+                                                     atom.ff_type_index,
+                                                     right_atom.ff_type_index)
+
+                self.angles[(left_atom.index, atom.index, right_atom.index)] = type
+
+            
+
+class Bond(object):
+    __ID = 0
+
+    def __init__(self, atid1=0, atid2=0, order=1):
+        self.index = self.__ID
+        self.bond_order = order
+        self._indices = (atid1, atid2)
+        self._elements = (None, None)
+        self.length = 0.
+        self.ff_type_index = 0
+        self.midpoint = np.array([0., 0., 0.])
+        Bond.__ID += 1
+
+    def compute_length(self, coord1, coord2):
+        return np.linalg.norm(np.array(coord2) - np.array(coord1))
+
+    def get_indices(self):
+        return tuple(self._indices)
+
+    def set_indices(self, id1, id2):
+        self._indices = (id1, id2)
+
+    indices = property(get_indices, set_indices)
+
+    def get_elements(self):
+        return tuple(self._elements)
+
+    def set_elements(self, e1, e2):
+        self._elements = (e1, e2)
+
+    elements = property(get_elements, set_elements)
+
 
 class Atom(object):
     __ID = 0
@@ -68,7 +177,7 @@ class Atom(object):
         self.ciflabel = None
         self.force_field_type = None
         self.coordinates = coordinates 
-
+        self.ff_type_index = 0 # keeps track of the unique integer value assigned to the force field type
         Atom.__ID += 1
 
     def scaled_pos(self, inv_cell):
