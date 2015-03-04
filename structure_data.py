@@ -2,7 +2,7 @@
 from datetime import date
 import numpy as np
 import itertools
-from atomic import MASS
+from atomic import MASS, ATOMIC_NUMBER
 from ccdc import CCDC_BOND_ORDERS
 DEG2RAD=np.pi/180.
 class Structure(object):
@@ -13,10 +13,15 @@ class Structure(object):
         self.atoms = []
         self.guests = []
         self.bonds = []
+        # no classes yet for the angles, dihedrals, and improper terms.. not sure if necessary.
         self.angles = {}
+        self.dihedrals = {}
+        self.impropers = {}
         self.unique_atom_types = {}
         self.unique_bond_types = {}
         self.unique_angle_types = {}
+        self.unique_dihedral_types = {}
+        self.unique_improper_types = {}
         
     def from_CIF(self, cifobj):
         """Reads the structure data from the CIF
@@ -133,7 +138,58 @@ class Structure(object):
 
                 self.angles[(left_atom.index, atom.index, right_atom.index)] = type
 
-            
+    def unique_dihedrals(self):
+        dihedral_type = {}
+        count = 0
+
+        for atom_b in self.atoms:
+            ib = atom_b.index
+            ib_type = atom_b.ff_type_index
+            angles = itertools.permutations(atom_b.neighbours, 2)
+            for ia, ic in angles:
+                atom_a = self.atoms[ia]
+                atom_c = self.atoms[ic]
+                ia_type = atom_a.ff_type_index
+                ic_type = atom_b.ff_type_index
+                c_neighbours = [i for i in atom_c.neighbours if ib != i and
+                                ia != i]
+                for id in c_neighbours:
+                    atom_d = self.atoms[id]
+                    id_type = atom_d.ff_type_index
+                    dd = (ia_type, ib_type, ic_type, id_type)
+                    try:
+                        type = dihedral_type[dd]
+                    except KeyError:
+                        count += 1
+                        type = count
+                        dihedral_type[dd] = type
+
+                        self.unique_dihedral_types[type] = dd 
+
+                    self.dihedrals[(atom_a.index, atom_b.index, atom_c.index, atom_d.index)] = type
+    
+    def unique_improper_dihedrals(self):
+        count = 0
+        improper_type = {}
+
+        for atom_b in self.atoms:
+            if atom_b.atomic_number in (6, 7, 8, 15, 33, 51, 83):
+                continue
+            if len(atom_b.neighbours) != 3:
+                continue
+            ib = atom_b.index
+            ia, ic, id = atom_b.neighbours
+            atom_a, atom_c, atom_d = self.atoms[ia], self.atoms[ic], self.atoms[id]
+            ttype = (atom_b.ff_type_index, atom_d.ff_type_index, atom_c.ff_type_index, atom_a.ff_type_index) 
+            try:
+                type = improper_type[ttype]
+
+            except KeyError:
+                count += 1
+                type = count
+                improper_type[ttype] = type
+                self.unique_improper_types[type] = ttype
+            self.impropers[(atom_b.index, atom_a.index, atom_d.index, atom_c.index)] = type
 
 class Bond(object):
     __ID = 0
@@ -192,6 +248,10 @@ class Atom(object):
     @property
     def mass(self):
         return MASS[self.element]
+
+    @property
+    def atomic_number(self):
+        return ATOMIC_NUMBER.index(self.element)
 
 class Cell(object):
     def __init__(self):

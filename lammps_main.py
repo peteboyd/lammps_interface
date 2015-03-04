@@ -44,6 +44,8 @@ def main():
     struct.unique_atoms()
     struct.unique_bonds()
     struct.unique_angles()
+    struct.unique_dihedrals()
+    struct.unique_improper_dihedrals()
 
 if __name__ == "__main__": 
     main()
