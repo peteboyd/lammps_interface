@@ -25,9 +25,8 @@ except ValueError:
 __version__ = "%i.%i.%i.%i"%__version_info__
 
 import sys
-from structure_data import CIF, Structure, Atom
-from uff import UFF_DATA
-from atomic import MASS, ATOMIC_NUMBER
+from structure_data import CIF, Structure
+from ForceFields import UFF
 
 def main():
     print __version__
@@ -46,6 +45,7 @@ def main():
     struct.unique_angles()
     struct.unique_dihedrals()
     struct.unique_improper_dihedrals()
+    ff = UFF()
 
 if __name__ == "__main__": 
     main()
