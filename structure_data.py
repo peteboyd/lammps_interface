@@ -14,7 +14,7 @@ class Structure(object):
         self.guests = []
         self.bonds = []
         self.angles = []
-        self.dihedrals = {}
+        self.dihedrals = []
         self.impropers = {}
         self.unique_atom_types = {}
         self.unique_bond_types = {}
@@ -174,10 +174,20 @@ class Structure(object):
                         type = count
                         dihedral_type[dd] = type
 
-                        self.unique_dihedral_types[type] = dd 
-
-                    self.dihedrals[(atom_a.index, atom_b.index, atom_c.index, atom_d.index)] = type
+                        self.unique_dihedral_types[type] = dd
+                    
+                    angle1 = self.get_angle(atom_a, atom_b, atom_c)
+                    angle2 = self.get_angle(atom_b, atom_c, atom_d)
+                    dihedral = Dihedral(angle1, angle2)
+                    dihedral.ff_type_index = type
+                    self.dihedrals.append(dihedral)
     
+    def get_angle(self, atom_a, atom_b, atom_c):
+        for angle in self.angles:
+            if (atom_a, atom_b, atom_c) ==  angle.atoms:
+                return angle
+        return None
+
     def unique_improper_dihedrals(self):
         count = 0
         improper_type = {}
@@ -247,7 +257,7 @@ class Angle(object):
         # atoms are obtained from the bonds.
         self._atoms = (None, None, None)
         if abbond is not None and bcbond is not None:
-            self.set_bonds((abbond, bcbond))
+            self.bonds = (abbond, bcbond)
         else:
             self._bonds = (abbond, bcbond)
         self.ff_type_index = 0
@@ -291,7 +301,11 @@ class Angle(object):
     @property
     def bc_bond(self):
         return self._bonds[1]
-    
+   
+    @property
+    def atoms(self):
+        return self._atoms
+
     @property
     def a_atom(self):
         return self._atoms[0]
@@ -314,11 +328,35 @@ class Dihedral(object):
 
     """
     __ID = 0
-    def __init__(self):
+    def __init__(self, angle1=None, angle2=None):
         self._atoms = (None, None, None, None)
-        self.index = self.__ID
+        self._bonds = (None, None, None)
+        # angles of the form: angle_abc, angle_bcd
+        self._angles = (angle1, angle2)
+        if not None in (angle1, angle2):
+            self.angles = (angle1, angle2)
         self.ff_type_index = 0
+        self.index = self.__ID
         Dihedral.__ID += 1
+
+    def set_angles(self, angles):
+        self._angles = angles
+        angle1, angle2 = angles
+
+        assert angle1.bc_bond == angle2.ab_bond
+
+        assert angle1.b_atom == angle2.a_atom
+
+        assert angle1.c_atom == angle2.b_atom
+
+        self._atoms = tuple([angle1.a_atom, angle1.b_atom,
+                             angle2.b_atom, angle2.c_atom])
+        self._bonds = tuple([angle1.ab_bond, angle1.bc_bond, angle2.bc_bond])
+
+    def get_angles(self):
+        return self._angles
+
+    angles = property(get_angles, set_angles)
 
     @property
     def a_atom(self):
@@ -335,6 +373,26 @@ class Dihedral(object):
     @property
     def d_atom(self):
         return self._atoms[3]
+    
+    @property
+    def ab_bond(self):
+        return self._bonds[0]
+
+    @property
+    def bc_bond(self):
+        return self._bonds[1]
+
+    @property
+    def cd_bond(self):
+        return self._bonds[2]
+
+    @property
+    def abc_angle(self):
+        return self._angles[0]
+
+    @property
+    def bcd_angle(self):
+        return self._angles[1]
 
 class Atom(object):
     __ID = 0
