@@ -42,9 +42,9 @@ def main():
     struct.from_CIF(cif)
     struct.unique_atoms()
     struct.unique_bonds()
-    struct.unique_angles()
-    struct.unique_dihedrals()
-    struct.unique_improper_dihedrals()
+    struct.compute_angles()
+    struct.compute_dihedrals()
+    struct.compute_improper_dihedrals()
     ff = UFF()
 
 if __name__ == "__main__": 

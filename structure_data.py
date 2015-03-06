@@ -15,7 +15,7 @@ class Structure(object):
         self.bonds = []
         self.angles = []
         self.dihedrals = []
-        self.impropers = {}
+        self.impropers = []
         self.unique_atom_types = {}
         self.unique_bond_types = {}
         self.unique_angle_types = {}
@@ -110,7 +110,7 @@ class Structure(object):
                 
             bond.ff_type_index = type
 
-    def unique_angles(self):
+    def compute_angles(self):
         count = 0
         ang_type = {}
         for atom in self.atoms:
@@ -148,7 +148,7 @@ class Structure(object):
                 return bond
         return None
 
-    def unique_dihedrals(self):
+    def compute_dihedrals(self):
         dihedral_type = {}
         count = 0
 
@@ -188,7 +188,7 @@ class Structure(object):
                 return angle
         return None
 
-    def unique_improper_dihedrals(self):
+    def compute_improper_dihedrals(self):
         count = 0
         improper_type = {}
 
@@ -209,7 +209,12 @@ class Structure(object):
                 type = count
                 improper_type[ttype] = type
                 self.unique_improper_types[type] = ttype
-            self.impropers[(atom_b.index, atom_a.index, atom_d.index, atom_c.index)] = type
+
+            abbond = self.get_bond(atom_a, atom_b)
+            bcbond = self.get_bond(atom_b, atom_c)
+            bdbond = self.get_bond(atom_b, atom_d)
+            improper = ImproperDihedral(abbond, bcbond, bdbond)
+            self.impropers.append(improper)
 
 class Bond(object):
     __ID = 0
@@ -375,6 +380,10 @@ class Dihedral(object):
         return self._atoms[3]
     
     @property
+    def atoms(self):
+        return self._atoms
+
+    @property
     def ab_bond(self):
         return self._bonds[0]
 
@@ -387,12 +396,102 @@ class Dihedral(object):
         return self._bonds[2]
 
     @property
+    def bonds(self):
+        return self._bonds
+
+    @property
     def abc_angle(self):
         return self._angles[0]
 
     @property
     def bcd_angle(self):
         return self._angles[1]
+
+class ImproperDihedral(object):
+    """Class to store improper dihedral angles
+
+    a
+     \ 
+      b -- c
+      |
+      d
+
+    """
+    __ID = 0
+    def __init__(self, bond1=None, bond2=None, bond3=None):
+        self._atoms = (None, None, None, None)
+        self._bonds = (bond1, bond2, bond3)
+        if not None in (bond1, bond2, bond3):
+            self.bonds = (bond1, bond2, bond3)
+        self.ff_type_index = 0
+        self.index = self.__ID
+        ImproperDihedral.__ID += 1
+    
+    def set_bonds(self, bonds):
+        self._angles = bonds
+        bond1, bond2, bond3 = bonds
+        self._atoms = [None, None, None, None]
+        for a1 in bond1.atoms:
+            for a2 in bond2.atoms:
+                for a3 in bond3.atoms:
+                    if a1 == a2 == a3:
+                        self._atoms[1] = a1
+
+        ab1, ab2 = bond1.atoms
+        ab3, ab4 = bond2.atoms
+        ab5, ab6 = bond3.atoms
+
+        if ab1 == self._atoms[1]:
+            self._atoms[0] = ab2
+        else:
+            self._atoms[0] = ab1
+
+        if ab3 == self._atoms[1]:
+            self._atoms[2] = ab4
+        else:
+            self._atoms[2] = ab3
+
+        if ab5 == self._atoms[1]:
+            self._atoms[3] = ab6
+        else:
+            self._atoms[3] = ab5
+
+    def get_bonds(self):
+        return self._bonds
+
+    bonds = property(get_bonds, set_bonds)
+
+    @property
+    def a_atom(self):
+        return self._atoms[0]
+
+    @property
+    def b_atom(self):
+        return self._atoms[1]
+
+    @property
+    def c_atom(self):
+        return self._atoms[2]
+    
+    @property
+    def d_atom(self):
+        return self._atoms[3]
+    
+    @property
+    def atoms(self):
+        return self._atoms
+
+    @property
+    def ab_bond(self):
+        return self._bonds[0]
+
+    @property
+    def bc_bond(self):
+        return self._bonds[1]
+
+    @property
+    def bd_bond(self):
+        return self._bonds[2]
 
 class Atom(object):
     __ID = 0
