@@ -16,11 +16,6 @@ class Structure(object):
         self.angles = []
         self.dihedrals = []
         self.impropers = []
-        self.unique_atom_types = {}
-        self.unique_bond_types = {}
-        self.unique_angle_types = {}
-        self.unique_dihedral_types = {}
-        self.unique_improper_types = {}
         
     def from_CIF(self, cifobj):
         """Reads the structure data from the CIF
@@ -72,35 +67,16 @@ class Structure(object):
     
 
     def compute_angles(self):
-        count = 0
-        ang_type = {}
         for atom in self.atoms:
             angles = itertools.combinations(atom.neighbours, 2)
             for (lid, rid) in angles:
                 left_atom = self.atoms[lid]
                 right_atom = self.atoms[rid]
 
-                try:
-                    type = ang_type[(left_atom.ff_type_index, 
-                                     atom.ff_type_index,
-                                     right_atom.ff_type_index,
-                                     len(atom.neighbours))]
-                except KeyError:
-                    count += 1
-                    type = count
-                    ang_type[(left_atom.ff_type_index, 
-                              atom.ff_type_index,
-                              right_atom.ff_type_index,
-                              len(atom.neighbours))] = type
-                    self.unique_angle_types[type] = (left_atom.ff_type_index,
-                                                     atom.ff_type_index,
-                                                     right_atom.ff_type_index)
-
                 abbond = self.get_bond(left_atom, atom)
                 bcbond = self.get_bond(atom, right_atom)
 
                 angle = Angle(abbond, bcbond)
-                angle.ff_type_index = type
                 self.angles.append(angle)
 
     def get_bond(self, atom1, atom2):
@@ -110,9 +86,6 @@ class Structure(object):
         return None
 
     def compute_dihedrals(self):
-        dihedral_type = {}
-        count = 0
-
         for atom_b in self.atoms:
             ib = atom_b.index
             ib_type = atom_b.ff_type_index
@@ -127,15 +100,6 @@ class Structure(object):
                 for id in c_neighbours:
                     atom_d = self.atoms[id]
                     id_type = atom_d.ff_type_index
-                    dd = (ia_type, ib_type, ic_type, id_type)
-                    try:
-                        type = dihedral_type[dd]
-                    except KeyError:
-                        count += 1
-                        type = count
-                        dihedral_type[dd] = type
-
-                        self.unique_dihedral_types[type] = dd
                     
                     angle1 = self.get_angle(atom_a, atom_b, atom_c)
                     angle2 = self.get_angle(atom_b, atom_c, atom_d)
@@ -161,15 +125,6 @@ class Structure(object):
             ib = atom_b.index
             ia, ic, id = atom_b.neighbours
             atom_a, atom_c, atom_d = self.atoms[ia], self.atoms[ic], self.atoms[id]
-            ttype = (atom_b.ff_type_index, atom_d.ff_type_index, atom_c.ff_type_index, atom_a.ff_type_index) 
-            try:
-                type = improper_type[ttype]
-
-            except KeyError:
-                count += 1
-                type = count
-                improper_type[ttype] = type
-                self.unique_improper_types[type] = ttype
 
             abbond = self.get_bond(atom_a, atom_b)
             bcbond = self.get_bond(atom_b, atom_c)
