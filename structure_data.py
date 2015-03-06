@@ -70,45 +70,6 @@ class Structure(object):
             if atom.ciflabel == label:
                 return atom
     
-    def unique_atoms(self):
-        # ff_type keeps track of the unique integer index
-        ff_type = {}
-        count = 0
-        for atom in self.atoms:
-            
-            if atom.force_field_type is None:
-                label = atom.element
-            else:
-                label = atom.force_field_type
-
-            try:
-                type = ff_type[label][0]
-            except KeyError:
-                count += 1
-                type = count
-                ff_type[type] = (count, atom.mass)
-                self.unique_atom_types[type] = (atom.mass, label)
-
-            atom.ff_type_index = type
-
-    def unique_bonds(self):
-        count = 0
-        bb_type = {}
-        for bond in self.bonds:
-            idx1, idx2 = bond.indices
-            atm1, atm2 = self.atoms[idx1], self.atoms[idx2]
-            
-            try:
-                type = bb_type[(atm1.ff_type_index, atm2.ff_type_index, bond.order)]
-            except KeyError:
-                count += 1
-                type = count
-                bb_type[(atm1.ff_type_index, atm2.ff_type_index, bond.order)] = type
-
-                self.unique_bond_types[type] = (bond.order, atm1.force_field_type, 
-                                                atm2.force_field_type)
-                
-            bond.ff_type_index = type
 
     def compute_angles(self):
         count = 0

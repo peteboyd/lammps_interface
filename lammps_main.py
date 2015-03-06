@@ -40,12 +40,11 @@ def main():
 
     struct = Structure(name='test')
     struct.from_CIF(cif)
-    struct.unique_atoms()
-    struct.unique_bonds()
     struct.compute_angles()
     struct.compute_dihedrals()
     struct.compute_improper_dihedrals()
-    ff = UFF()
+    ff = UFF(struct)
+
 
 if __name__ == "__main__": 
     main()
