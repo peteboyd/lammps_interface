@@ -3,6 +3,7 @@ from structure_data import Structure, Atom, Bond, Angle, Dihedral
 import math
 from operator import mul
 import abc
+DEG2RAD = math.pi/180.
 
 class ForceField(object):
 
@@ -31,7 +32,7 @@ class ForceField(object):
     @abc.abstractmethod
     def unique_bonds(self):
         """Computes the number of unique bonds in the structure"""
-
+    
 
 class UFF(ForceField):
     
@@ -57,7 +58,7 @@ class UFF(ForceField):
         rbo = -0.1332*(r_1 + r_2)*math.log(bond.order)
         ren = r_1*r_2*(((math.sqrt(chi_1) - math.sqrt(chi_2))**2))/(chi_1*r_1 + chi_2*r_2)
         r0 = (r_1 + r_2 + rbo - ren)
-        K = 664.12*(UFF_DATA[fflabel1][5]*UFF_FULL[fflabel2][5])/(r0**3)
+        K = 664.12*(UFF_DATA[fflabel1][5]*UFF_DATA[fflabel2][5])/(r0**3)
         bond.function = 'harmonic'
         bond.parameters = (K, r0)
 
@@ -154,6 +155,7 @@ class UFF(ForceField):
         l, c, r = angle.atoms
         """ determined by the central atom type """
         bent_types = ['O_3', 'S_3', 'O_R', 'N_2']
+        name = angle.b_atom.force_field_type
         if len(c.neighbours) == 2:
             if name[:3] in bent_types:
                 return 'bent'
@@ -188,14 +190,15 @@ class UFF(ForceField):
         atom_c = dihedral.c_atom
         atom_d = dihedral.d_atom
 
-        torsiontype = dihedral.bond_bc.order
+        torsiontype = dihedral.bc_bond.order
 
 
         coord_bc = (len(atom_b.neighbours), len(atom_c.neighbours))
         M = mul(*coord_bc)
         V = 0
         n = 0
-
+        #FIXME(pboyd): coord = (4, x) in cases probably copper paddlewheel
+        phi0 = 0
         if coord_bc == (3,3):
             phi0 = 60.0
             n = 3
@@ -304,7 +307,7 @@ class UFF(ForceField):
                 label = atom.force_field_type
 
             try:
-                type = ff_type[label][0]
+                type = ff_type[label]
             except KeyError:
                 count += 1
                 type = count
@@ -320,6 +323,7 @@ class UFF(ForceField):
             idx1, idx2 = bond.indices
             atm1, atm2 = self.structure.atoms[idx1], self.structure.atoms[idx2]
             
+            self.bond_term(bond)        
             try:
                 type = bb_type[(atm1.ff_type_index, atm2.ff_type_index, bond.order)]
             except KeyError:
@@ -331,7 +335,6 @@ class UFF(ForceField):
                     bb_type[(atm1.ff_type_index, atm2.ff_type_index, bond.order)] = type
 
                     self.unique_bond_types[type] = bond 
-                
             bond.ff_type_index = type
 
     def unique_angles(self):
@@ -340,6 +343,8 @@ class UFF(ForceField):
         for angle in self.structure.angles:
             atom_a, atom_b, atom_c = angle.atoms
             type_a, type_b, type_c = atom_a.ff_type_index, atom_b.ff_type_index, atom_c.ff_type_index
+            # compute and store angle terms
+            self.angle_term(angle)
 
             try:
                 type = ang_type[(type_a, type_b, type_c)]
@@ -352,8 +357,6 @@ class UFF(ForceField):
                     count += 1
                     type = count
                     ang_type[(type_a, type_b, type_c)] = type
-                    # compute and store angle terms
-                    self.angle_term(angle)
                     self.unique_angle_types[type] = angle 
             angle.ff_type_index = type
 
@@ -416,3 +419,11 @@ class UFF(ForceField):
                 self.unique_improper_types[type] = improper
 
             improper.ff_type_index = type
+
+    def compute_force_field_terms(self):
+        self.unique_atoms()
+        self.unique_bonds()
+        self.unique_angles()
+        self.unique_dihedrals()
+        self.unique_impropers()
+

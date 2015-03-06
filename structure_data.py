@@ -103,7 +103,12 @@ class Structure(object):
                     
                     angle1 = self.get_angle(atom_a, atom_b, atom_c)
                     angle2 = self.get_angle(atom_b, atom_c, atom_d)
+                    if angle1 is None:
+                        angle1 = self.get_angle(atom_c, atom_b, atom_a)
+                    if angle2 is None:
+                        angle2 = self.get_angle(atom_d, atom_c, atom_b)
                     dihedral = Dihedral(angle1, angle2)
+
                     dihedral.ff_type_index = type
                     self.dihedrals.append(dihedral)
     
@@ -142,6 +147,8 @@ class Bond(object):
         self.length = 0.
         self.ff_type_index = 0
         self.midpoint = np.array([0., 0., 0.])
+        self.function = None
+        self.parameters = None
         Bond.__ID += 1
 
     def compute_length(self, coord1, coord2):
@@ -261,8 +268,19 @@ class Dihedral(object):
         Dihedral.__ID += 1
 
     def set_angles(self, angles):
-        self._angles = angles
         angle1, angle2 = angles
+        bonds1 = angle1.bonds
+        bonds2 = angle2.bonds
+
+        if angle1.bc_bond != angle2.ab_bond:
+            if angle1.bc_bond == angle2.bc_bond:
+                angle2.bonds = tuple(reversed(bonds2))
+            elif angle1.ab_bond == angle2.ab_bond:
+                angle1.bonds = tuple(reversed(bonds1))
+            elif angle1.ab_bond == angle2.bc_bond:
+                angle1.bonds = tuple(reversed(bonds1))
+                angle2.bonds = tuple(reversed(bonds2))
+        self._angles = (angle1, angle2)
 
         assert angle1.bc_bond == angle2.ab_bond
 

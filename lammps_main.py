@@ -44,6 +44,7 @@ def main():
     struct.compute_dihedrals()
     struct.compute_improper_dihedrals()
     ff = UFF(struct)
+    ff.compute_force_field_terms()
 
 
 if __name__ == "__main__": 
