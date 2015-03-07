@@ -478,6 +478,7 @@ class Cell(object):
         # Class internally expects an array
         self._cell = np.array(value).reshape((3,3))
         self.__mkparam()
+        self.__mklammps()
         self._inverse = np.linalg.inv(self.cell.T)
 
     # Property so that params are updated when cell is set
@@ -491,6 +492,7 @@ class Cell(object):
         """Set cell and params from the cell parameters."""
         self._params = value
         self.__mkcell()
+        self.__mklammps()
         self._inverse = np.linalg.inv(self.cell.T)
 
     params = property(get_params, set_params)
@@ -585,6 +587,35 @@ class Cell(object):
                        (cell_a * cell_b)) * 180 / pi
         self._params = (cell_a, cell_b, cell_c, alpha, beta, gamma)
 
+    def __mklammps(self):
+        a, b, c, alpha, beta, gamma = self._params
+        lx = a
+        xy = b*math.cos(gamma*DEG2RAD)
+        xz = c*math.cos(beta*DEG2RAD)
+        ly = math.sqrt(b**2 - xy**2)
+        yz = (b*c*math.cos(alpha*DEG2RAD) - xy*xz)/ly
+        lz = math.sqrt(c**2 - xz**2 - yz**2)
+        self._lammps = (lx, ly, lz, xy, xz, yz)
+
+    @property
+    def lx(self):
+        return self._lammps[0]
+    @property
+    def ly(self):
+        return self._lammps[1]
+    @property
+    def lz(self):
+        return self._lammps[2]
+    @property
+    def xy(self):
+        return self._lammps[3]
+    @property
+    def xz(self):
+        return self._lammps[4]
+    @property
+    def yz(self):
+        return self._lammps[5]
+
     @property
     def a(self):
         """Magnitude of cell a vector."""
@@ -614,6 +645,14 @@ class Cell(object):
     def gamma(self):
         """Cell angle gamma."""
         return self.params[5]
+
+    @property
+    def lx(self):
+        return self.params[0]
+
+    @property
+    def ly(self):
+        return 
 
 class CIF(object):
 
