@@ -1,2 +1,2 @@
-- create interface between force field and cif atoms
-
+- pairwise lennard-jones potentials.
+- write lammps input

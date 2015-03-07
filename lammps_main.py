@@ -28,6 +28,10 @@ import sys
 from structure_data import CIF, Structure
 from ForceFields import UFF
 
+def write_data_file(ff):
+    pass
+
+
 def main():
     print __version__
 

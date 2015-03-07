@@ -2,6 +2,7 @@ from uff import UFF_DATA
 from structure_data import Structure, Atom, Bond, Angle, Dihedral
 import math
 from operator import mul
+import itertools
 import abc
 DEG2RAD = math.pi/180.
 
@@ -44,7 +45,7 @@ class UFF(ForceField):
         self.unique_angle_types = {}
         self.unique_dihedral_types = {}
         self.unique_improper_types = {}
-
+        self.unique_van_der_waals = {}
 
     def bond_term(self, bond):
         """Harmonic assumed"""
@@ -231,7 +232,6 @@ class UFF(ForceField):
             phi0 = 180.0
             n = 2
             V = 5.0 * (ui*uj)**0.5 * (1. + 4.18*math.log(torsiontype))
-            #V *= 5.0 # CHECK UNITS!!!!
 
         elif coord_bc in [(2, 3), (3, 2)]:
             phi0 = 180.0
@@ -420,10 +420,27 @@ class UFF(ForceField):
 
             improper.ff_type_index = type
 
+    def van_der_waals_pairs(self):
+        atom_types = self.unique_atom_types.keys()
+        for type1, type2 in itertools.combinations_with_replacement(atom_types, 2):
+            atm1 = self.unique_atom_types[type1]
+            atm2 = self.unique_atom_types[type2]
+            eps1 = UFF_DATA[atm1.force_field_type][3]
+            eps2 = UFF_DATA[atm2.force_field_type][3]
+            
+            # radius --> sigma = radius*2**(-1/6)
+            sig1 = UFF_DATA[atm1.force_field_type][2]*(2**(-1./6.))
+            sig2 = UFF_DATA[atm2.force_field_type][2]*(2**(-1./6.))
+
+            # l-b mixing
+            eps = math.sqrt(eps1*eps2)
+            sig = (sig1 + sig2) / 2.
+            self.unique_van_der_waals[(type1, type2)] = (eps, sig)
+
     def compute_force_field_terms(self):
         self.unique_atoms()
         self.unique_bonds()
         self.unique_angles()
         self.unique_dihedrals()
         self.unique_impropers()
-
+        self.van_der_waals_pairs()
