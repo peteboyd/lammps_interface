@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from datetime import date
 import numpy as np
+import math
 import itertools
 from atomic import MASS, ATOMIC_NUMBER
 from ccdc import CCDC_BOND_ORDERS
@@ -435,7 +436,8 @@ class Atom(object):
         self.neighbours = []
         self.ciflabel = None
         self.force_field_type = None
-        self.coordinates = coordinates 
+        self.coordinates = coordinates
+        self.charge = 0.
         self.ff_type_index = 0 # keeps track of the unique integer value assigned to the force field type
         Atom.__ID += 1
 
@@ -645,14 +647,6 @@ class Cell(object):
     def gamma(self):
         """Cell angle gamma."""
         return self.params[5]
-
-    @property
-    def lx(self):
-        return self.params[0]
-
-    @property
-    def ly(self):
-        return 
 
 class CIF(object):
 
