@@ -69,6 +69,8 @@ class Structure(object):
 
     def compute_angles(self):
         for atom in self.atoms:
+            if len(atom.neighbours) < 2:
+                continue
             angles = itertools.combinations(atom.neighbours, 2)
             for (lid, rid) in angles:
                 left_atom = self.atoms[lid]

@@ -183,17 +183,49 @@ def construct_input_file(ff):
 
     return inp_str
 
+def clean(name):
+    if name.startswith('./run_x'):
+        name = name[10:]
+    if name.endswith('.cif'):
+        name = name[:-4]
+    elif name.endswith('.niss'):
+        name = name[:-5]
+    elif name.endswith('.out-CO2.csv'):
+        name = name[:-12]
+    elif name.endswith('-CO2.csv'):
+        name = name[:-8]
+    elif name.endswith('.flog'):
+        name = name[:-5]
+    elif name.endswith('.out.cif'):
+        name = name[:-8]
+    elif name.endswith('.tar'):
+        name = name[:-4]
+    elif name.endswith('.db'):
+        name = name[:-3]
+    elif name.endswith('.faplog'):
+        name = name[:-7]
+    elif name.endswith('.db.bak'):
+        name = name[:-7]
+    elif name.endswith('.csv'):
+        name = name[:-4]
+    elif name.endswith('.out'):
+        name = name[:-4]
+    return name
+
 def main():
     print "Lammps_interface version: %s"%__version__
 
-    cif = CIF(name="test")
+    cifname = sys.argv[1]
+    mofname = clean(cifname)
+    mofname = "test"
+    cif = CIF()
     # NB can add the filename as the second argument of the class instance,
     # or from a separate function
 
     # set as the first argument for testing
-    cif.read(sys.argv[1])
+    cif.read(cifname)
 
-    struct = Structure(name='test')
+    struct = Structure(name=mofname)
     struct.from_CIF(cif)
     struct.compute_angles()
     struct.compute_dihedrals()
@@ -202,8 +234,16 @@ def main():
     ff.compute_force_field_terms()
     data_str = construct_data_file(ff) 
     inp_str = construct_input_file(ff)
-    
+   
+    datafile = open("data.%s"%struct.name, 'w')
+    datafile.writelines(data_str)
+    datafile.close()
 
+    inpfile = open("in.%s"%struct.name, 'w')
+    inpfile.writelines(inp_str)
+    inpfile.close()
+
+    print "files created!"
 
 if __name__ == "__main__": 
     main()
