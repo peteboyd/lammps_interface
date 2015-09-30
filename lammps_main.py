@@ -217,7 +217,6 @@ def main():
 
     cifname = sys.argv[1]
     mofname = clean(cifname)
-    mofname = "test"
     cif = CIF()
     # NB can add the filename as the second argument of the class instance,
     # or from a separate function
