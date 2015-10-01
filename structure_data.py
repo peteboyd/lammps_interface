@@ -52,12 +52,14 @@ class Structure(object):
             atm1 = self.get_atom_from_label(label1.strip())
             atm2 = self.get_atom_from_label(label2.strip())
             #TODO(check if atm2 crosses a periodic boundary to bond with atm1)
-            atm1.neighbours.append(atm2.index)
-            atm2.neighbours.append(atm1.index)
-            bond = Bond(atm1=atm1, atm2=atm2, 
+            #.cif file double counts bonds for some reason.. maybe symmetry related
+            if (atm2.index not in atm1.neighbours) and (atm1.index not in atm2.neighbours):
+                atm1.neighbours.append(atm2.index)
+                atm2.neighbours.append(atm1.index)
+                bond = Bond(atm1=atm1, atm2=atm2, 
                             order=CCDC_BOND_ORDERS[t.strip()])
 
-            self.bonds.append(bond)
+                self.bonds.append(bond)
 
         # unwrap symmetry elements if they exist
 
@@ -75,10 +77,8 @@ class Structure(object):
             for (lid, rid) in angles:
                 left_atom = self.atoms[lid]
                 right_atom = self.atoms[rid]
-
                 abbond = self.get_bond(left_atom, atom)
                 bcbond = self.get_bond(atom, right_atom)
-
                 angle = Angle(abbond, bcbond)
                 self.angles.append(angle)
 
@@ -89,15 +89,22 @@ class Structure(object):
         return None
 
     def compute_dihedrals(self):
+        done_bs=[]
         for atom_b in self.atoms:
             ib = atom_b.index
             ib_type = atom_b.ff_type_index
             angles = itertools.permutations(atom_b.neighbours, 2)
+            done_bs.append(atom_b)
             for ia, ic in angles:
                 atom_a = self.atoms[ia]
                 atom_c = self.atoms[ic]
                 ia_type = atom_a.ff_type_index
                 ic_type = atom_b.ff_type_index
+                # ignore cases where the c atom has already
+                # been used as a b atom. Otherwise this will double-count
+                # dihedral angles in the reverse order..
+                if atom_c in done_bs:
+                    continue
                 c_neighbours = [i for i in atom_c.neighbours if ib != i and
                                 ia != i]
                 for id in c_neighbours:
@@ -111,8 +118,6 @@ class Structure(object):
                     if angle2 is None:
                         angle2 = self.get_angle(atom_d, atom_c, atom_b)
                     dihedral = Dihedral(angle1, angle2)
-
-                    dihedral.ff_type_index = type
                     self.dihedrals.append(dihedral)
     
     def get_angle(self, atom_a, atom_b, atom_c):

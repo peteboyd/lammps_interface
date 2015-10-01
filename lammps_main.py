@@ -213,7 +213,7 @@ def clean(name):
     return name
 
 def main():
-    print "Lammps_interface version: %s"%__version__
+    print("Lammps_interface version: %s"%__version__)
 
     cifname = sys.argv[1]
     mofname = clean(cifname)
@@ -242,7 +242,7 @@ def main():
     inpfile.writelines(inp_str)
     inpfile.close()
 
-    print "files created!"
+    print("files created!")
 
 if __name__ == "__main__": 
     main()
