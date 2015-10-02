@@ -245,16 +245,21 @@ class UFF(ForceField):
             phi0 = 180.0
             n = 3
             V = 2.  # CHECK UNITS!!!!
-
-            if len(atom_c.neighbours) == 3:
+            
+            if bc[1] in sp3_types:
                 if atom_c.atomic_number in (8, 16, 34, 52):
                     n = 2
                     phi0 = 90.
-            if len(atom_b.neighbours) == 3:
+            elif bc[0] in sp3_types:
                 if atom_b.atomic_number in (8, 16, 34, 52):
                     n = 2
                     phi0 = 90.0
-        
+            # special case group 6 elements
+            if n==2: 
+                ui = UFF_DATA[atom_b.force_field_type][7]
+                uj = UFF_DATA[atom_c.force_field_type][7]
+                V = 5.0 * (ui*uj)**0.5 * (1. + 4.18*math.log(torsiontype))
+
         V /= float(M)
         nphi0 = n*phi0
 
