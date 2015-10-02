@@ -303,7 +303,7 @@ class UFF(ForceField):
         else:
             return 
 
-        koop /= 3
+        #koop /= 3 # Not clear in UFF paper, but division by the number of bonds is probably not appropriate. Should test on real systems..
 
         improper.function = "fourier"
         improper.parameters = (koop, c0, c1, c2)
