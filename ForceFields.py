@@ -192,20 +192,28 @@ class UFF(ForceField):
         atom_d = dihedral.d_atom
 
         torsiontype = dihedral.bc_bond.order
-
-
         coord_bc = (len(atom_b.neighbours), len(atom_c.neighbours))
+        bc = (atom_b.force_field_type, atom_c.force_field_type)
         M = mul(*coord_bc)
         V = 0
         n = 0
         #FIXME(pboyd): coord = (4, x) in cases probably copper paddlewheel
+        sp2_types = ['O_2', 'O_R', 'C_2', 'C_R', 'N_R', 'N_2', 'S_2', 'S_R']
+        sp3_types = ['O_3', 'O_3_z', 'O_3_M', 'C_3', 'N_3', 'P_3+3', 'P_3+5', 
+                     'P_3+q', 'S_3+2', 'S_3+4', 'S_3+6', 'B_3']
+
+        mixed_case = (bc[0] in sp2_types and bc[1] in sp3_types) or \
+                (bc[0] in sp3_types and bc[1] in sp2_types)
+        all_sp2 = (bc[0] in sp2_types and bc[1] in sp2_types)
+        all_sp3 = (bc[0] in sp3_types and bc[1] in sp3_types)
+
         phi0 = 0
-        if coord_bc == (3,3):
+        if all_sp3:
             phi0 = 60.0
             n = 3
             vi = UFF_DATA[atom_b.force_field_type][6]
             vj = UFF_DATA[atom_c.force_field_type][6]
-
+            
             if atom_b.atomic_number == 8:
                 vi = 2.
                 n = 2
@@ -226,14 +234,14 @@ class UFF(ForceField):
 
             V = (vi*vj)**0.5 # CHECK UNITS!!!!
 
-        elif coord_bc == (2, 2) or coord_bc == (2, 1) or coord_bc == (1, 2) or coord_bc == (1,1): #NB: temp add in (2, 1)
+        elif all_sp2: 
             ui = UFF_DATA[atom_b.force_field_type][7]
             uj = UFF_DATA[atom_c.force_field_type][7]
             phi0 = 180.0
             n = 2
             V = 5.0 * (ui*uj)**0.5 * (1. + 4.18*math.log(torsiontype))
 
-        elif coord_bc in [(2, 3), (3, 2)]:
+        elif mixed_case: 
             phi0 = 180.0
             n = 3
             V = 2.  # CHECK UNITS!!!!

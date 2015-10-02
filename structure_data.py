@@ -700,9 +700,9 @@ class CIF(object):
                 # hopefully all non-loop entries are just single value entries, 
                 # otherwise this is invalid.
                 try:
-                    key, val = line.split()
+                    key, val = line.strip().split()
                 except ValueError:
-                    key, val = line.split()[:2]
+                    key, val = line.strip().split()[:2]
                 if val.endswith("(0)"):
                     val = val[:-3]
                 self.add_data(block, **{key:self.general_label(val)})
