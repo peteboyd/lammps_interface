@@ -34,16 +34,23 @@ class Structure(object):
                                          data['_cell_angle_beta'], 
                                          data['_cell_angle_gamma']]]
         self.cell.set_params(cellparams)
-
+        
         x, y, z = data['_atom_site_fract_x'], data['_atom_site_fract_y'], data['_atom_site_fract_z']
         
+        if '_atom_site_charge' in data:
+            charges = data['_atom_site_charge']
+        else:
+            charges = [0 for i in range(0, len(x))]
+
         label, element, ff_param = data['_atom_site_label'], data['_atom_site_type_symbol'], data['_atom_site_description']
+        
         index = 0
-        for l,e,ff,fx,fy,fz in zip(label,element,ff_param,x,y,z):
+        for l,e,ff,fx,fy,fz,c in zip(label,element,ff_param,x,y,z,charges):
             fcoord = np.array([float(j) for j in (fx, fy, fz)])
             atom = Atom(element=e.strip(), coordinates = np.dot(fcoord, self.cell.cell))
             atom.force_field_type = ff.strip()
-            atom.ciflabel = l.strip() 
+            atom.ciflabel = l.strip()
+            atom.charge = float(c.strip())
             self.atoms.append(atom)
         # obtain bonds
         a, b, type = data['_geom_bond_atom_site_label_1'], data['_geom_bond_atom_site_label_2'], data['_ccdc_geom_bond_type']
