@@ -96,12 +96,13 @@ def construct_data_file(ff):
                                               atom_c.force_field_type,
                                               atom_d.force_field_type)
 
+	# Changed 1. to 1 because LAMMPS was parsing it as a float instead of an int
     string += "\nImproper Coeffs\n\n"
     for key in sorted(ff.unique_improper_types.keys()):
         improper = ff.unique_improper_types[key]
         atom_a, atom_b, atom_c, atom_d = improper.atoms  
         k, c0, c1, c2 = improper.parameters 
-        string += "%5i %15.6f %15.6f %15.6f %15.6f 1. # %s %s %s %s\n"%(key, k, c0, c1, c2,
+        string += "%5i %15.6f %15.6f %15.6f %15.6f 1 # %s %s %s %s\n"%(key, k, c0, c1, c2,
                                               atom_a.force_field_type,
                                               atom_b.force_field_type,
                                               atom_c.force_field_type,
@@ -109,10 +110,11 @@ def construct_data_file(ff):
 
 
     #************[atoms]************
+	# Added 1 to all atom, bond, angle, dihedral, improper indices (LAMMPS does not accept atom of index 0)
     string += "\nAtoms\n\n"
     for atom in ff.structure.atoms:
         molid = 444
-        string += "%8i %8i %8i %11.5f %10.5f %10.5f %10.5f\n"%(atom.index, molid, atom.ff_type_index, atom.charge,
+        string += "%8i %8i %8i %11.5f %10.5f %10.5f %10.5f\n"%(atom.index+1, molid, atom.ff_type_index, atom.charge,
                                                        atom.coordinates[0], atom.coordinates[1], atom.coordinates[2])
 
     #************[bonds]************
@@ -120,7 +122,7 @@ def construct_data_file(ff):
     for bond in ff.structure.bonds:
         atm1, atm2 = bond.atoms 
         type = bond.ff_type_index 
-        string += "%8i %8i %8i %8i\n"%(bond.index, type, atm1.index, atm2.index)
+        string += "%8i %8i %8i %8i\n"%(bond.index+1, type, atm1.index+1, atm2.index+1)
 
     #************[angles]***********
     string += "\nAngles\n\n"
@@ -128,7 +130,7 @@ def construct_data_file(ff):
         atm1, atm2, atm3 = angle.atoms 
         type = angle.ff_type_index
         # what order are they presented? b, a, c? or a, b, c?
-        string += "%8i %8i %8i %8i %8i\n"%(angle.index, type, atm1.index, atm2.index, atm3.index)
+        string += "%8i %8i %8i %8i %8i\n"%(angle.index+1, type, atm1.index+1, atm2.index+1, atm3.index+1)
 
     #************[dihedrals]********
     string += "\nDihedrals\n\n"
@@ -136,8 +138,8 @@ def construct_data_file(ff):
         atm1, atm2, atm3, atm4 = dihedral.atoms 
         type = dihedral.ff_type_index
         # order?
-        string += "%8i %8i %8i %8i %8i %8i\n"%(dihedral.index, type, atm1.index, atm2.index,
-                                               atm3.index, atm4.index)
+        string += "%8i %8i %8i %8i %8i %8i\n"%(dihedral.index+1, type, atm1.index+1, atm2.index+1,
+                                               atm3.index+1, atm4.index+1)
 
     #************[impropers]********
     string += "\nImpropers\n\n"
@@ -145,10 +147,10 @@ def construct_data_file(ff):
         atm1, atm2, atm3, atm4 = improper.atoms
         type = improper.ff_type_index 
         # order?
-        string += "%8i %8i %8i %8i %8i %8i\n"%(improper.index, type, atm1.index, 
-                                                                     atm2.index,
-                                                                     atm3.index,
-                                                                     atm4.index)
+        string += "%8i %8i %8i %8i %8i %8i\n"%(improper.index+1, type, atm1.index+1, 
+                                                                       atm2.index+1,
+                                                                       atm3.index+1,
+                                                                       atm4.index+1)
 
     return string
 
