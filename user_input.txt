@@ -1,0 +1,10 @@
+BONDS
+C_b C_a harmonic 1.0 2.01
+N_a N_b harmonic 1.1 2.01
+ANGLES
+C_a C_b C_c harmonic 1.0 180.0
+Co_a N_a C_a harmonic 1.1 90.0
+DIHEDRALS
+Co_a N_a N_b C_f opls 0.0 7.25 0.0 0.0
+IMPROPERS
+Co_a N_a N_b C_f harmonic 4.0 180.0
