@@ -6,29 +6,25 @@ the program starts here.
 
 """
 
-# Turn on keyword expansion to get revision numbers in version strings
-# in .hg/hgrc put
-# [extensions]
-# keyword =
-#
-# [keyword]
-# lammps_main.py =
-#
-# [keywordmaps]
-# Revision = {rev}
-
-
-try:
-    __version_info__ = (0, 0, 0, int("$Revision$".strip("$Revision: ")))
-except ValueError:
-    __version_info__ = (0, 0, 0, 0)
-__version__ = "%i.%i.%i.%i"%__version_info__
-
 import sys
+import os
 import math
+import subprocess
 from structure_data import CIF, Structure
 from ForceFields import UFF, UserFF
 from datetime import datetime
+
+def git_revision_hash():
+    src_dir = os.path.dirname(os.path.abspath(__file__))
+    wrk_dir = os.getcwd()
+    os.chdir(src_dir)
+    rev_no = len(subprocess.check_output(['git', 'rev-list', 'HEAD']).strip().split("\n")) 
+    commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip()
+    os.chdir(wrk_dir)
+    return (rev_no, commit)
+rev_no, commit = git_revision_hash()
+__version_info__ = (0, 0, rev_no, "%s"%commit)
+__version__ = "%i.%i.%i.%s"%__version_info__
 
 def construct_data_file(ff):
 
@@ -168,7 +164,10 @@ def construct_data_file(ff):
     return string
 
 def construct_input_file(ff):
+    """Input file will depend on what the user wants to do"""
 
+    # Eventually, this function should be dependent on some command line arguments
+    # which will dictate what kind of simulation to run in LAMMPS
     inp_str = ""
     inp_str += "%-15s %s\n"%("units","real")
     inp_str += "%-15s %s\n"%("atom_style","full")
