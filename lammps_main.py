@@ -27,7 +27,7 @@ __version__ = "%i.%i.%i.%i"%__version_info__
 import sys
 import math
 from structure_data import CIF, Structure
-from ForceFields import UFF
+from ForceFields import UFF, UserFF
 from datetime import datetime
 
 def construct_data_file(ff):
@@ -53,6 +53,14 @@ def construct_data_file(ff):
     string += "%19.6f %10.6f %s %s\n"%(0., cell.lz, "zlo", "zhi")
     string += "%19.6f %10.6f %10.6f %s %s %s\n"%(cell.xy, cell.xz, cell.yz, "xy", "xz", "yz")
 
+
+    # Let's track the forcefield potentials that haven't been calc'd or user specified
+    no_bond = set()
+    no_angle = set()
+    no_dihedral = set()
+    no_improper = set()
+
+
     string += "\nMasses\n\n"
     for key in sorted(ff.unique_atom_types.keys()):
         unq_atom = ff.unique_atom_types[key]
@@ -61,52 +69,57 @@ def construct_data_file(ff):
 
     string += "\nBond Coeffs\n\n"
     for key in sorted(ff.unique_bond_types.keys()):
-        bond = ff.unique_bond_types[key] 
-        uff1, uff2 = bond.atoms[0].force_field_type, bond.atoms[1].force_field_type
-        K = bond.parameters[0]
-        R = bond.parameters[1]
-        string += "%5i %15.3f %15.2f # %s %s\n"%(key, K, R, uff1, uff2)
+        bond = ff.unique_bond_types[key]
+        #print bond.atoms[0].ff_type_index
+        #print bond.atoms[1].ff_type_index
+        if bond.function is None:
+            no_bond.add(key)
+        else:
+            ff1, ff2 = bond.atoms[0].force_field_type, bond.atoms[1].force_field_type
+            K = bond.parameters[0]
+            R = bond.parameters[1]
+            string += "%5i %s "%(key, bond.function)
+            for i in range(0, len(bond.parameters)): string += "%15.6f "%(float(bond.parameters[i]))
+            string += "# %s %s\n"%(ff1, ff2)
+
 
     string += "\nAngle Coeffs\n\n"
     for key in sorted(ff.unique_angle_types.keys()):
         angle = ff.unique_angle_types[key]
         atom_a, atom_b, atom_c = angle.atoms
-        if angle.function == 'fourier':
-            kappa, c0, c1, c2 = angle.parameters     
-            string += "%5i %s %15.3f %15.3f %15.3f %15.3f # %s %s %s\n"%(key, angle.function, kappa, c0, c1, c2,
-                                                          atom_a.force_field_type,
-                                                          atom_b.force_field_type,
-                                                          atom_c.force_field_type)
 
-        elif angle.function == 'fourier/simple':
-            kappa, c0, c1 = angle.parameters     
-            string += "%5i %s %15.3f %15.3f %15.3f # %s %s %s\n"%(key, angle.function, kappa, c0, c1,
-                                                          atom_a.force_field_type,
-                                                          atom_b.force_field_type,
-                                                          atom_c.force_field_type)
+        if angle.function is None:
+            no_angle.add(key)
+        else:
+            string += "%5i %s "%(key, angle.function)
+            for i in range(0, len(angle.parameters)): string += "%15.6f "%(float(angle.parameters[i]))
+            string += "# %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type)
+    
 
     string +=  "\nDihedral Coeffs\n\n"
     for key in sorted(ff.unique_dihedral_types.keys()):
         dihedral = ff.unique_dihedral_types[key]
         atom_a, atom_b, atom_c, atom_d = dihedral.atoms
-        V, d, n = dihedral.parameters
-        string += "%5i %15.6f %5i %15i # %s %s %s %s\n"%(key, V, d, n,
-                                              atom_a.force_field_type,
-                                              atom_b.force_field_type,
-                                              atom_c.force_field_type,
-                                              atom_d.force_field_type)
+        if dihedral.function is None:
+            no_dihedral.add(key)
+        else:
+            string += "%5i %s "%(key, dihedral.function)
+            for i in range(0, len(dihedral.parameters)): string += "%15.6f "%(float(dihedral.parameters[i]))
+            string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
+    print string
 
 	# Changed 1. to 1 because LAMMPS was parsing it as a float instead of an int
     string += "\nImproper Coeffs\n\n"
     for key in sorted(ff.unique_improper_types.keys()):
         improper = ff.unique_improper_types[key]
         atom_a, atom_b, atom_c, atom_d = improper.atoms  
-        k, c0, c1, c2 = improper.parameters 
-        string += "%5i %15.6f %15.6f %15.6f %15.6f 1 # %s %s %s %s\n"%(key, k, c0, c1, c2,
-                                              atom_a.force_field_type,
-                                              atom_b.force_field_type,
-                                              atom_c.force_field_type,
-                                              atom_d.force_field_type)
+        if improper.function is None:
+            no_improper.add(key)
+        else:
+            string += "%5i %s "%(key, improper.function)
+            print improper.parameters
+            for i in range(0, len(improper.parameters)): string += "%15.6f "%(float(improper.parameters[i]))
+            string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
 
 
     #************[atoms]************
@@ -217,11 +230,21 @@ def clean(name):
 def main():
     print("Lammps_interface version: %s"%__version__)
 
+    
+
+    # TODO add commandline parsing options in the future
+    # for now just read off the second command as the FF to choose
+
     cifname = sys.argv[1]
     mofname = clean(cifname)
     cif = CIF()
     # NB can add the filename as the second argument of the class instance,
     # or from a separate function
+
+    if len(sys.argv) > 2:
+        ffname = sys.argv[2]
+    
+
 
     # set as the first argument for testing
     cif.read(cifname)
@@ -231,8 +254,11 @@ def main():
     struct.compute_angles()
     struct.compute_dihedrals()
     struct.compute_improper_dihedrals()
-    ff = UFF(struct)
+    ff = UserFF(struct)
     ff.compute_force_field_terms()
+    
+    #ff = UFF(struct)
+    #ff.compute_force_field_terms()
     data_str = construct_data_file(ff) 
     inp_str = construct_input_file(ff)
    
@@ -243,7 +269,7 @@ def main():
     inpfile = open("in.%s"%struct.name, 'w')
     inpfile.writelines(inp_str)
     inpfile.close()
-
+    
     print("files created!")
 
 if __name__ == "__main__": 
