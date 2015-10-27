@@ -258,22 +258,26 @@ class UserFF(ForceField):
         parse_type = 0
 
         for line in lines:
-            line.strip()
-            if line.lower() == "bonds":
+            match = line.lower().strip()
+            if match == "bonds":
+                print "parsing bond"
                 parse_type = 1
                 continue
-            elif line.lower() == "angles":
+            elif match == "angles":
+                print "parsing angle"
                 parse_type = 2
                 continue
-            elif line.lower() == "dihedrals":
+            elif match == "dihedrals":
+                print "parsing dihedral"
                 parse_type = 3
                 continue
-            elif line.lower() == "torsions":
+            elif match == "impropers":
+                print "parsing impropers"
                 parse_type = 4
                 continue
 
-            data = line.strip()
-
+            data = line.split()
+            print data
             if parse_type == 1:
                 atms = [data[0], data[1]]
                 bond_pair = [self.map_user_to_unique_atom(atms[0]), self.map_user_to_unique_atom(atms[1])]
@@ -285,22 +289,22 @@ class UserFF(ForceField):
                 atms = [data[0], data[1], data[2]]
                 angle_triplet = [self.map_user_to_unique_atom(atms[0]), self.map_user_to_unique_atom(atms[1]), self.map_user_to_unique_atom(atms[2])]
                 angle_id = self.map_triplet_unique_angle(angle_triplet, atms)
-                self.unique_angle_types[angle_id].function = data[2]
-                self.unique_angle_types[angle_id].parameters = data[3:]
+                self.unique_angle_types[angle_id].function = data[3]
+                self.unique_angle_types[angle_id].parameters = data[4:]
 
             elif parse_type == 3:
                 atms = [data[0], data[1], data[2], data[3]]
                 dihedral_quadruplet = [self.map_user_to_unique_atom(atms[0]), self.map_user_to_unique_atom(atms[1]), self.map_user_to_unique_atom(atms[2]), self.map_user_to_unique_atom(atms[3])]
                 dihedral_id = self.map_quadruplet_unique_dihedral(dihedral_quadruplet, atms)
-                self.unique_dihedral_types[dihedral_id].function = data[2]
-                self.unique_dihedral_types[dihedral_id].parameters = data[3:]
+                self.unique_dihedral_types[dihedral_id].function = data[4]
+                self.unique_dihedral_types[dihedral_id].parameters = data[5:]
 
             elif parse_type == 4:
                 atms = [data[0], data[1], data[2], data[3]]
                 improper_quadruplet = [self.map_user_to_unique_atom(atms[0]), self.map_user_to_unique_atom(atms[1]), self.map_user_to_unique_atom(atms[2]), self.map_user_to_unique_atom(atms[3])]
                 improper_id = self.map_quadruplet_unique_improper(improper_quadruplet, atms)
-                self.unique_improper_types[improper_id].function = data[2]
-                self.unique_improper_types[improper_id].parameters = data[3:]
+                self.unique_improper_types[improper_id].function = data[4]
+                self.unique_improper_types[improper_id].parameters = data[5:]
             
             
  
