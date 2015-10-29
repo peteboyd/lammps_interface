@@ -18,8 +18,8 @@ def git_revision_hash():
     src_dir = os.path.dirname(os.path.abspath(__file__))
     wrk_dir = os.getcwd()
     os.chdir(src_dir)
-    rev_no = len(subprocess.check_output(['git', 'rev-list', 'HEAD']).strip().split("\n")) 
-    commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip()
+    rev_no = len(subprocess.check_output(['git', 'rev-list', 'HEAD'], universal_newlines=True).strip().split("\n")) 
+    commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], universal_newlines=True).strip()
     os.chdir(wrk_dir)
     return (rev_no, commit)
 rev_no, commit = git_revision_hash()
@@ -66,8 +66,8 @@ def construct_data_file(ff):
     string += "\nBond Coeffs\n\n"
     for key in sorted(ff.unique_bond_types.keys()):
         bond = ff.unique_bond_types[key]
-        #print bond.atoms[0].ff_type_index
-        #print bond.atoms[1].ff_type_index
+        #print(bond.atoms[0].ff_type_index)
+        #print(bond.atoms[1].ff_type_index)
         if bond.function is None:
             no_bond.add(key)
         else:
@@ -102,7 +102,7 @@ def construct_data_file(ff):
             string += "%5i %s "%(key, dihedral.function)
             for i in range(0, len(dihedral.parameters)): string += "%15.6f "%(float(dihedral.parameters[i]))
             string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
-    print string
+    print(string)
 
 	# Changed 1. to 1 because LAMMPS was parsing it as a float instead of an int
     string += "\nImproper Coeffs\n\n"
@@ -113,7 +113,7 @@ def construct_data_file(ff):
             no_improper.add(key)
         else:
             string += "%5i %s "%(key, improper.function)
-            print improper.parameters
+            print(improper.parameters)
             for i in range(0, len(improper.parameters)): string += "%15.6f "%(float(improper.parameters[i]))
             string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
 

@@ -65,7 +65,7 @@ class UserFF(ForceField):
 
     def unique_atoms(self):
         # ff_type keeps track of the unique integer index
-        print "Here are the unique atoms"
+        print("Here are the unique atoms")
         ff_type = {}
         count = 0
         for atom in self.structure.atoms:
@@ -83,13 +83,13 @@ class UserFF(ForceField):
                 self.unique_atom_types[type] = atom 
 
             atom.ff_type_index = type
-            print atom.ff_type_index
+            print(atom.ff_type_index)
         
-        for key, atom in self.unique_atom_types.iteritems():
-            print str(key) + " : " + str(atom.index)
+        for key, atom in list(self.unique_atom_types.items()):
+            print(str(key) + " : " + str(atom.index))
 
     def unique_bonds(self):
-        print "Here are the unique bonds (Total = " + str(len(self.structure.bonds)) + ")"
+        print("Here are the unique bonds (Total = " + str(len(self.structure.bonds)) + ")")
         count = 0
         bb_type = {}
         for bond in self.structure.bonds:
@@ -109,14 +109,14 @@ class UserFF(ForceField):
 
                     self.unique_bond_types[type] = bond 
             bond.ff_type_index = type
-            print bond.ff_type_index
+            print(bond.ff_type_index)
         
-        for key, bond in self.unique_bond_types.iteritems():
-            print str(key) + " : " + str(bond.atoms[0].index) + " - " + str(bond.atoms[1].index)
+        for key, bond in list(self.unique_bond_types.items()):
+            print(str(key) + " : " + str(bond.atoms[0].index) + " - " + str(bond.atoms[1].index))
 
 
     def unique_angles(self):
-        print "Here are the unique angles (Total = " + str(len(self.structure.angles)) + ")"
+        print("Here are the unique angles (Total = " + str(len(self.structure.angles)) + ")")
         ang_type = {}
         count = 0
         for angle in self.structure.angles:
@@ -138,15 +138,15 @@ class UserFF(ForceField):
                     ang_type[(type_a, type_b, type_c)] = type
                     self.unique_angle_types[type] = angle 
             angle.ff_type_index = type
-            print angle.ff_type_index
+            print(angle.ff_type_index)
 
-        for key, angle in self.unique_angle_types.iteritems():
-            print str(key) + " : " + str(angle.atoms[0].index) + "-" + str(angle.atoms[1].index) + "-" + str(angle.atoms[2].index)
-            print str(key) + " : " + str(angle.atoms[0].force_field_type) + "-" + str(angle.atoms[1].force_field_type) + "-" + str(angle.atoms[2].force_field_type)
+        for key, angle in list(self.unique_angle_types.items()):
+            print(str(key) + " : " + str(angle.atoms[0].index) + "-" + str(angle.atoms[1].index) + "-" + str(angle.atoms[2].index))
+            print(str(key) + " : " + str(angle.atoms[0].force_field_type) + "-" + str(angle.atoms[1].force_field_type) + "-" + str(angle.atoms[2].force_field_type))
 
 	
     def unique_dihedrals(self):
-        print "Here are the unique dihedrals (Total = " + str(len(self.structure.dihedrals)) + ")"
+        print("Here are the unique dihedrals (Total = " + str(len(self.structure.dihedrals)) + ")")
         count = 0
         dihedral_type = {}
         for dihedral in self.structure.dihedrals:
@@ -168,26 +168,26 @@ class UserFF(ForceField):
                     #self.dihedral_term(dihedral)
                     self.unique_dihedral_types[type] = dihedral 
             dihedral.ff_type_index = type
-            print dihedral.ff_type_index
+            print(dihedral.ff_type_index)
     
-        for key, dihedral in self.unique_dihedral_types.iteritems():
-            print str(key) + " : " + str(dihedral.atoms[0].index) + "-" + str(dihedral.atoms[1].index) + "-" + str(dihedral.atoms[2].index) + "-" + str(dihedral.atoms[3].index)
-            print str(key) + " : " + str(dihedral.atoms[0].force_field_type) + "-" + str(dihedral.atoms[1].force_field_type) + "-" + str(dihedral.atoms[2].force_field_type) + "-" + str(dihedral.atoms[3].force_field_type)
+        for key, dihedral in list(self.unique_dihedral_types.items()):
+            print(str(key) + " : " + str(dihedral.atoms[0].index) + "-" + str(dihedral.atoms[1].index) + "-" + str(dihedral.atoms[2].index) + "-" + str(dihedral.atoms[3].index))
+            print(str(key) + " : " + str(dihedral.atoms[0].force_field_type) + "-" + str(dihedral.atoms[1].force_field_type) + "-" + str(dihedral.atoms[2].force_field_type) + "-" + str(dihedral.atoms[3].force_field_type))
 
 
     def unique_impropers(self):
         """How many times to list the same set of atoms ???"""
-        print "Here are the unique impropers (Total = " + str(len(self.structure.impropers)) + ")"
+        print("Here are the unique impropers (Total = " + str(len(self.structure.impropers)) + ")")
         count = 0
         improper_type = {}
         #i = 0
         #for improper in self.structure.impropers:
         #    i += 1
-        #    print str(i) + " : " + str(improper.atoms[0].force_field_type) + "-" + str(improper.atoms[1].force_field_type) +     "-" + str(improper.atoms[2].force_field_type) + "-" + str(improper.atoms[3].force_field_type)
+        #    print(str(i) + " : " + str(improper.atoms[0].force_field_type) + "-" + str(improper.atoms[1].force_field_type) +     "-" + str(improper.atoms[2].force_field_type) + "-" + str(improper.atoms[3].force_field_type)
 
 
         for improper in self.structure.impropers:
-            print "Now keys are + " + str(improper_type.keys())
+            print("Now keys are + " + str(improper_type.keys()))
             atom_a, atom_b, atom_c, atom_d = improper.atoms
             type_a, type_b, type_c, type_d = (atom_a.ff_type_index, atom_b.ff_type_index,
                                               atom_c.ff_type_index, atom_d.ff_type_index)
@@ -199,25 +199,25 @@ class UserFF(ForceField):
             d6 = (type_b, type_d, type_c, type_a)
 
             if d1 in improper_type.keys():
-                print "found d1" + str(d1)
+                print("found d1" + str(d1))
                 type = improper_type[d1]
             elif d2 in improper_type.keys():
-                print "found d2"
+                print("found d2")
                 type = improper_type[d2]
             elif d3 in improper_type.keys():
-                print "found d3"
+                print("found d3")
                 type = improper_type[d3]
             elif d4 in improper_type.keys():
-                print "found d4"
+                print("found d4")
                 type = improper_type[d4]
             elif d5 in improper_type.keys():
-                print "found d5"
+                print("found d5")
                 type = improper_type[d5]
             elif d6 in improper_type.keys():
-                print "found d6"
+                print("found d6")
                 type = improper_type[d6]
             else:
-                print "found else" + str(d1)
+                print("found else" + str(d1))
                 count += 1
                 type = count
                 improper_type[d1] = type
@@ -225,10 +225,10 @@ class UserFF(ForceField):
                 self.unique_improper_types[type] = improper
 
             improper.ff_type_index = type
-            print improper.ff_type_index
+            print(improper.ff_type_index)
         
-        for key, improper in self.unique_improper_types.iteritems():
-            print str(key) + " : " + str(improper.atoms[0].force_field_type) + "-" + str(improper.atoms[1].force_field_type) + "-" + str(improper.atoms[2].force_field_type) + "-" + str(improper.atoms[3].force_field_type)
+        for key, improper in list(self.unique_improper_types.items()):
+            print(str(key) + " : " + str(improper.atoms[0].force_field_type) + "-" + str(improper.atoms[1].force_field_type) + "-" + str(improper.atoms[2].force_field_type) + "-" + str(improper.atoms[3].force_field_type))
 
     def van_der_waals_pairs(self):
         atom_types = self.unique_atom_types.keys()
@@ -236,8 +236,8 @@ class UserFF(ForceField):
             atm1 = self.unique_atom_types[type1]
             atm2 = self.unique_atom_types[type2]
             
-            print str(re.findall(r'^[a-zA-Z]*',atm1.force_field_type)[0])
-            print str(re.findall(r'^[a-zA-Z]*',atm2.force_field_type)[0])
+            print(str(re.findall(r'^[a-zA-Z]*',atm1.force_field_type)[0]))
+            print(str(re.findall(r'^[a-zA-Z]*',atm2.force_field_type)[0]))
 
             # if we are using non-UFF atom types, need to splice off the end descriptors (first non alphabetic char)
             eps1 = UFF_DATA_nonbonded[re.findall(r'^[a-zA-Z]*',atm1.force_field_type)[0]][3]
@@ -260,24 +260,24 @@ class UserFF(ForceField):
         for line in lines:
             match = line.lower().strip()
             if match == "bonds":
-                print "parsing bond"
+                print("parsing bond")
                 parse_type = 1
                 continue
             elif match == "angles":
-                print "parsing angle"
+                print("parsing angle")
                 parse_type = 2
                 continue
             elif match == "dihedrals":
-                print "parsing dihedral"
+                print("parsing dihedral")
                 parse_type = 3
                 continue
             elif match == "impropers":
-                print "parsing impropers"
+                print("parsing impropers")
                 parse_type = 4
                 continue
 
             data = line.split()
-            print data
+            print(data)
             if parse_type == 1:
                 atms = [data[0], data[1]]
                 bond_pair = [self.map_user_to_unique_atom(atms[0]), self.map_user_to_unique_atom(atms[1])]
@@ -315,14 +315,14 @@ class UserFF(ForceField):
 
 
     def map_user_to_unique_atom(self, descriptor):
-        for key, atom in self.unique_atom_types.iteritems():
+        for key, atom in list(self.unique_atom_types.items()):
             if descriptor == atom.force_field_type:
                 return atom.ff_type_index
         
         raise ValueError('Error! An atom identifier ' + str(description) + ' in user_input.txt did not match any atom_site_description in your cif')
 
     def map_pair_unique_bond(self, pair, descriptor):
-        for key, bond in self.unique_bond_types.iteritems():
+        for key, bond in list(self.unique_bond_types.items()):
             if pair == [bond.atoms[0].ff_type_index, bond.atoms[1].ff_type_index] or pair == [bond.atoms[1].ff_type_index, bond.atoms[0].ff_type_index]:
                 return key
             
@@ -330,10 +330,10 @@ class UserFF(ForceField):
 
 
     def map_triplet_unique_angle(self, triplet, descriptor):
-        #print triplet
-        #print descriptor
-        for key, angle in self.unique_angle_types.iteritems():
-            #print str(key) + " : " + str([angle.atoms[2].ff_type_index, angle.atoms[1].ff_type_index, angle.atoms[0].ff_type_index])
+        #print(triplet)
+        #print(descriptor)
+        for key, angle in list(self.unique_angle_types.items()):
+            #print(str(key) + " : " + str([angle.atoms[2].ff_type_index, angle.atoms[1].ff_type_index, angle.atoms[0].ff_type_index]))
             if triplet == [angle.atoms[0].ff_type_index, angle.atoms[1].ff_type_index, angle.atoms[2].ff_type_index] or triplet == [angle.atoms[2].ff_type_index, angle.atoms[1].ff_type_index, angle.atoms[0].ff_type_index]:
                 return key
             
@@ -341,14 +341,14 @@ class UserFF(ForceField):
 
 
     def map_quadruplet_unique_dihedral(self, quadruplet, descriptor):
-        for key, dihedral in self.unique_dihedral_types.iteritems():
+        for key, dihedral in list(self.unique_dihedral_types.items()):
             if quadruplet == [dihedral.atoms[0].ff_type_index, dihedral.atoms[1].ff_type_index, dihedral.atoms[2].ff_type_index, dihedral.atoms[3].ff_type_index] or quadruplet == [dihedral.atoms[3].ff_type_index, dihedral.atoms[2].ff_type_index, dihedral.atoms[1].ff_type_index, dihedral.atoms[0].ff_type_index]:
                 return key
             
         raise ValueError('Error! A dihdral identifier ' + str(descriptor) + ' in user_input.txt did not match any dihedrals in your cif')
 
     def map_quadruplet_unique_improper(self, quadruplet, descriptor):
-        for key, improper in self.unique_improper_types.iteritems():
+        for key, improper in list(self.unique_improper_types.items()):
             if quadruplet == [improper.atoms[0].ff_type_index, improper.atoms[1].ff_type_index, improper.atoms[2].ff_type_index, improper.atoms[3].ff_type_index] or quadruplet == [improper.atoms[3].ff_type_index, improper.atoms[2].ff_type_index, improper.atoms[1].ff_type_index, improper.atoms[0].ff_type_index]:
                 return key
             
@@ -643,7 +643,7 @@ class UFF(ForceField):
 	# TODO this and all other unique_X() should probably be an inherited fucntion from the supercalss 
     def unique_atoms(self):
         # ff_type keeps track of the unique integer index
-        print "Here are the unique atoms"
+        print("Here are the unique atoms")
         ff_type = {}
         count = 0
         for atom in self.structure.atoms:
