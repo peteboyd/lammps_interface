@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+
+from argparse import ArgumentParser
+import os
+import subprocess
+def git_revision_hash():
+    src_dir = os.path.dirname(os.path.abspath(__file__))
+    wrk_dir = os.getcwd()
+    os.chdir(src_dir)
+    rev_no = len(subprocess.check_output(['git', 'rev-list', 'HEAD'], universal_newlines=True).strip().split("\n")) 
+    commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], universal_newlines=True).strip()
+    os.chdir(wrk_dir)
+    return (rev_no, commit)
+rev_no, commit = git_revision_hash()
+__version_info__ = (0, 0, rev_no, "%s"%commit)
+__version__ = "%i.%i.%i.%s"%__version_info__
+
+class Options(object):
+
+    def __init__(self):
+        #print("Lammps_interface version: %s"%__version__)
+        self.run_command_line_options()
+
+    def run_command_line_options(self):
+        parser = ArgumentParser(description="LAMMPS interface :D", prog="lammps_interface")
+        parser.add_argument("-V", "--version",
+                            action="version",
+                            version="%(prog)s version "+__version__)
+        #split the command line options into separate groups for nicer
+        #visualization.
+        force_field_group = parser.add_argument_group("Force Field options")
+        force_field_group.add_argument("-ff", "--force_field", action="store", 
+                                       type=str, dest="force_field",
+                                       default="UserFF",
+                                       help="Enter the requested force "+
+                                          "field to describe the system."+
+                                          " The default is a user defined "+
+                                          "force field [USER_FF]")
+
+        simulation_group = parser.add_argument_group("Simulation options")
+        simulation_group.add_argument("--minimize", action="store_true",
+                                      dest="minimize",
+                                      default=True,
+                                      help="Request a geometry optimization.")
+        parser.add_argument(metavar="CIF", dest="cif_file",
+                            help="path to cif file to interpret")
+
+        args = vars(parser.parse_args())
+        self._set_attr(args)
+
+    def _set_attr(self, args):
+        for key, value in args.items():
+            setattr(self, key, value)

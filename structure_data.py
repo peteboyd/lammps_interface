@@ -713,7 +713,7 @@ class CIF(object):
                 try:
                     key, val = line.strip().split()
                 except ValueError:
-                    print line.strip().split()
+                    print(line.strip().split())
                     key, val = line.strip().split()[:2]
                 if val.endswith("(0)"):
                     val = val[:-3]

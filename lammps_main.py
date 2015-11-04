@@ -6,29 +6,13 @@ the program starts here.
 
 """
 
-# Turn on keyword expansion to get revision numbers in version strings
-# in .hg/hgrc put
-# [extensions]
-# keyword =
-#
-# [keyword]
-# lammps_main.py =
-#
-# [keywordmaps]
-# Revision = {rev}
-
-
-try:
-    __version_info__ = (0, 0, 0, int("$Revision$".strip("$Revision: ")))
-except ValueError:
-    __version_info__ = (0, 0, 0, 0)
-__version__ = "%i.%i.%i.%i"%__version_info__
-
 import sys
+import os
 import math
+import ForceFields
 from structure_data import CIF, Structure
-from ForceFields import UFF, UserFF
 from datetime import datetime
+from InputHandler import Options
 
 
 def construct_data_file(ff):
@@ -71,8 +55,8 @@ def construct_data_file(ff):
     string += "\nBond Coeffs\n\n"
     for key in sorted(ff.unique_bond_types.keys()):
         bond = ff.unique_bond_types[key]
-        #print bond.atoms[0].ff_type_index
-        #print bond.atoms[1].ff_type_index
+        #print(bond.atoms[0].ff_type_index)
+        #print(bond.atoms[1].ff_type_index)
         if bond.function is None:
             no_bond.append("%5i : %s %s"%(key, bond.atoms[0].force_field_type, bond.atoms[1].force_field_type))
         else:
@@ -107,7 +91,7 @@ def construct_data_file(ff):
             string += "%5i %s "%(key, dihedral.function)
             for i in range(0, len(dihedral.parameters)): string += "%15.6f "%(float(dihedral.parameters[i]))
             string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
-    print string
+    print(string)
 
 	# Changed 1. to 1 because LAMMPS was parsing it as a float instead of an int
     string += "\nImproper Coeffs\n\n"
@@ -118,7 +102,7 @@ def construct_data_file(ff):
             no_improper.append("%5i : %s %s %s %s"%(key, atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type))
         else:
             string += "%5i %s "%(key, improper.function)
-            print improper.parameters
+            print(improper.parameters)
             for i in range(0, len(improper.parameters)): string += "%15.6f "%(float(improper.parameters[i]))
             string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
 
@@ -187,7 +171,10 @@ def construct_data_file(ff):
     return string
 
 def construct_input_file(ff):
+    """Input file will depend on what the user wants to do"""
 
+    # Eventually, this function should be dependent on some command line arguments
+    # which will dictate what kind of simulation to run in LAMMPS
     inp_str = ""
     inp_str += "%-15s %s\n"%("units","real")
     inp_str += "%-15s %s\n"%("atom_style","full")
@@ -218,66 +205,37 @@ def construct_input_file(ff):
     return inp_str
 
 def clean(name):
-    if name.startswith('./run_x'):
-        name = name[10:]
+    name = os.path.split(name)[-1]
     if name.endswith('.cif'):
-        name = name[:-4]
-    elif name.endswith('.niss'):
-        name = name[:-5]
-    elif name.endswith('.out-CO2.csv'):
-        name = name[:-12]
-    elif name.endswith('-CO2.csv'):
-        name = name[:-8]
-    elif name.endswith('.flog'):
-        name = name[:-5]
-    elif name.endswith('.out.cif'):
-        name = name[:-8]
-    elif name.endswith('.tar'):
-        name = name[:-4]
-    elif name.endswith('.db'):
-        name = name[:-3]
-    elif name.endswith('.faplog'):
-        name = name[:-7]
-    elif name.endswith('.db.bak'):
-        name = name[:-7]
-    elif name.endswith('.csv'):
-        name = name[:-4]
-    elif name.endswith('.out'):
         name = name[:-4]
     return name
 
 def main():
-    print("Lammps_interface version: %s"%__version__)
 
-    
+    # command line parsing
+    options = Options()
 
-    # TODO add commandline parsing options in the future
-    # for now just read off the second command as the FF to choose
-
-    cifname = sys.argv[1]
-    mofname = clean(cifname)
+    cifname = None 
     cif = CIF()
-    # NB can add the filename as the second argument of the class instance,
-    # or from a separate function
-
-    if len(sys.argv) > 2:
-        ffname = sys.argv[2]
     
+    cif.read(options.cif_file)
 
-
-    # set as the first argument for testing
-    cif.read(cifname)
-
+    mofname = clean(options.cif_file)
     struct = Structure(name=mofname)
     struct.from_CIF(cif)
     struct.compute_angles()
     struct.compute_dihedrals()
     struct.compute_improper_dihedrals()
-    ff = UserFF(struct)
+
+    #obtain desired force field class from command line, parse 
+    # string to real class value
+    try:
+        ff = getattr(ForceFields, options.force_field)(struct)
+    except AttributeError:
+        print("Error: could not find the force field: %s"%options.force_field)
+        sys.exit()
+
     ff.compute_force_field_terms()
-    
-    #ff = UFF(struct)
-    #ff.compute_force_field_terms()
     data_str = construct_data_file(ff) 
     inp_str = construct_input_file(ff)
    
