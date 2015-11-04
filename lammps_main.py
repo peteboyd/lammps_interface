@@ -30,6 +30,7 @@ from structure_data import CIF, Structure
 from ForceFields import UFF, UserFF
 from datetime import datetime
 
+
 def construct_data_file(ff):
 
     t = datetime.today()
@@ -55,10 +56,10 @@ def construct_data_file(ff):
 
 
     # Let's track the forcefield potentials that haven't been calc'd or user specified
-    no_bond = set()
-    no_angle = set()
-    no_dihedral = set()
-    no_improper = set()
+    no_bond = []
+    no_angle = []
+    no_dihedral = []
+    no_improper = []
 
 
     string += "\nMasses\n\n"
@@ -73,7 +74,7 @@ def construct_data_file(ff):
         #print bond.atoms[0].ff_type_index
         #print bond.atoms[1].ff_type_index
         if bond.function is None:
-            no_bond.add(key)
+            no_bond.append("%5i : %s %s"%(key, bond.atoms[0].force_field_type, bond.atoms[1].force_field_type))
         else:
             ff1, ff2 = bond.atoms[0].force_field_type, bond.atoms[1].force_field_type
             K = bond.parameters[0]
@@ -89,7 +90,7 @@ def construct_data_file(ff):
         atom_a, atom_b, atom_c = angle.atoms
 
         if angle.function is None:
-            no_angle.add(key)
+            no_angle.append("%5i : %s %s %s"%(key, atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type))
         else:
             string += "%5i %s "%(key, angle.function)
             for i in range(0, len(angle.parameters)): string += "%15.6f "%(float(angle.parameters[i]))
@@ -101,7 +102,7 @@ def construct_data_file(ff):
         dihedral = ff.unique_dihedral_types[key]
         atom_a, atom_b, atom_c, atom_d = dihedral.atoms
         if dihedral.function is None:
-            no_dihedral.add(key)
+            no_dihedral.append("%5i : %s %s %s %s"%(key, atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type))
         else:
             string += "%5i %s "%(key, dihedral.function)
             for i in range(0, len(dihedral.parameters)): string += "%15.6f "%(float(dihedral.parameters[i]))
@@ -114,12 +115,30 @@ def construct_data_file(ff):
         improper = ff.unique_improper_types[key]
         atom_a, atom_b, atom_c, atom_d = improper.atoms  
         if improper.function is None:
-            no_improper.add(key)
+            no_improper.append("%5i : %s %s %s %s"%(key, atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type))
         else:
             string += "%5i %s "%(key, improper.function)
             print improper.parameters
             for i in range(0, len(improper.parameters)): string += "%15.6f "%(float(improper.parameters[i]))
             string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
+
+    # WARNING MESSAGE for potentials we think are unique but have not been calculated
+    print "WARNING: The following unique bonds/angles/dihedrals/impropers were detected in your crystal"
+    print "But they have not been assigned a potential from user_input.txt or from an internal FF assignment routine!"
+    print "Bonds"
+    for elem in no_bond:
+        print elem
+    print "Angles"
+    for elem in no_angle:
+        print elem
+    print "Dihedrals"
+    for elem in no_dihedral:
+        print elem
+    print "Impropers"
+    for elem in no_improper:
+        print elem
+    print "If you think you specified one of these in your user_input.txt and this is an error, please contact developers\n"
+    print "CONTINUING..."
 
 
     #************[atoms]************
