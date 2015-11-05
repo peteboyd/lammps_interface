@@ -106,23 +106,26 @@ def construct_data_file(ff):
             for i in range(0, len(improper.parameters)): string += "%15.6f "%(float(improper.parameters[i]))
             string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
 
+
+    # Nest this in an if statement
+    if any([no_bond, no_angle, no_dihedral, no_improper]):
     # WARNING MESSAGE for potentials we think are unique but have not been calculated
-    print "WARNING: The following unique bonds/angles/dihedrals/impropers were detected in your crystal"
-    print "But they have not been assigned a potential from user_input.txt or from an internal FF assignment routine!"
-    print "Bonds"
-    for elem in no_bond:
-        print elem
-    print "Angles"
-    for elem in no_angle:
-        print elem
-    print "Dihedrals"
-    for elem in no_dihedral:
-        print elem
-    print "Impropers"
-    for elem in no_improper:
-        print elem
-    print "If you think you specified one of these in your user_input.txt and this is an error, please contact developers\n"
-    print "CONTINUING..."
+        print("WARNING: The following unique bonds/angles/dihedrals/impropers were detected in your crystal")
+        print("But they have not been assigned a potential from user_input.txt or from an internal FF assignment routine!")
+        print("Bonds")
+        for elem in no_bond:
+            print(elem)
+        print("Angles")
+        for elem in no_angle:
+            print(elem)
+        print("Dihedrals")
+        for elem in no_dihedral:
+            print(elem)
+        print("Impropers")
+        for elem in no_improper:
+            print(elem)
+        print("If you think you specified one of these in your user_input.txt and this is an error, please contact developers\n")
+        print("CONTINUING...")
 
 
     #************[atoms]************
@@ -182,10 +185,10 @@ def construct_input_file(ff):
     inp_str += "%-15s %s\n"%("dielectric","1")
     inp_str += "\n"
     inp_str += "%-15s %s\n"%("pair_style", "hybrid lj/cut/coul/long 8.50000 11.5")
-    inp_str += "%-15s %s\n"%("bond_style","harmonic")
+    inp_str += "%-15s %s\n"%("bond_style","hybrid harmonic")
     inp_str += "%-15s %s\n"%("angle_style","hybrid fourier fourier/simple")
-    inp_str += "%-15s %s\n"%("dihedral_style","harmonic")
-    inp_str += "%-15s %s\n"%("improper_style","fourier")
+    inp_str += "%-15s %s\n"%("dihedral_style","hybrid harmonic")
+    inp_str += "%-15s %s\n"%("improper_style","hybrid fourier")
     inp_str += "%-15s %s\n"%("kspace_style","ewald 0.001") 
     inp_str += "\n"
     inp_str += "%-15s %s\n"%("box tilt","large")

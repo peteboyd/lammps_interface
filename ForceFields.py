@@ -6,6 +6,7 @@ from operator import mul
 import itertools
 import abc
 import re
+import sys
 DEG2RAD = math.pi/180.
 
 class ForceField(object):
@@ -370,6 +371,14 @@ class UserFF(ForceField):
         self.van_der_waals_pairs()
 
 class UFF(ForceField):
+    """Parameterize the periodic material with the UFF parameters.
+    NB: I have recently come across important information regarding the
+    implementation of UFF from the author of MCCCS TOWHEE.
+    It can be found here: (as of 05/11/2015)
+    http://towhee.sourceforge.net/forcefields/uff.html
+
+    The ammendments mentioned that document are included here
+    """
     
     def __init__(self, struct):
         self.structure = struct
@@ -393,7 +402,11 @@ class UFF(ForceField):
         rbo = -0.1332*(r_1 + r_2)*math.log(bond.order)
         ren = r_1*r_2*(((math.sqrt(chi_1) - math.sqrt(chi_2))**2))/(chi_1*r_1 + chi_2*r_2)
         r0 = (r_1 + r_2 + rbo - ren)
-        K = 664.12*(UFF_DATA[fflabel1][5]*UFF_DATA[fflabel2][5])/(r0**3)
+        # The values for K in the UFF paper were set such that in the final
+        # harmonic function, they would be divided by '2' to satisfy the
+        # form K/2(R-Req)**2
+        # in Lammps, the value for K is already assumed to be divided by '2'
+        K = 664.12*(UFF_DATA[fflabel1][5]*UFF_DATA[fflabel2][5])/(r0**3) / 2.
         bond.function = 'harmonic'
         bond.parameters = (K, r0)
 
@@ -452,13 +465,19 @@ class UFF(ForceField):
         beta = 664.12/r_ab/r_bc
         ka = beta*(za*zc /(r_ac**5.))
         ka *= (3.*r_ab*r_bc*(1. - cosT0*cosT0) - r_ac*r_ac*cosT0)
-
-        if angle_type in sf:
+        if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
             angle.function = 'fourier/simple' 
-            if angle_type == 'linear' or angle_type == 'trigonal-planar':
+            if angle_type == 'linear':
                 kappa = ka
-                c0 = -1.
+                c0 = 1.
                 c1 = 1.
+            # the description of the actual parameters for 'n' are not obvious
+            # for the tetrahedral special case from the UFF paper or the write up in TOWHEE.
+            # The values were found in the TOWHEE source code (eg. Bi3+3).
+            if angle_type == 'tetrahedral': 
+                kappa = ka/4.
+                c0 = 1.
+                c1 = 2.
 
             if angle_type == 'trigonal-planar':
                 kappa = ka/9.
@@ -470,8 +489,8 @@ class UFF(ForceField):
                 c0 = -1.
                 c1 = 4.
 
-        # general-nonlinear
             angle.parameters = (kappa, c0, c1)
+        # general-nonlinear
         else:
             angle.function = 'fourier'
 
@@ -488,30 +507,50 @@ class UFF(ForceField):
 
     def uff_angle_type(self, angle):
         l, c, r = angle.atoms
-        """ determined by the central atom type """
-        bent_types = ['O_3', 'S_3', 'O_R', 'N_2']
+        
         name = angle.b_atom.force_field_type
-        if len(c.neighbours) == 2:
-            if name[:3] in bent_types:
-                return 'bent'
+        try:
+            coord_type = name[2]
+        except IndexError:
+            # eg, H_, F_
             return 'linear'
-
-        trig_types = ['C_R', 'C_2', 'O_3_z', 'O_3']
-        if len(c.neighbours) == 3:
-            if name in trig_types:
-                return 'trigonal-planar'
-            return 'trigonal-pyramidal'
-
-        # Need flag for Zn4O type MOFs where Zn is tetrahedral.
-        # vs. Zn paddlewheel where Zn is square planar.
-        sqpl_types = ['Fe6+2', 'Zn3+2', 'Cu3+1']
-        if len(c.neighbours) == 4:
-            if name in sqpl_types:
-                return 'square-planar'
+        if coord_type == "1":
+            return 'linear'
+        elif coord_type in ["R", "2"]:
+            return 'trigonal-planar'
+        elif coord_type == "3":
             return 'tetrahedral'
-
-        if len(c.neighbours) == 6:
+        elif coord_type == "4":
+            return 'square-planar'
+        elif coord_type == "5":
+            return 'trigonal-bipyrimidal'
+        elif coord_type == "6":
             return 'octahedral'
+        else:
+            print("ERROR: Cannot find coordination type for %s"%name)
+            sys.exit()
+        #bent_types = ['O_3', 'S_3', 'O_R', 'N_2']
+        #if len(c.neighbours) == 2:
+        #    if name[:3] in bent_types:
+        #        return 'bent'
+        #    return 'linear'
+
+        #trig_types = ['C_R', 'C_2', 'O_3_z', 'O_3', 'N_R']
+        #if len(c.neighbours) == 3:
+        #    if name in trig_types:
+        #        return 'trigonal-planar'
+        #    return 'trigonal-pyramidal'
+
+        ## Need flag for Zn4O type MOFs where Zn is tetrahedral.
+        ## vs. Zn paddlewheel where Zn is square planar.
+        #sqpl_types = ['Fe6+2', 'Cu3+1']
+        #if len(c.neighbours) == 4:
+        #    if name in sqpl_types:
+        #        return 'square-planar'
+        #    return 'tetrahedral'
+
+        #if len(c.neighbours) == 6:
+        #    return 'octahedral'
 
     def dihedral_term(self, dihedral):
         """Use a small cosine Fourier expansion
@@ -607,7 +646,12 @@ class UFF(ForceField):
         dihedral.parameters = (0.5*V, math.cos(nphi0*DEG2RAD), n)
 
     def improper_term(self, improper):
+        """
+        The improper function can be described with a fourier function
 
+        E = K*[C_0 + C_1*cos(w) + C_2*cos(2*w)
+
+        """
         atom_a, atom_b, atom_c, atom_d = improper.atoms
         if atom_b.force_field_type in ('N_3', 'N_2', 'N_R', 'O_2', 'O_R'):
             c0 = 1.0
@@ -636,8 +680,9 @@ class UFF(ForceField):
                 koop = 50.0 
         else:
             return 
-
-        #koop /= 3 # Not clear in UFF paper, but division by the number of bonds is probably not appropriate. Should test on real systems..
+        
+        #NB: TOWHEE divides by 3.
+        koop /= 3. # Not clear in UFF paper, but division by the number of bonds is probably not appropriate. Should test on real systems..
 
         improper.function = "fourier"
         improper.parameters = (koop, c0, c1, c2)
@@ -816,5 +861,5 @@ class UFF(ForceField):
         self.unique_angles()
         self.unique_dihedrals()
         self.unique_impropers()
-        #self.van_der_waals_pairs()
+        self.van_der_waals_pairs()
 
