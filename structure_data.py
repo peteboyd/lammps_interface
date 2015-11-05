@@ -38,12 +38,17 @@ class Structure(object):
         
         x, y, z = data['_atom_site_fract_x'], data['_atom_site_fract_y'], data['_atom_site_fract_z']
         
+        # Charge assignment may have to be a bit more inclusive than just setting _atom_site_charge
+        # in the .cif file.. will have to think of a user-friendly way to introduce charges..
         if '_atom_site_charge' in data:
-            charges = data['_atom_site_charge']
+            charges = [float(j.strip()) for j in data['_atom_site_charge']]
         else:
-            charges = [0 for i in range(0, len(x))]
 
-        label, element, ff_param = data['_atom_site_label'], data['_atom_site_type_symbol'], data['_atom_site_description']
+            charges = [0. for i in range(0, len(x))]
+
+        label, element, ff_param = (data['_atom_site_label'], 
+                                    data['_atom_site_type_symbol'], 
+                                    data['_atom_site_description'])
         
         index = 0
         for l,e,ff,fx,fy,fz,c in zip(label,element,ff_param,x,y,z,charges):
@@ -51,10 +56,12 @@ class Structure(object):
             atom = Atom(element=e.strip(), coordinates = np.dot(fcoord, self.cell.cell))
             atom.force_field_type = ff.strip()
             atom.ciflabel = l.strip()
-            atom.charge = float(c.strip())
+            atom.charge = c 
             self.atoms.append(atom)
         # obtain bonds
-        a, b, type = data['_geom_bond_atom_site_label_1'], data['_geom_bond_atom_site_label_2'], data['_ccdc_geom_bond_type']
+        a, b, type = (data['_geom_bond_atom_site_label_1'], 
+                      data['_geom_bond_atom_site_label_2'], 
+                      data['_ccdc_geom_bond_type'])
 
         for label1, label2, t in zip(a,b,type):
             atm1 = self.get_atom_from_label(label1.strip())

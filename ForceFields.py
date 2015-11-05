@@ -797,6 +797,5 @@ class UFF(ForceField):
         self.unique_angles()
         self.unique_dihedrals()
         self.unique_impropers()
-
-        self.van_der_waals_pairs()
+        #self.van_der_waals_pairs()
 

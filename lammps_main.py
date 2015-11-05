@@ -179,8 +179,11 @@ def construct_input_file(ff):
     inp_str += "\n"
     inp_str += "%-15s %s\n"%("dump","%s_mov all xyz 1 %s_mov.xyz"%(ff.structure.name, ff.structure.name))
     inp_str += "%-15s %s\n"%("pair_modify","tail yes mix arithmetic")
-    inp_str += "%-15s %s\n"%("fix","1 all box/relax tri 0.0 vmax 0.01")
     inp_str += "%-15s %s\n"%("min_style","cg")
+    inp_str += "%-15s %s\n"%("minimize","1.0e-4 1.0e-6 10000 100000")
+    inp_str += "%-15s %s\n"%("fix","1 all box/relax tri 0.0 vmax 0.01")
+    inp_str += "%-15s %s\n"%("minimize","1.0e-4 1.0e-6 10000 100000")
+    inp_str += "%-15s %s\n"%("unfix", "1")
     inp_str += "%-15s %s\n"%("minimize","1.0e-4 1.0e-6 10000 100000")
 
     return inp_str
