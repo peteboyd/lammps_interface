@@ -249,6 +249,8 @@ class UserFF(ForceField):
 
             # l-b mixing
             eps = math.sqrt(eps1*eps2)
+            sig = (sig1 + sig2) / 2.
+            self.unique_van_der_waals[(type1, type2)] = (eps, sig)    
 
     def parse_user_input(self, filename):
         infile = open("user_input.txt","r")
@@ -790,7 +792,24 @@ class UFF(ForceField):
                 self.unique_improper_types[type] = improper
 
             improper.ff_type_index = type     
+
+    def van_der_waals_pairs(self):
+        atom_types = self.unique_atom_types.keys()
+        for type1, type2 in itertools.combinations_with_replacement(atom_types, 2):
+            atm1 = self.unique_atom_types[type1]
+            atm2 = self.unique_atom_types[type2]
+            eps1 = UFF_DATA[atm1.force_field_type][3]
+            eps2 = UFF_DATA[atm2.force_field_type][3]
     
+            # radius --> sigma = radius*2**(-1/6)
+            sig1 = UFF_DATA[atm1.force_field_type][2]*(2**(-1./6.))
+            sig2 = UFF_DATA[atm2.force_field_type][2]*(2**(-1./6.))
+    
+            # l-b mixing
+            eps = math.sqrt(eps1*eps2)
+            sig = (sig1 + sig2) / 2.
+            self.unique_van_der_waals[(type1, type2)] = (eps, sig)    
+
     def compute_force_field_terms(self):
         self.unique_atoms()
         self.unique_bonds()
