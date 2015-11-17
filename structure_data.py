@@ -35,7 +35,6 @@ class Structure(object):
                                          data['_cell_angle_beta'], 
                                          data['_cell_angle_gamma']]]
         self.cell.set_params(cellparams)
-        print(data.keys()) 
         x, y, z = data['_atom_site_fract_x'], data['_atom_site_fract_y'], data['_atom_site_fract_z']
         
         # Charge assignment may have to be a bit more inclusive than just setting _atom_site_charge
@@ -725,7 +724,6 @@ class CIF(object):
                 try:
                     key, val = line.strip().split()
                 except ValueError:
-                    print(line.strip().split())
                     key, val = line.strip().split()[:2]
                 if val.endswith("(0)"):
                     val = val[:-3]

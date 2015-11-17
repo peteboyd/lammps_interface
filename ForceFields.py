@@ -610,6 +610,14 @@ class UFF(ForceField):
         #if len(c.neighbours) == 6:
         #    return 'octahedral'
 
+    def uff_type(self, ufftype):
+        if ufftype[2] == '3':
+            return 'sp3'
+        elif ufftype[2] == '2' or ufftype[2] == 'R':
+            return 'sp2'
+        elif ufftype[2] == '1':
+            return 'sp'
+
     def dihedral_term(self, dihedral):
         """Use a small cosine Fourier expansion
 
@@ -629,14 +637,15 @@ class UFF(ForceField):
         V = 0
         n = 0
         #FIXME(pboyd): coord = (4, x) in cases probably copper paddlewheel
-        sp2_types = ['O_2', 'O_R', 'C_2', 'C_R', 'N_R', 'N_2', 'S_2', 'S_R']
-        sp3_types = ['O_3', 'O_3_z', 'O_3_M', 'C_3', 'N_3', 'P_3+3', 'P_3+5', 
-                     'P_3+q', 'S_3+2', 'S_3+4', 'S_3+6', 'B_3']
 
-        mixed_case = (bc[0] in sp2_types and bc[1] in sp3_types) or \
-                (bc[0] in sp3_types and bc[1] in sp2_types)
-        all_sp2 = (bc[0] in sp2_types and bc[1] in sp2_types)
-        all_sp3 = (bc[0] in sp3_types and bc[1] in sp3_types)
+        mixed_case = (self.uff_type(bc[0]) == 'sp2' and
+                      self.uff_type(bc[1]) == 'sp3') or \
+                (self.uff_type(bc[0]) == 'sp3' and 
+                 self.uff_type(bc[1]) == 'sp2') 
+        all_sp2 = (self.uff_type(bc[0]) == 'sp2' and
+                   self.uff_type(bc[1]) == 'sp2')
+        all_sp3 = (self.uff_type(bc[0]) == 'sp3' and 
+                   self.uff_type(bc[1]) == 'sp3')
 
         phi0 = 0
         if all_sp3:
@@ -677,11 +686,11 @@ class UFF(ForceField):
             n = 3
             V = 2.  # CHECK UNITS!!!!
             
-            if bc[1] in sp3_types:
+            if self.uff_type(bc[1]) == 'sp3':
                 if atom_c.atomic_number in (8, 16, 34, 52):
                     n = 2
                     phi0 = 90.
-            elif bc[0] in sp3_types:
+            elif self.uff_type(bc[0]) == 'sp3': 
                 if atom_b.atomic_number in (8, 16, 34, 52):
                     n = 2
                     phi0 = 90.0
@@ -696,9 +705,6 @@ class UFF(ForceField):
 
         if abs(math.sin(nphi0*DEG2RAD)) > 1.0e-3:
             print("WARNING!!! nphi0 = %r" % nphi0)
-
-        else:
-            phi_s = nphi0 - 180.0
 
         dihedral.function = 'harmonic'
         dihedral.parameters = (0.5*V, math.cos(nphi0*DEG2RAD), n)
