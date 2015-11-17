@@ -624,12 +624,10 @@ class UFF(ForceField):
         E_phi = 1/2*V_phi * [1 - cos(n*phi0)*cos(n*phi)]
 
 
-        this is available in Lammps in the form of a Fourier potential
+        this is available in Lammps in the form of a harmonic potential
+        E = K * [1 + d*cos(n*phi)]
 
-        E = sum_i (K_i * (1.0 + cos(n_i*phi - d_i)))
-
-        have to do some jiggery-pokery to adapt UFF to this.
-
+        NB: the d term must be negated to recover the UFF potential.
         """
         atom_a = dihedral.a_atom
         atom_b = dihedral.b_atom
@@ -712,9 +710,8 @@ class UFF(ForceField):
         if abs(math.sin(nphi0*DEG2RAD)) > 1.0e-3:
             print("WARNING!!! nphi0 = %r" % nphi0)
         
-        phi_s = nphi0 - 180.0
-        dihedral.function = 'fourier'
-        dihedral.parameters = (1, 0.5*V, n, phi_s)
+        dihedral.function = 'harmonic'
+        dihedral.parameters = (0.5*V, -math.cos(nphi0*DEG2RAD), n) 
 
     def improper_term(self, improper):
         """
