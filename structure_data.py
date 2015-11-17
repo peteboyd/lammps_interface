@@ -35,7 +35,7 @@ class Structure(object):
                                          data['_cell_angle_beta'], 
                                          data['_cell_angle_gamma']]]
         self.cell.set_params(cellparams)
-        
+        print(data.keys()) 
         x, y, z = data['_atom_site_fract_x'], data['_atom_site_fract_y'], data['_atom_site_fract_z']
         
         # Charge assignment may have to be a bit more inclusive than just setting _atom_site_charge
@@ -699,7 +699,9 @@ class CIF(object):
         self.block_order = []
 
         for line in filelines:
-            line=line.replace("\n", "")
+            #line=line.replace("\n", "")
+            # why not strip here?
+            line = line.strip()
             if line.startswith("data_"):
                 self.name = line[5:]
                 self.insert_block_order("data")
@@ -724,7 +726,7 @@ class CIF(object):
                     key, val = line.strip().split()[:2]
                 if val.endswith("(0)"):
                     val = val[:-3]
-                self.add_data(block, **{key:self.general_label(val)})
+                self.add_data(block, **{key.strip():self.general_label(val)})
             
             if blockread and (line.startswith("loop_") or line.startswith("_") or not line):
                 blockread = False
@@ -737,7 +739,8 @@ class CIF(object):
                 self.insert_block_order(loopcount)
 
             if blockread:
-                split_line = line.split()
+                split_line = line.strip().split()
+                # problem for symmetry line
                 assert len(loopentries[loopcount]) == len(split_line)
                 for key, val in zip(loopentries[loopcount], split_line):
                     self.add_data(loopcount, **{key:self.general_label(val)})

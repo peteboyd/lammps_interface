@@ -90,7 +90,8 @@ class UserFF(ForceField):
             print(str(key) + " : " + str(atom.index))
 
     def unique_bonds(self):
-        print("Here are the unique bonds (Total = " + str(len(self.structure.bonds)) + ")")
+        print("Here are the unique bonds (Total = " + 
+                str(len(self.structure.bonds)) + ")")
         count = 0
         bb_type = {}
         for bond in self.structure.bonds:
@@ -99,30 +100,40 @@ class UserFF(ForceField):
             
             self.bond_term(bond)        
             try:
-                type = bb_type[(atm1.ff_type_index, atm2.ff_type_index, bond.order)]
+                type = bb_type[(atm1.ff_type_index, 
+                                atm2.ff_type_index,
+                                bond.order)]
             except KeyError:
                 try:
-                    type = bb_type[(atm2.ff_type_index, atm1.ff_type_index, bond.order)]
+                    type = bb_type[(atm2.ff_type_index, 
+                                    atm1.ff_type_index, 
+                                    bond.order)]
                 except KeyError:
                     count += 1
                     type = count
-                    bb_type[(atm1.ff_type_index, atm2.ff_type_index, bond.order)] = type
+                    bb_type[(atm1.ff_type_index, 
+                             atm2.ff_type_index, 
+                             bond.order)] = type
 
                     self.unique_bond_types[type] = bond 
             bond.ff_type_index = type
             print(bond.ff_type_index)
         
         for key, bond in list(self.unique_bond_types.items()):
-            print(str(key) + " : " + str(bond.atoms[0].index) + " - " + str(bond.atoms[1].index))
+            print(str(key) + " : " + str(bond.atoms[0].index)
+                    + " - " + str(bond.atoms[1].index))
 
 
     def unique_angles(self):
-        print("Here are the unique angles (Total = " + str(len(self.structure.angles)) + ")")
+        print("Here are the unique angles (Total = " + 
+                str(len(self.structure.angles)) + ")")
         ang_type = {}
         count = 0
         for angle in self.structure.angles:
             atom_a, atom_b, atom_c = angle.atoms
-            type_a, type_b, type_c = atom_a.ff_type_index, atom_b.ff_type_index, atom_c.ff_type_index
+            type_a, type_b, type_c = (atom_a.ff_type_index, 
+                                      atom_b.ff_type_index, 
+                                      atom_c.ff_type_index)
             # compute and store angle terms
             self.angle_term(angle)
 
@@ -142,12 +153,17 @@ class UserFF(ForceField):
             print(angle.ff_type_index)
 
         for key, angle in list(self.unique_angle_types.items()):
-            print(str(key) + " : " + str(angle.atoms[0].index) + "-" + str(angle.atoms[1].index) + "-" + str(angle.atoms[2].index))
-            print(str(key) + " : " + str(angle.atoms[0].force_field_type) + "-" + str(angle.atoms[1].force_field_type) + "-" + str(angle.atoms[2].force_field_type))
+            print(str(key) + " : " + str(angle.atoms[0].index) + "-" + 
+                  str(angle.atoms[1].index) + "-" + 
+                  str(angle.atoms[2].index))
+            print(str(key) + " : " + str(angle.atoms[0].force_field_type)
+                    + "-" + str(angle.atoms[1].force_field_type) +
+                    "-" + str(angle.atoms[2].force_field_type))
 
 	
     def unique_dihedrals(self):
-        print("Here are the unique dihedrals (Total = " + str(len(self.structure.dihedrals)) + ")")
+        print("Here are the unique dihedrals (Total = " 
+                + str(len(self.structure.dihedrals)) + ")")
         count = 0
         dihedral_type = {}
         for dihedral in self.structure.dihedrals:
@@ -172,13 +188,19 @@ class UserFF(ForceField):
             print(dihedral.ff_type_index)
     
         for key, dihedral in list(self.unique_dihedral_types.items()):
-            print(str(key) + " : " + str(dihedral.atoms[0].index) + "-" + str(dihedral.atoms[1].index) + "-" + str(dihedral.atoms[2].index) + "-" + str(dihedral.atoms[3].index))
-            print(str(key) + " : " + str(dihedral.atoms[0].force_field_type) + "-" + str(dihedral.atoms[1].force_field_type) + "-" + str(dihedral.atoms[2].force_field_type) + "-" + str(dihedral.atoms[3].force_field_type))
+            print(str(key) + " : " + str(dihedral.atoms[0].index) + "-" + 
+                    str(dihedral.atoms[1].index) + "-" + str(dihedral.atoms[2].index) 
+                    + "-" + str(dihedral.atoms[3].index))
+            print(str(key) + " : " + str(dihedral.atoms[0].force_field_type) 
+                    + "-" + str(dihedral.atoms[1].force_field_type) + "-"
+                    + str(dihedral.atoms[2].force_field_type) + "-" +
+                    str(dihedral.atoms[3].force_field_type))
 
 
     def unique_impropers(self):
         """How many times to list the same set of atoms ???"""
-        print("Here are the unique impropers (Total = " + str(len(self.structure.impropers)) + ")")
+        print("Here are the unique impropers (Total = " + 
+                str(len(self.structure.impropers)) + ")")
         count = 0
         improper_type = {}
         #i = 0
@@ -229,7 +251,10 @@ class UserFF(ForceField):
             print(improper.ff_type_index)
         
         for key, improper in list(self.unique_improper_types.items()):
-            print(str(key) + " : " + str(improper.atoms[0].force_field_type) + "-" + str(improper.atoms[1].force_field_type) + "-" + str(improper.atoms[2].force_field_type) + "-" + str(improper.atoms[3].force_field_type))
+            print(str(key) + " : " + str(improper.atoms[0].force_field_type) + 
+                    "-" + str(improper.atoms[1].force_field_type) + "-" + 
+                    str(improper.atoms[2].force_field_type) + "-" + 
+                    str(improper.atoms[3].force_field_type))
 
     def van_der_waals_pairs(self):
         atom_types = self.unique_atom_types.keys()
@@ -283,28 +308,37 @@ class UserFF(ForceField):
             print(data)
             if parse_type == 1:
                 atms = [data[0], data[1]]
-                bond_pair = [self.map_user_to_unique_atom(atms[0]), self.map_user_to_unique_atom(atms[1])]
+                bond_pair = [self.map_user_to_unique_atom(atms[0]), 
+                              self.map_user_to_unique_atom(atms[1])]
                 bond_id = self.map_pair_unique_bond(bond_pair, atms)
                 self.unique_bond_types[bond_id].function = data[2]
                 self.unique_bond_types[bond_id].parameters = data[3:]
 
             elif parse_type == 2:
                 atms = [data[0], data[1], data[2]]
-                angle_triplet = [self.map_user_to_unique_atom(atms[0]), self.map_user_to_unique_atom(atms[1]), self.map_user_to_unique_atom(atms[2])]
+                angle_triplet = [self.map_user_to_unique_atom(atms[0]), 
+                                 self.map_user_to_unique_atom(atms[1]), 
+                                 self.map_user_to_unique_atom(atms[2])]
                 angle_id = self.map_triplet_unique_angle(angle_triplet, atms)
                 self.unique_angle_types[angle_id].function = data[3]
                 self.unique_angle_types[angle_id].parameters = data[4:]
 
             elif parse_type == 3:
                 atms = [data[0], data[1], data[2], data[3]]
-                dihedral_quadruplet = [self.map_user_to_unique_atom(atms[0]), self.map_user_to_unique_atom(atms[1]), self.map_user_to_unique_atom(atms[2]), self.map_user_to_unique_atom(atms[3])]
+                dihedral_quadruplet = [self.map_user_to_unique_atom(atms[0]), 
+                                       self.map_user_to_unique_atom(atms[1]), 
+                                       self.map_user_to_unique_atom(atms[2]), 
+                                       self.map_user_to_unique_atom(atms[3])]
                 dihedral_id = self.map_quadruplet_unique_dihedral(dihedral_quadruplet, atms)
                 self.unique_dihedral_types[dihedral_id].function = data[4]
                 self.unique_dihedral_types[dihedral_id].parameters = data[5:]
 
             elif parse_type == 4:
                 atms = [data[0], data[1], data[2], data[3]]
-                improper_quadruplet = [self.map_user_to_unique_atom(atms[0]), self.map_user_to_unique_atom(atms[1]), self.map_user_to_unique_atom(atms[2]), self.map_user_to_unique_atom(atms[3])]
+                improper_quadruplet = [self.map_user_to_unique_atom(atms[0]), 
+                                       self.map_user_to_unique_atom(atms[1]), 
+                                       self.map_user_to_unique_atom(atms[2]), 
+                                       self.map_user_to_unique_atom(atms[3])]
                 improper_id = self.map_quadruplet_unique_improper(improper_quadruplet, atms)
                 self.unique_improper_types[improper_id].function = data[4]
                 self.unique_improper_types[improper_id].parameters = data[5:]
@@ -312,7 +346,8 @@ class UserFF(ForceField):
             
  
     def write_missing_uniques(self, description):
-        # Warn user about any unique bond, angle, etc. found that have not been specified in user_input.txt
+        # Warn user about any unique bond, angle, etc. found that have not 
+        # been specified in user_input.txt
         pass
 
 
@@ -322,40 +357,63 @@ class UserFF(ForceField):
             if descriptor == atom.force_field_type:
                 return atom.ff_type_index
         
-        raise ValueError('Error! An atom identifier ' + str(description) + ' in user_input.txt did not match any atom_site_description in your cif')
+        raise ValueError('Error! An atom identifier ' + str(description) + 
+                ' in user_input.txt did not match any atom_site_description in your cif')
 
     def map_pair_unique_bond(self, pair, descriptor):
         for key, bond in list(self.unique_bond_types.items()):
-            if pair == [bond.atoms[0].ff_type_index, bond.atoms[1].ff_type_index] or pair == [bond.atoms[1].ff_type_index, bond.atoms[0].ff_type_index]:
+            if (pair == [bond.atoms[0].ff_type_index, bond.atoms[1].ff_type_index] 
+                or pair == [bond.atoms[1].ff_type_index, bond.atoms[0].ff_type_index]):
                 return key
             
-        raise ValueError('Error! An bond identifier ' + str(descriptor) + ' in user_input.txt did not match any bonds in your cif')
-
+        raise ValueError('Error! An bond identifier ' + str(descriptor) + 
+                ' in user_input.txt did not match any bonds in your cif')
 
     def map_triplet_unique_angle(self, triplet, descriptor):
         #print(triplet)
         #print(descriptor)
         for key, angle in list(self.unique_angle_types.items()):
             #print(str(key) + " : " + str([angle.atoms[2].ff_type_index, angle.atoms[1].ff_type_index, angle.atoms[0].ff_type_index]))
-            if triplet == [angle.atoms[0].ff_type_index, angle.atoms[1].ff_type_index, angle.atoms[2].ff_type_index] or triplet == [angle.atoms[2].ff_type_index, angle.atoms[1].ff_type_index, angle.atoms[0].ff_type_index]:
+            if (triplet == [angle.atoms[0].ff_type_index, 
+                            angle.atoms[1].ff_type_index, 
+                            angle.atoms[2].ff_type_index] or 
+                triplet == [angle.atoms[2].ff_type_index, 
+                            angle.atoms[1].ff_type_index, 
+                            angle.atoms[0].ff_type_index]):
                 return key
             
-        raise ValueError('Error! An angle identifier ' + str(descriptor) + ' in user_input.txt did not match any angles in your cif')
-
+        raise ValueError('Error! An angle identifier ' + str(descriptor) + 
+                ' in user_input.txt did not match any angles in your cif')
 
     def map_quadruplet_unique_dihedral(self, quadruplet, descriptor):
         for key, dihedral in list(self.unique_dihedral_types.items()):
-            if quadruplet == [dihedral.atoms[0].ff_type_index, dihedral.atoms[1].ff_type_index, dihedral.atoms[2].ff_type_index, dihedral.atoms[3].ff_type_index] or quadruplet == [dihedral.atoms[3].ff_type_index, dihedral.atoms[2].ff_type_index, dihedral.atoms[1].ff_type_index, dihedral.atoms[0].ff_type_index]:
+            if (quadruplet == [dihedral.atoms[0].ff_type_index, 
+                               dihedral.atoms[1].ff_type_index, 
+                               dihedral.atoms[2].ff_type_index, 
+                               dihedral.atoms[3].ff_type_index] or 
+                quadruplet == [dihedral.atoms[3].ff_type_index, 
+                               dihedral.atoms[2].ff_type_index, 
+                               dihedral.atoms[1].ff_type_index, 
+                               dihedral.atoms[0].ff_type_index]):
                 return key
             
-        raise ValueError('Error! A dihdral identifier ' + str(descriptor) + ' in user_input.txt did not match any dihedrals in your cif')
+        raise ValueError('Error! A dihdral identifier ' + str(descriptor) + 
+                ' in user_input.txt did not match any dihedrals in your cif')
 
     def map_quadruplet_unique_improper(self, quadruplet, descriptor):
         for key, improper in list(self.unique_improper_types.items()):
-            if quadruplet == [improper.atoms[0].ff_type_index, improper.atoms[1].ff_type_index, improper.atoms[2].ff_type_index, improper.atoms[3].ff_type_index] or quadruplet == [improper.atoms[3].ff_type_index, improper.atoms[2].ff_type_index, improper.atoms[1].ff_type_index, improper.atoms[0].ff_type_index]:
+            if (quadruplet == [improper.atoms[0].ff_type_index, 
+                               improper.atoms[1].ff_type_index, 
+                               improper.atoms[2].ff_type_index, 
+                               improper.atoms[3].ff_type_index] or 
+                quadruplet == [improper.atoms[3].ff_type_index, 
+                               improper.atoms[2].ff_type_index,
+                               improper.atoms[1].ff_type_index, 
+                               improper.atoms[0].ff_type_index]):
                 return key
             
-        raise ValueError('Error! An improper identifier ' + str(descriptor) + ' in user_input.txt did not match any improper in your cif')
+        raise ValueError('Error! An improper identifier ' + str(descriptor) + 
+                ' in user_input.txt did not match any improper in your cif')
     
     def overwrite_force_field_terms(self):
         self.parse_user_input("blah")
