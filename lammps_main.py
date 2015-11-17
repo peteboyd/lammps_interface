@@ -110,8 +110,10 @@ def construct_data_file(ff):
     # Nest this in an if statement
     if any([no_bond, no_angle, no_dihedral, no_improper]):
     # WARNING MESSAGE for potentials we think are unique but have not been calculated
-        print("WARNING: The following unique bonds/angles/dihedrals/impropers were detected in your crystal")
-        print("But they have not been assigned a potential from user_input.txt or from an internal FF assignment routine!")
+        print("WARNING: The following unique bonds/angles/dihedrals/impropers" +
+                " were detected in your crystal")
+        print("But they have not been assigned a potential from user_input.txt"+
+                " or from an internal FF assignment routine!")
         print("Bonds")
         for elem in no_bond:
             print(elem)
@@ -124,7 +126,8 @@ def construct_data_file(ff):
         print("Impropers")
         for elem in no_improper:
             print(elem)
-        print("If you think you specified one of these in your user_input.txt and this is an error, please contact developers\n")
+        print("If you think you specified one of these in your user_input.txt " +
+              "and this is an error, please contact developers\n")
         print("CONTINUING...")
 
 
@@ -133,43 +136,57 @@ def construct_data_file(ff):
     string += "\nAtoms\n\n"
     for atom in ff.structure.atoms:
         molid = 444
-        string += "%8i %8i %8i %11.5f %10.5f %10.5f %10.5f\n"%(atom.index+1, molid, atom.ff_type_index, atom.charge,
-                                                       atom.coordinates[0], atom.coordinates[1], atom.coordinates[2])
+        string += "%8i %8i %8i %11.5f %10.5f %10.5f %10.5f\n"%(atom.index+1, 
+                                                               molid, 
+                                                               atom.ff_type_index,
+                                                               atom.charge,
+                                                               atom.coordinates[0], 
+                                                               atom.coordinates[1], 
+                                                               atom.coordinates[2])
 
     #************[bonds]************
     string += "\nBonds\n\n"
     for bond in ff.structure.bonds:
         atm1, atm2 = bond.atoms 
-        type = bond.ff_type_index 
-        string += "%8i %8i %8i %8i\n"%(bond.index+1, type, atm1.index+1, atm2.index+1)
+        string += "%8i %8i %8i %8i\n"%(bond.index+1, 
+                                       bond.ff_type_index, 
+                                       atm1.index+1, 
+                                       atm2.index+1)
 
     #************[angles]***********
     string += "\nAngles\n\n"
     for angle in ff.structure.angles:
         atm1, atm2, atm3 = angle.atoms 
-        type = angle.ff_type_index
         # what order are they presented? b, a, c? or a, b, c?
-        string += "%8i %8i %8i %8i %8i\n"%(angle.index+1, type, atm1.index+1, atm2.index+1, atm3.index+1)
+        string += "%8i %8i %8i %8i %8i\n"%(angle.index+1, 
+                                           angle.ff_type_index, 
+                                           atm1.index+1, 
+                                           atm2.index+1, 
+                                           atm3.index+1)
 
     #************[dihedrals]********
     string += "\nDihedrals\n\n"
     for dihedral in ff.structure.dihedrals:
         atm1, atm2, atm3, atm4 = dihedral.atoms 
-        type = dihedral.ff_type_index
         # order?
-        string += "%8i %8i %8i %8i %8i %8i\n"%(dihedral.index+1, type, atm1.index+1, atm2.index+1,
-                                               atm3.index+1, atm4.index+1)
+        string += "%8i %8i %8i %8i %8i %8i\n"%(dihedral.index+1, 
+                                               dihedral.ff_type_index, 
+                                               atm1.index+1, 
+                                               atm2.index+1,
+                                               atm3.index+1, 
+                                               atm4.index+1)
 
     #************[impropers]********
     string += "\nImpropers\n\n"
     for improper in ff.structure.impropers:
         atm1, atm2, atm3, atm4 = improper.atoms
-        type = improper.ff_type_index 
         # order?
-        string += "%8i %8i %8i %8i %8i %8i\n"%(improper.index+1, type, atm1.index+1, 
-                                                                       atm2.index+1,
-                                                                       atm3.index+1,
-                                                                       atm4.index+1)
+        string += "%8i %8i %8i %8i %8i %8i\n"%(improper.index+1,
+                                               improper.ff_type_index,
+                                               atm1.index+1, 
+                                               atm2.index+1,
+                                               atm3.index+1,
+                                               atm4.index+1)
 
     return string
 
