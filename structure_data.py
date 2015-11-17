@@ -114,7 +114,7 @@ class Structure(object):
                 atom_a = self.atoms[ia]
                 atom_c = self.atoms[ic]
                 ia_type = atom_a.ff_type_index
-                ic_type = atom_b.ff_type_index
+                ic_type = atom_c.ff_type_index
                 # ignore cases where the c atom has already
                 # been used as a b atom. Otherwise this will double-count
                 # dihedral angles in the reverse order..
@@ -151,14 +151,17 @@ class Structure(object):
             if len(atom_b.neighbours) != 3:
                 continue
             ib = atom_b.index
-            ia, ic, id = atom_b.neighbours
-            atom_a, atom_c, atom_d = self.atoms[ia], self.atoms[ic], self.atoms[id]
+            # three improper torsion angles about each atom
+            for idx,(ia,ic,id) in enumerate(itertools.permutations(atom_b.neighbours)):
+                if idx == 3:
+                    break
+                atom_a, atom_c, atom_d = self.atoms[ia], self.atoms[ic], self.atoms[id]
 
-            abbond = self.get_bond(atom_a, atom_b)
-            bcbond = self.get_bond(atom_b, atom_c)
-            bdbond = self.get_bond(atom_b, atom_d)
-            improper = ImproperDihedral(abbond, bcbond, bdbond)
-            self.impropers.append(improper)
+                abbond = self.get_bond(atom_a, atom_b)
+                bcbond = self.get_bond(atom_b, atom_c)
+                bdbond = self.get_bond(atom_b, atom_d)
+                improper = ImproperDihedral(abbond, bcbond, bdbond)
+                self.impropers.append(improper)
 
 class Bond(object):
     __ID = 0
