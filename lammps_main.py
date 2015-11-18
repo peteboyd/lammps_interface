@@ -61,10 +61,7 @@ def construct_data_file(ff):
             no_bond.append("%5i : %s %s"%(key, bond.atoms[0].force_field_type, bond.atoms[1].force_field_type))
         else:
             ff1, ff2 = bond.atoms[0].force_field_type, bond.atoms[1].force_field_type
-            K = bond.parameters[0]
-            R = bond.parameters[1]
             string += "%5i %s "%(key, bond.potential)
-            for i in range(0, len(bond.parameters)): string += "%15.6f "%(float(bond.parameters[i]))
             string += "# %s %s\n"%(ff1, ff2)
 
 

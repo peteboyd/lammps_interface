@@ -44,10 +44,10 @@ class BondPotential(object):
     class FeneExpand(object):
         """Potential defined as
 
-        E = -0.5*K*R0^2 * ln[1-(r-del/R0)^2] + 
-               4*eps*[(sig/r-del)^12 - (sig/r-del)^6] + eps
+        E = -0.5*K*R0^2 * ln[1-(r-delta/R0)^2] + 
+               4*eps*[(sig/r-delta)^12 - (sig/r-delta)^6] + eps
 
-        Input parameters: K, R0, eps, sig, del
+        Input parameters: K, R0, eps, sig, delta
         """
         def __init__(self):
             self.name = "fene/expand" # NB: fene/expand/omp exists
@@ -55,7 +55,7 @@ class BondPotential(object):
             self.R0 = 0.
             self.eps = 0.
             self.sig = 0.
-            self.del = 0.
+            self.delta = 0.
 
         def __str__(self):
             return ""
@@ -74,7 +74,7 @@ class BondPotential(object):
             self.R0 = 0.
 
         def __str__(self):
-            return ""
+            return "%28s %15.6f %15.6f"%(self.name, self.K, self.R0)
 
     class Morse(object):
         """Potential defined as
@@ -128,7 +128,8 @@ class BondPotential(object):
 
     class Table(object):
         """Potential read from file."""
-        raise NotImplementedError ("Have not implemented the table funtion for lammps yet.")
+        def __init__(self):
+            raise NotImplementedError ("Have not implemented the table funtion for lammps yet.")
 
     class HarmonicShift(object):
         """Potential defined as
@@ -162,7 +163,7 @@ class BondPotential(object):
         def __str__(self):
             return ""
 
-class AnglePotential(object) 
+class AnglePotential(object): 
     """
     Class to hold angle styles that are implemented in lammps
     """
@@ -185,7 +186,8 @@ class AnglePotential(object)
             return ""
 
     class Class2(object):
-        raise NotImplementedError ("Will get on this..")
+        def __init__(self):
+            raise NotImplementedError ("Will get on this..")
 
     class Cosine(object):
         """Potential defined as
@@ -263,7 +265,8 @@ class AnglePotential(object)
             return ""
 
     class Table(object):
-        raise NotImplementedError ("Have not implemented the table funtion for lammps yet.")
+        def __init__(self):
+            raise NotImplementedError ("Have not implemented the table funtion for lammps yet.")
 
     class CosineShift(object):
         """Potential defined as
@@ -328,7 +331,8 @@ class AnglePotential(object)
             self.C2 = 0.
 
         def __str__(self):
-            return ""
+            return "%28s %15.6f %15.6f %15.6f %15.6f"%(self.name, self.K,
+                                                       self.C0, self.C1, self.C2)
 
     class FourierSimple(object):
         """Potential defined as
@@ -344,7 +348,8 @@ class AnglePotential(object)
             self.n = 0.
 
         def __str__(self):
-            return ""
+            return "%28s %15.6f %15.6f %15.6f"%(self.name, self.K,
+                                                self.c, self.n)
 
     class Quartic(object):
         """Potential defined as
@@ -401,7 +406,8 @@ class DihedralPotential(object):
             return ""
 
     class Class2(object):
-        raise NotImplementedError ("Will get on this..")
+        def __init__(self):
+            raise NotImplementedError ("Will get on this..")
 
     class Harmonic(object):
         """Potential defined as
@@ -417,7 +423,7 @@ class DihedralPotential(object):
             self.n = 0
 
         def __str__(self):
-            return ""
+            return "%28s %15.6f %15i %15i"%(self.name, self.K, self.d, self.n)
 
     class Helix(object):
         """Potential defined as
@@ -547,16 +553,18 @@ class DihedralPotential(object):
     
     class Table(object):
         """Potential read from file."""
-        raise NotImplementedError ("Have not implemented the table funtion for lammps yet.")
+        def __init__(self):
+            raise NotImplementedError ("Have not implemented the table funtion for lammps yet.")
 
 
-class ImproperPotential(object) 
+class ImproperPotential(object): 
     """
     Class to hold improper styles that are implemented in lammps
     """
     
     class Class2(object):
-        raise NotImplementedError ("Will get on this..")
+        def __init__(self):
+            raise NotImplementedError ("Will get on this..")
 
     class Cvff(object):
         """Potential defined as
@@ -629,11 +637,11 @@ class ImproperPotential(object)
 
         E = K*[C0 + C1*cos(omega) + C2*cos(2*omega)] 
 
-        Input parameters: K, C0, C1, C2, all
+        Input parameters: K, C0, C1, C2, a
 
-        all allows all three angles to be taken into account in an improper dihedral 
-        it is not clear in the lammps manual what to set this to to turn it off/on,
-        but the usual assumptions are 0/1.
+        the parameter a allows all three angles to be taken into account in an 
+        improper dihedral. It is not clear in the lammps manual what to set this 
+        to to turn it off/on, but the usual assumptions are 0/1.
         """
         def __init__(self):
             self.name = "fourier" # fourier/omp exists
@@ -641,10 +649,14 @@ class ImproperPotential(object)
             self.C0 = 0.
             self.C1 = 0.
             self.C2 = 0.
-            self.all = 0
+            self.a = 0
 
         def __str__(self):
-            return ""
+            return "%28s %15.6f %15.6f %15.6f %15i"%(self.name,
+                                                     self.C0,
+                                                     self.C1,
+                                                     self.C2,
+                                                     self.a)
     
     class Ring(object):
         """Potential defined as
