@@ -1,6 +1,7 @@
 from uff import UFF_DATA
 from uff_nonbonded import UFF_DATA_nonbonded
 from structure_data import Structure, Atom, Bond, Angle, Dihedral
+from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential
 import math
 from operator import mul
 import itertools
@@ -465,8 +466,10 @@ class UFF(ForceField):
         # form K/2(R-Req)**2
         # in Lammps, the value for K is already assumed to be divided by '2'
         K = 664.12*(UFF_DATA[fflabel1][5]*UFF_DATA[fflabel2][5])/(r0**3) / 2.
-        bond.function = 'harmonic'
-        bond.parameters = (K, r0)
+
+        bond.potential = BondPotential.Harmonic()
+        bond.potential.K = K
+        bond.potential.R0 = r0
 
     def angle_term(self, angle):
         """several cases exist where the type of atom in a particular environment is considered
@@ -524,7 +527,6 @@ class UFF(ForceField):
         ka = beta*(za*zc /(r_ac**5.))
         ka *= (3.*r_ab*r_bc*(1. - cosT0*cosT0) - r_ac*r_ac*cosT0)
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
-            angle.function = 'fourier/simple' 
             if angle_type == 'linear':
                 kappa = ka
                 c0 = 1.
@@ -547,10 +549,12 @@ class UFF(ForceField):
                 c0 = -1.
                 c1 = 4.
 
-            angle.parameters = (kappa, c0, c1)
+            angle.potential = AnglePotential.FourierSimple()
+            angle.potential.K = kappa
+            angle.potential.c = c0
+            angle.potential.n = c1
         # general-nonlinear
         else:
-            angle.function = 'fourier'
 
             #TODO: a bunch of special cases which require molecular recognition here..
             # water, for example has it's own theta0 angle.
@@ -561,7 +565,12 @@ class UFF(ForceField):
             c1 = -4.*c2*math.cos(theta0)
             c0 = c2*(2.*math.cos(theta0)*math.cos(theta0) + 1)
             kappa = ka
-            angle.parameters = (kappa, c0, c1, c2)
+            angle.function = 'fourier'
+            angle.potential = AnglePotential.Fourier()
+            angle.potential.K = kappa
+            angle.potential.C0 = c0
+            angle.potential.C1 = c1
+            angle.potential.C2 = c2
 
     def uff_angle_type(self, angle):
         l, c, r = angle.atoms
@@ -710,8 +719,10 @@ class UFF(ForceField):
         if abs(math.sin(nphi0*DEG2RAD)) > 1.0e-3:
             print("WARNING!!! nphi0 = %r" % nphi0)
         
-        dihedral.function = 'harmonic'
-        dihedral.parameters = (0.5*V, -math.cos(nphi0*DEG2RAD), n) 
+        dihedral.potential = DihedralPotential.Harmonic()
+        dihedral.potential.K = 0.5*V
+        dihedral.potential.d = -math.cos(nphi0*DEG2RAD)
+        dihedral.potential.n = n
 
     def improper_term(self, improper):
         """
@@ -752,10 +763,14 @@ class UFF(ForceField):
         #NB: TOWHEE divides by 3.
         koop /= 3. # Not clear in UFF paper, but division by the number of bonds is probably not appropriate. Should test on real systems..
 
-        improper.function = "fourier"
-        improper.parameters = (koop, c0, c1, c2)
+        improper.potential = ImproperPotential.Fourier()
+        improper.potential.K = koop
+        improper.potential.C0 = c0
+        improper.potential.C1 = c1
+        improper.potential.C2 = c2
 
 	# TODO this and all other unique_X() should probably be an inherited fucntion from the supercalss 
+
     def unique_atoms(self):
         # ff_type keeps track of the unique integer index
         print("Here are the unique atoms")

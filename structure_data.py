@@ -172,8 +172,7 @@ class Bond(object):
         self.length = 0.
         self.ff_type_index = 0
         self.midpoint = np.array([0., 0., 0.])
-        self.function = None
-        self.parameters = None
+        self.potential = None
         Bond.__ID += 1
 
     def compute_length(self, coord1, coord2):
@@ -214,7 +213,7 @@ class Angle(object):
         else:
             self._bonds = (abbond, bcbond)
         self.ff_type_index = 0
-        self.function = None
+        self.potential = None
         self._angle = 0.
         self.index = self.__ID
         Angle.__ID += 1
@@ -291,7 +290,7 @@ class Dihedral(object):
             self.angles = (angle1, angle2)
         self.ff_type_index = 0
         self.index = self.__ID
-        self.function = None
+        self.potential = None
         Dihedral.__ID += 1
 
     def set_angles(self, angles):
@@ -385,7 +384,7 @@ class ImproperDihedral(object):
         if not None in (bond1, bond2, bond3):
             self.bonds = (bond1, bond2, bond3)
         self.ff_type_index = 0
-        self.function = None
+        self.potential = None
         self.index = self.__ID
         ImproperDihedral.__ID += 1
     
