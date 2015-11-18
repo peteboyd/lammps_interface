@@ -378,79 +378,288 @@ class AnglePotential(object)
         def __str__(self):
             return ""
 
-class Dihedral_Pot(object) 
+class DihedralPotential(object): 
     """
     Class to hold dihedral styles that are implemented in lammps
-    Purpose is to store info that the user wants to use to overwrite standard UFF output of lammps_interface
     """
                 
+    class Charmm(object):
+        """Potential defined as
 
-    def __init__(self):
-        self.name = None
-        self.style = 0
-        self.choices = {'none': 0, 'charmm': 1, 'class2': 2, 'harmonic': 3, 'helix': 4, 'multi/harmonic': 5, 'opls': 6}
-        self.num_params = {'none': 0, 'charmm': 4, 'class2': 0, 'harmonic': 3, 'helix': 0, 'multi/harmonic': 5, 'opls': 4}
-        self.params = []
+        E = K*[1 + cos(n*phi - d)]
+
+        Input parameters: K, n, d, w (weighting for 1 - 4 non-bonded interactions) 
+        """
+        def __init__(self):
+            self.name = "charmm" # charm/kk and charmm/omp exist 
+            self.K = 0.
+            self.n = 0
+            self.d = 0
+            self.w = 0. # should be kept at 0 for charmm force fields
+
+        def __str__(self):
+            return ""
+
+    class Class2(object):
+        raise NotImplementedError ("Will get on this..")
+
+    class Harmonic(object):
+        """Potential defined as
+
+        E = K*[1 + d*cos(n*phi)]
+
+        Input parameters: K, d, n
+        """
+        def __init__(self):
+            self.name = "harmonic" # harmonic/omp exists 
+            self.K = 0.
+            self.d = 0
+            self.n = 0
+
+        def __str__(self):
+            return ""
+
+    class Helix(object):
+        """Potential defined as
+
+        E = A*[1 - cos(theta)] + B*[1 + cos(3*theta)] + C*[1 + cos(theta + pi/4)] 
+
+        Input parameters: A, B, C 
+        """
+        def __init__(self):
+            self.name = "helix" # helix/omp exists 
+            self.A = 0.
+            self.B = 0.
+            self.C = 0.
+
+        def __str__(self):
+            return ""
+
+    class MultiHarmonic(object):
+        """Potential defined as
+
+        E = sum_n=1,5{ An*cos^(n-1)(theta)}
+
+        Input parameters: A1, A2, A3, A4, A5
+        """
+        def __init__(self):
+            self.name = "multi/harmonic" # multi/harmonic/omp exists 
+            self.A1 = 0.
+            self.A2 = 0.
+            self.A3 = 0.
+            self.A4 = 0.
+            self.A5 = 0.
+
+        def __str__(self):
+            return ""
+    
+    class Opls(object):
+        """Potential defined as
+
+        E = 0.5*K1*[1 + cos(theta)] + 0.5*K2*[1 - cos(2*theta)] + 
+            0.5*K3*[1 + cos(3*theta)] + 0.5*K4*[1 - cos(4*theta)]
+
+        Input parameters: K1, K2, K3, K4
+        """
+        def __init__(self):
+            self.name = "opls" # opls/kk and opls/omp exist
+            self.K1 = 0.
+            self.K2 = 0.
+            self.K3 = 0.
+            self.K4 = 0.
+
+        def __str__(self):
+            return ""
+
+    class CosineShiftExp(object):
+        """Potential defined as
+
+        E = -Umin*[e^{-a*U(theta,theta0)} - 1] / (e^a -1) 
+
+        where U(theta, theta0) = -0.5*(1 + cos(theta-theta0))
+
+        Input parameters: Umin, theta0, a 
+        """
+        def __init__(self):
+            self.name = "cosine/shift/exp" # cosine/shift/exp/omp exists 
+            self.Umin = 0.
+            self.theta0 = 0.
+            self.a = 0.
+
+        def __str__(self):
+            return ""
+
+    class Fourier(object):
+        """Potential defined as
+
+        E = sum_i=1,m { Ki*[1.0 + cos(ni*theta - di)] } 
+
+        Input parameters: m, Ki, ni, di 
+
+        NB m is an integer dictating how many terms to sum, there should be 3*m + 1 
+        total parameters.
+
+        """
+        def __init__(self):
+            self.name = "fourier" # fourier/omp exists
+            self.m = 0
+            self.Ki = []
+            self.ni = []
+            self.di = []
+
+        def __str__(self):
+            return ""
+
+    class nHarmonic(object):
+        """Potential defined as
+
+        E = sum_i=1,n { Ai*cos^{i-1}(theta)
+
+        Input parameters: n, Ai
+
+        NB n is an integer dictating how many terms to sum, there should be n + 1 
+        total parameters.
+
+        """
+        def __init__(self):
+            self.name = "nharmonic" # nharmonic/omp exists
+            self.n = 0
+            self.Ai = []
+
+        def __str__(self):
+            return ""
+
+    class Quadratic(object):
+        """Potential defined as
+
+        E = K*(theta - theta0)^2 
+
+        Input parameters: K, phi0 
+
+        """
+        def __init__(self):
+            self.name = "quadratic" # quadratic/omp exists
+            self.K = 0.
+            self.phi0 = 0.
+
+        def __str__(self):
+            return ""
+    
+    class Table(object):
+        """Potential read from file."""
+        raise NotImplementedError ("Have not implemented the table funtion for lammps yet.")
 
 
-    def set_type(string):
-        self.name = string
-        try:
-            self.style = self.choices[self.name]
-        except KeyError:
-            raise KeyError('No LAMMPS dihedral_style found matching: ' + str(self.name) + '\nPlease check your overwrite_potentials.txt file for a typo in dihedral_style')
-
-        if self.num_params[self.name] == 0:
-            raise NameError('Sorry, dihedral_style <' + str(self.name) + '> not implemented yet.\nPlease contact authors in README.txt')
-
-
-    def set_params(inlist):
-        if self.name == None:
-            raise NameError('Potential parameters assigned before potential type')
-        else:
-            if len(inlist) != self.num_params:
-                raise NameError('Incorrect num of potential parameters given (=' + str(len(inlist)) + ').  Potential of type ' + str(self.name) | 'requires ' + str(self.num_params[self.name]))
-            else:
-               self.params = inlist
-
-
-
-
-class Improper_Pot(object) 
+class ImproperPotential(object) 
     """
     Class to hold improper styles that are implemented in lammps
-    Purpose is to store info that the user wants to use to overwrite standard UFF output of lammps_interface
     """
+    
+    class Class2(object):
+        raise NotImplementedError ("Will get on this..")
 
-    def __init__(self):
-        self.name = None
-        self.style = 0
-        self.choices = {'none': 0, 'class2': 1, 'cvff': 2, 'harmonic': 3, 'umbrella': 4}
-        self.num_params = {'none': 0, 'class2': 0, 'cvff': 0, 'harmonic': 2, 'umbrella': 0}
-        self.params = []
+    class Cvff(object):
+        """Potential defined as
 
+        E = K*[1 + d*cos(n*theta)]
 
-    def set_type(string):
-        self.name = string
-        try:
-            self.style = self.choices[self.name]
-        except KeyError:
-            raise KeyError('No LAMMPS improper_style found matching: ' + str(self.name) + '\nPlease check your overwrite_potentials.txt file for a typo in dihedral_style')
+        Input parameters: K, d, n
 
-        if self.num_params[self.name] == 0:
-            raise NameError('Sorry, improper_style <' + str(self.name) + '> not implemented yet.\nPlease contact authors in README.txt')
+        """
+        def __init__(self):
+            self.name = "cvff" # cvff/omp exists
+            self.K = 0.
+            self.d = 0
+            self.n = 0
 
+        def __str__(self):
+            return ""
+    
+    class Harmonic(object):
+        """Potential defined as
 
-    def set_params(inlist):
-        if self.name == None:
-            raise NameError('Potential parameters assigned before potential type')
-        else:
-            if len(inlist) != self.num_params:
-                raise NameError('Incorrect num of potential parameters given (=' + str(len(inlist)) + ').  Potential of type ' + str(self.name) | 'requires ' + str(self.num_params[self.name]))
-            else:
-               self.params = inlist
-			
+        E = K*(chi - chi0)^2 
 
+        Input parameters: K, chi0 
 
+        """
+        def __init__(self):
+            self.name = "harmonic" # harmonic/kk and harmonic/omp exist
+            self.K = 0.
+            self.chi0 = 0.
 
-###########################################
+        def __str__(self):
+            return ""
+    
+    class Umbrella(object):
+        """Potential defined as
+
+        E = 0.5*K*[1 + cos(omega0)/sin(omega0)]^2 * [cos(omega) - cos(omega0)]   if omega0 .ne. 0 (deg)
+        E = K*[1 - cos(omega)]  if omega0 = 0 (deg)
+
+        Input parameters: K, omega0 
+
+        """
+        def __init__(self):
+            self.name = "umbrella" # umbrella/omp exists
+            self.K = 0.
+            self.omega0 = 0.
+
+        def __str__(self):
+            return ""
+    
+    class Cossq(object):
+        """Potential defined as
+
+        E = 0.5*K*cos^2(chi - chi0) 
+
+        Input parameters: K, chi0 
+
+        """
+        def __init__(self):
+            self.name = "cossq" # cossq/omp exists
+            self.K = 0.
+            self.chi0 = 0.
+
+        def __str__(self):
+            return ""
+    
+    class Fourier(object):
+        """Potential defined as
+
+        E = K*[C0 + C1*cos(omega) + C2*cos(2*omega)] 
+
+        Input parameters: K, C0, C1, C2, all
+
+        all allows all three angles to be taken into account in an improper dihedral 
+        it is not clear in the lammps manual what to set this to to turn it off/on,
+        but the usual assumptions are 0/1.
+        """
+        def __init__(self):
+            self.name = "fourier" # fourier/omp exists
+            self.K = 0.
+            self.C0 = 0.
+            self.C1 = 0.
+            self.C2 = 0.
+            self.all = 0
+
+        def __str__(self):
+            return ""
+    
+    class Ring(object):
+        """Potential defined as
+
+        E = 1/6*K*(delta_ijl + delta_ijk + delta_kjl)^6 
+
+        where delta_ijl = cos(theta_ijl) - cos(theta0)
+
+        Input parameters: K, theta0
+
+        """
+        def __init__(self):
+            self.name = "ring" # ring/omp exists
+            self.K = 0.
+            self.theta0 = 0.
+
+        def __str__(self):
+            return ""
