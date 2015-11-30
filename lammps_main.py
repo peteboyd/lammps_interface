@@ -255,6 +255,10 @@ def main():
         print("Error: could not find the force field: %s"%options.force_field)
         sys.exit()
 
+    # doesn't really follow the logic of the program, but can only be done 
+    # when the atoms have been assigned to a force field.
+    # ff.struct.compute_pair_terms() 
+
     ff.compute_force_field_terms()
     data_str = construct_data_file(ff) 
     inp_str = construct_input_file(ff)
