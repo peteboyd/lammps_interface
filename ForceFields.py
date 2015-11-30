@@ -702,11 +702,9 @@ class UFF(ForceField):
             #TODO: a bunch of special cases which require molecular recognition here..
             # water, for example has it's own theta0 angle.
 
-            theta0 = UFF_DATA[buff][1]
-
-            c2 = 1. / (4.*math.sin(theta0)*math.sin(theta0))
-            c1 = -4.*c2*math.cos(theta0)
-            c0 = c2*(2.*math.cos(theta0)*math.cos(theta0) + 1)
+            c2 = 1. / (4.*sinT0*sinT0)
+            c1 = -4.*c2*cosT0
+            c0 = c2*(2.*cosT0*cosT0 + 1)
             kappa = ka
             angle.potential = AnglePotential.Fourier()
             angle.potential.K = kappa
