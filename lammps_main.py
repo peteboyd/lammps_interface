@@ -55,8 +55,6 @@ def construct_data_file(ff):
     string += "\nBond Coeffs\n\n"
     for key in sorted(ff.unique_bond_types.keys()):
         bond = ff.unique_bond_types[key]
-        #print(bond.atoms[0].ff_type_index)
-        #print(bond.atoms[1].ff_type_index)
         if bond.potential is None:
             no_bond.append("%5i : %s %s"%(key, bond.atoms[0].force_field_type, bond.atoms[1].force_field_type))
         else:
@@ -87,9 +85,7 @@ def construct_data_file(ff):
             # include options to not print the name of the function on this line (i.e. no hybrid) if not needed.
             string += "%5i %s "%(key, dihedral.potential)
             string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
-    print(string)
 
-	# Changed 1. to 1 because LAMMPS was parsing it as a float instead of an int
     string += "\nImproper Coeffs\n\n"
     for key in sorted(ff.unique_improper_types.keys()):
         improper = ff.unique_improper_types[key]
@@ -100,7 +96,11 @@ def construct_data_file(ff):
             string += "%5i %s "%(key, improper.potential)
             string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
 
-
+    string += "\nPair Coeffs\n\n"
+    for key, pair in sorted(ff.unique_pair_types.items()):
+        # TODO(change eps to 0 for Al, Si, Ge)
+        string += "%5i %s "%(key, pair.potential)
+    
     # Nest this in an if statement
     if any([no_bond, no_angle, no_dihedral, no_improper]):
     # WARNING MESSAGE for potentials we think are unique but have not been calculated
@@ -182,6 +182,7 @@ def construct_data_file(ff):
                                                atm3.index+1,
                                                atm4.index+1)
 
+
     return string
 
 def construct_input_file(ff):
@@ -205,10 +206,6 @@ def construct_input_file(ff):
     inp_str += "%-15s %s\n"%("box tilt","large")
     inp_str += "%-15s %s\n"%("read_data","data.%s"%(ff.structure.name))
 
-    for (id1,id2), (eps, sig) in ff.unique_van_der_waals.items():
-        # TODO(change eps to 0 for Al, Si, Ge)
-        inp_str += "%-15s %6i %4i %s %24.15f %25.15f\n"%("pair_coeff", id1, id2, "lj/cut/coul/long", eps, sig)
-    
     inp_str += "\n"
     inp_str += "%-15s %s\n"%("dump","%s_mov all xyz 1 %s_mov.xyz"%(ff.structure.name, ff.structure.name))
     inp_str += "%-15s %s\n"%("pair_modify","tail yes mix arithmetic")
@@ -240,6 +237,12 @@ def main():
     mofname = clean(options.cif_file)
     struct = Structure(name=mofname)
     struct.from_CIF(cif)
+    # compute minimum supercell
+    # NB: half box width should be a user-defined command,
+    # or default to 2.5*sigma_max of the requested force field
+    # currently defaults to 12.5 anstroms
+    struct.minimum_cell()
+
     struct.compute_angles()
     struct.compute_dihedrals()
     struct.compute_improper_dihedrals()

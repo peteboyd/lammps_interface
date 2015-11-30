@@ -1,7 +1,7 @@
 from uff import UFF_DATA
 from uff_nonbonded import UFF_DATA_nonbonded
-from structure_data import Structure, Atom, Bond, Angle, Dihedral
-from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential
+from structure_data import Structure, Atom, Bond, Angle, Dihedral, PairTerm
+from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
 import math
 from operator import mul
 import itertools
@@ -54,7 +54,6 @@ class ForceField(object):
     @abc.abstractmethod
     def unique_bonds(self):
         """Computes the number of unique bonds in the structure"""
-	# TODO this and all other unique_X() should probably be an inherited fucntion from the supercalss 
         count = 0
         bb_type = {}
         for bond in self.structure.bonds:
@@ -161,22 +160,25 @@ class ForceField(object):
             improper.ff_type_index = type     
 
     @abc.abstractmethod
-    def van_der_waals_pairs(self):
-        atom_types = self.unique_atom_types.keys()
-        for type1, type2 in itertools.combinations_with_replacement(atom_types, 2):
-            atm1 = self.unique_atom_types[type1]
-            atm2 = self.unique_atom_types[type2]
-            eps1 = UFF_DATA[atm1.force_field_type][3]
-            eps2 = UFF_DATA[atm2.force_field_type][3]
-    
-            # radius --> sigma = radius*2**(-1/6)
-            sig1 = UFF_DATA[atm1.force_field_type][2]*(2**(-1./6.))
-            sig2 = UFF_DATA[atm2.force_field_type][2]*(2**(-1./6.))
-    
-            # l-b mixing
-            eps = math.sqrt(eps1*eps2)
-            sig = (sig1 + sig2) / 2.
-            self.unique_van_der_waals[(type1, type2)] = (eps, sig)    
+    def unique_pair_terms(self):
+        """This is force field dependant."""
+        count = 0 
+        pair_type = {}
+        for pair in self.structure.pairs:
+            p1 = (pair.atoms[0].ff_type_index, pair.atoms[1].ff_type_index)
+            p2 = (pair.atoms[1].ff_type_index, pair.atoms[0].ff_type_index)
+            if p1 in pair_type.keys():
+                type = pair_type[p1]
+            elif p2 in pair_type.keys():
+                type = pair_type[p2]
+            else:
+                count += 1
+                type = count
+                improper_type[p1] = type
+                self.pair_term(pair)
+                self.unique_pair_types[type] = pair
+            pair.ff_type_index = type
+        return
 
     @abc.abstractmethod
     def compute_force_field_terms(self):
@@ -185,7 +187,7 @@ class ForceField(object):
         self.unique_angles()
         self.unique_dihedrals()
         self.unique_impropers()
-        self.van_der_waals_pairs()
+        self.unique_pair_terms()
 
 
 class UserFF(ForceField):
@@ -197,7 +199,7 @@ class UserFF(ForceField):
         self.unique_angle_types = {}
         self.unique_dihedral_types = {}
         self.unique_improper_types = {}
-        self.unique_van_der_waals = {}
+        self.unique_pair_types = {}
 
     def bond_term(self, bond):
         pass
@@ -420,7 +422,7 @@ class UserFF(ForceField):
             # l-b mixing
             eps = math.sqrt(eps1*eps2)
             sig = (sig1 + sig2) / 2.
-            self.unique_van_der_waals[(type1, type2)] = (eps, sig)    
+            self.unique_pair_types[(type1, type2)] = (eps, sig)    
 
     def parse_user_input(self, filename):
         infile = open("user_input.txt","r")
@@ -590,7 +592,7 @@ class UFF(ForceField):
         self.unique_angle_types = {}
         self.unique_dihedral_types = {}
         self.unique_improper_types = {}
-        self.unique_van_der_waals = {}
+        self.unique_pair_types = {}
 
     def bond_term(self, bond):
         """Harmonic assumed"""
@@ -909,4 +911,17 @@ class UFF(ForceField):
         improper.potential.C1 = c1
         improper.potential.C2 = c2
 
+    def pair_term(self, pair):
+        atom1 = pair.atoms[0]
+        atom2 = pair.atoms[1]
+        eps1 = UFF_DATA[atom.force_field_type][3]
+        sig1 = UFF_DATA[atom.force_field_type][2]*(2**(-1./6.))
+        eps2 = UFF_DATA[atom.force_field_type][3]
+        sig2 = UFF_DATA[atom.force_field_type][2]*(2**(-1./6.))
+        # default LB mixing.
+        eps = np.sqrt(eps1*eps2)
+        sig = (sig1 + sig2) / 2.
+        pair.potential = PairPotential.LjCutCoulLong()
+        pair.eps = eps
+        pair.sig = sig
 

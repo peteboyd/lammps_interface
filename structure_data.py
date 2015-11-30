@@ -3,6 +3,7 @@ from datetime import date
 import numpy as np
 import math
 import itertools
+from copy import deepcopy
 from atomic import MASS, ATOMIC_NUMBER
 from ccdc import CCDC_BOND_ORDERS
 DEG2RAD=np.pi/180.
@@ -17,7 +18,7 @@ class Structure(object):
         self.angles = []
         self.dihedrals = []
         self.impropers = []
-
+        self.pairs = []
 
     def from_CIF(self, cifobj):
         """Reads the structure data from the CIF
@@ -145,6 +146,11 @@ class Structure(object):
         improper_type = {}
 
         for atom_b in self.atoms:
+            # I think these are UFF specific.. 
+            # TODO: either remove these 'compute' functions from the structure class
+            # and put them in specific force field classes, 
+            # or keep them and add clauses for which angles, bonds, dihedrals etc
+            # to use in the force field classes.
             if not atom_b.atomic_number in (6, 7, 8, 15, 33, 51, 83):
                 continue
             if len(atom_b.neighbours) != 3:
@@ -161,6 +167,38 @@ class Structure(object):
                 bdbond = self.get_bond(atom_b, atom_d)
                 improper = ImproperDihedral(abbond, bcbond, bdbond)
                 self.impropers.append(improper)
+    
+    def compute_pair_terms(self):
+        """Place holder for hydrogen bonding?"""
+    
+        return
+
+    def minimum_cell(self, cutoff=12.5):
+        """Determine the minimum cell size such that half the orthogonal cell
+        width is greater than or equal to 'cutoff' which is default
+        12.5 angstroms.
+        
+        NB: this replaces the original unit cell with a supercell.
+            there may be a better way to do this if one needs to keep both
+            the super- and unit cells.
+        """
+        sc = self.cell.minimum_supercell(cutoff)
+        if np.any(np.array(sc) > 1):
+            print("Warning: unit cell is not large enough to"
+            +" support a cutoff of %.2f \n"%cutoff +
+            "Re-sizing to a %i x %i x %i supercell. "%(sc))
+            cells = list(itertools.product(*[itertools.product(range(j)) for j in sc]))
+            for cell in cells:
+                self.replicate(cell)
+
+        # re-calculate bonding across periodic images.
+        
+    def replicate(self, image):
+        """Replicate the structure in the image direction"""
+        trans = np.sum(np.multiply(self.cell.cell.T, np.array(image)).T, axis=1)
+        for atom in self.atoms:
+            newatom = deepcopy(atom)
+            newatom.pos = atom.coordinates + trans
 
 class Bond(object):
     __ID = 0
@@ -366,6 +404,40 @@ class Dihedral(object):
     @property
     def bcd_angle(self):
         return self._angles[1]
+
+class PairTerm(object):
+    """Place holder for VDW and other
+    non-bonded potentials.
+
+    """
+    __ID = 0
+
+    def __init__(self, atm1=None, atm2=None):
+        self.ff_type_index = 0
+        self._atoms = (atm1, atm2)
+        self.potential = None
+        self.index = self.__ID
+        PairTerm.__ID + = 1
+    
+    def set_atoms(self, atm1, atm2):
+        self._atoms = (atm1, atm2)
+
+    def get_atoms(self):
+        return self._atoms
+
+    atoms = property(get_atoms, set_atoms)
+    
+    @property
+    def indices(self):
+        if not None in self.atoms:
+            return (self.atoms[0].index, self.atoms[1].index)
+        return (None, None)
+
+    @property
+    def elements(self):
+        if not None in self.atoms:
+            return (self.atoms[0].element, self.atoms[1].element)
+        return (None, None)
 
 class ImproperDihedral(object):
     """Class to store improper dihedral angles

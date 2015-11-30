@@ -675,3 +675,27 @@ class ImproperPotential(object):
 
         def __str__(self):
             return ""
+
+class PairPotential(object): 
+    """
+    Class to hold Pair styles that are implemented in lammps
+    NB: list here is HUGE, update as needed..
+
+    """
+    
+    class LjCutCoulLong(object):
+        """Potential defined as
+
+        E = 4*eps*[(sig/r)^12 - (sig/r)^6] r < rc
+
+        and coulombic terms dealt with a kspace solver
+        """
+        def __init__(self):
+            self.name = "lj/cut/coul/long" 
+            self.eps = 0.
+            self.sig = 0.
+
+        def __str__(self):
+            return "%28s %15.6f %15.6f"%(self.name,
+                                         self.eps,
+                                         self.sig)
