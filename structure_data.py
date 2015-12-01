@@ -2,11 +2,12 @@
 from datetime import date
 import numpy as np
 import math
+from copy import copy
 import itertools
-from copy import deepcopy
 from atomic import MASS, ATOMIC_NUMBER
 from ccdc import CCDC_BOND_ORDERS
 DEG2RAD=np.pi/180.
+
 class Structure(object):
 
     def __init__(self, name):
@@ -40,8 +41,8 @@ class Structure(object):
         
         # Charge assignment may have to be a bit more inclusive than just setting _atom_site_charge
         # in the .cif file.. will have to think of a user-friendly way to introduce charges..
-        if '_atom_site_charge' in data:
-            charges = [float(j.strip()) for j in data['_atom_site_charge']]
+        if '_atom_type_partial_charge' in data:
+            charges = [float(j.strip()) for j in data['_atom_type_partial_charge']]
         else:
 
             charges = [0. for i in range(0, len(x))]
@@ -73,7 +74,6 @@ class Structure(object):
                 atm2.neighbours.append(atm1.index)
                 bond = Bond(atm1=atm1, atm2=atm2, 
                             order=CCDC_BOND_ORDERS[t.strip()])
-
                 self.bonds.append(bond)
 
         # unwrap symmetry elements if they exist
@@ -187,20 +187,76 @@ class Structure(object):
         sc = self.cell.minimum_supercell(cutoff)
         if np.any(np.array(sc) > 1):
             print("Warning: unit cell is not large enough to"
-            +" support a cutoff of %.2f \n"%cutoff +
+            +" support a non-bonded cutoff of %.2f Angstroms\n"%cutoff +
             "Re-sizing to a %i x %i x %i supercell. "%(sc))
             cells = list(itertools.product(*[itertools.product(range(j)) for j in sc]))
-            for cell in cells:
-                self.replicate(cell)
+            repatoms = []
+            for cell in cells[1:]:
+                repatoms += self.replicate(cell)
+            self.atoms += repatoms
+            # update lattice boxsize to supercell
+            self.cell.multiply(sc)
+            remove_bonds = []
+            add_bonds = []
+            for idx, bond in enumerate(self.bonds):
+                (atom1, atom2) = bond.atoms
+                # decide whether a new bond should be formed, or an old one will suffice.
+                list1 = [atom1.index] + atom1.images
+                list2 = [atom2.index] + atom2.images
+                bonding = itertools.product(list1, list2)
 
-        # re-calculate bonding across periodic images.
-        
+                coords1 = np.array([self.atoms[a].coordinates for a in list1])
+                coords2 = np.array([self.atoms[a].coordinates for a in list2])
+                distmat = np.empty((coords1.shape[0], coords2.shape[0]))
+                for (i,j), val in np.ndenumerate(distmat):
+                    dist = self.min_img_distance(coords1[i], coords2[j])
+                    distmat[i,j] = dist
+
+                dist = np.min(distmat)
+                bondids = [(i,j) for i,j in zip(*(np.where(distmat - dist < 0.001)))]
+                # ensure that the total number of bonds detected is the same as the number
+                # of images.
+                assert (len(bondids) == int(np.prod(sc))), print("Experienced problem expanding bonding to the supercell!")
+                # original image bond crosses unit cell boundary
+                if (0,0) not in bondids:
+                    remove_bonds.append(idx)
+                    # update neighbour lists
+                    del(atom1.neighbours[atom1.neighbours.index(atom2.index)])
+                    del(atom2.neighbours[atom2.neighbours.index(atom1.index)])
+                else:
+                    del(bondids[bondids.index((0,0))])
+                for (i,j) in [(list1[k],list2[l]) for (k,l) in bondids]:
+                    newbond = Bond(self.atoms[i], self.atoms[j], order=int(bond.order))
+                    newbond.ff_type_index = int(bond.ff_type_index)
+                    self.atoms[i].neighbours.append(j)
+                    self.atoms[j].neighbours.append(i)
+                    add_bonds.append(newbond)
+            for newbond in add_bonds:
+                self.bonds.append(newbond)
+            for idbad in reversed(sorted(remove_bonds)):
+                del(self.bonds[idbad])
+            # re-index bonds
+            for newidx, bond in enumerate(self.bonds):
+                bond.index=newidx
+
+        # re-calculate bonding across periodic images. 
     def replicate(self, image):
         """Replicate the structure in the image direction"""
         trans = np.sum(np.multiply(self.cell.cell.T, np.array(image)).T, axis=1)
+        l = len(self.atoms)
+        repatoms = []
         for atom in self.atoms:
-            newatom = deepcopy(atom)
-            newatom.pos = atom.coordinates + trans
+            newatom = copy(atom)
+            newatom.coordinates += trans
+            repatoms.append(newatom)
+        return repatoms
+
+    def min_img_distance(self, coords1, coords2):
+        one = np.dot(self.cell.inverse, coords1) % 1
+        two = np.dot(self.cell.inverse, coords2) % 1
+        three = np.around(one - two)
+        four = np.dot(one - two - three, self.cell.cell)
+        return np.linalg.norm(four)
 
 class Bond(object):
     __ID = 0
@@ -535,11 +591,13 @@ class Atom(object):
         self.index = self.__ID
         self.neighbours = []
         self.ciflabel = None
+        self.images = []
         self.force_field_type = None
         self.coordinates = coordinates
         self.charge = 0.
         self.ff_type_index = 0 # keeps track of the unique integer value assigned to the force field type
         Atom.__ID += 1
+        self.image_index = -1 # If a copy, keeps the original index here.
 
     def scaled_pos(self, inv_cell):
         return np.dot(self.coordinates[:3], inv_cell)
@@ -557,6 +615,17 @@ class Atom(object):
     @property
     def atomic_number(self):
         return ATOMIC_NUMBER.index(self.element)
+
+    def __copy__(self):
+        a = Atom()
+        a.element = self.element[:]
+        a.force_field_type = self.force_field_type[:]
+        a.coordinates = self.coordinates.copy()
+        a.charge = float(self.charge)
+        a.ff_type_index = int(self.ff_type_index)
+        a.image_index = self.index
+        self.images.append(a.index) # keep track of all images of this atom
+        return a
 
 class Cell(object):
     def __init__(self):
@@ -612,6 +681,12 @@ class Cell(object):
                   volume / np.linalg.norm(a_cross_b)]
 
         return tuple(int(math.ceil(2*cutoff/x)) for x in widths)
+
+    def multiply(self, tuple):
+        self._cell = np.multiply(self._cell.T, tuple).T
+        self.__mkparam()
+        self.__mklammps()
+        self._inverse = np.linalg.inv(self._cell.T)
 
     @property
     def minimum_width(self):
@@ -678,15 +753,15 @@ class Cell(object):
 
     def __mkparam(self):
         """Update the parameters to match the cell."""
-        cell_a = sqrt(sum(x**2 for x in self.cell[0]))
-        cell_b = sqrt(sum(x**2 for x in self.cell[1]))
-        cell_c = sqrt(sum(x**2 for x in self.cell[2]))
+        cell_a = np.sqrt(sum(x**2 for x in self.cell[0]))
+        cell_b = np.sqrt(sum(x**2 for x in self.cell[1]))
+        cell_c = np.sqrt(sum(x**2 for x in self.cell[2]))
         alpha = np.arccos(sum(self.cell[1, :] * self.cell[2, :]) /
-                       (cell_b * cell_c)) * 180 / pi
+                       (cell_b * cell_c)) * 180 / np.pi
         beta = np.arccos(sum(self.cell[0, :] * self.cell[2, :]) /
-                      (cell_a * cell_c)) * 180 / pi
+                      (cell_a * cell_c)) * 180 / np.pi
         gamma = np.arccos(sum(self.cell[0, :] * self.cell[1, :]) /
-                       (cell_a * cell_b)) * 180 / pi
+                       (cell_a * cell_b)) * 180 / np.pi
         self._params = (cell_a, cell_b, cell_c, alpha, beta, gamma)
 
     def __mklammps(self):

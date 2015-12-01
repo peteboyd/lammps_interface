@@ -45,7 +45,6 @@ def construct_data_file(ff):
     no_dihedral = []
     no_improper = []
 
-
     string += "\nMasses\n\n"
     for key in sorted(ff.unique_atom_types.keys()):
         unq_atom = ff.unique_atom_types[key]
@@ -123,7 +122,7 @@ def construct_data_file(ff):
     for key, pair in sorted(ff.unique_pair_types.items()):
         # TODO(change eps to 0 for Al, Si, Ge)
         string += "%5i %s "%(key, pair.potential)
-        string += "# %s %s\n"%(pair.atom[0].force_field_type, pair.atom[1].force_field_type)
+        string += "# %s %s\n"%(pair.atoms[0].force_field_type, pair.atoms[1].force_field_type)
     
     # Nest this in an if statement
     if any([no_bond, no_angle, no_dihedral, no_improper]):
@@ -265,7 +264,7 @@ def main():
     # NB: half box width should be a user-defined command,
     # or default to 2.5*sigma_max of the requested force field
     # currently defaults to 12.5 anstroms
-    struct.minimum_cell()
+    struct.minimum_cell(cutoff=12.5)
 
     struct.compute_angles()
     struct.compute_dihedrals()
