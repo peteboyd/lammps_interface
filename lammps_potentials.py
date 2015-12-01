@@ -72,8 +72,11 @@ class BondPotential(object):
             self.name = "harmonic" # harmonic/kk and harmonic/omp exist
             self.K = 0.
             self.R0 = 0.
+            self.reduced = False
 
         def __str__(self):
+            if self.reduced:
+                return "%15.6f %15.6f"%(self.K, self.R0)
             return "%28s %15.6f %15.6f"%(self.name, self.K, self.R0)
 
     class Morse(object):
@@ -329,8 +332,14 @@ class AnglePotential(object):
             self.C0 = 0.
             self.C1 = 0.
             self.C2 = 0.
+            self.reduced = False
 
         def __str__(self):
+            if self.reduced:
+                return "%15.6f %15.6f %15.6f %15.6f"%(self.K,
+                                                      self.C0,
+                                                      self.C1,
+                                                      self.C2)
             return "%28s %15.6f %15.6f %15.6f %15.6f"%(self.name, self.K,
                                                        self.C0, self.C1, self.C2)
 
@@ -346,8 +355,13 @@ class AnglePotential(object):
             self.K = 0.
             self.c = 0.
             self.n = 0.
+            self.reduced = False
 
         def __str__(self):
+            if self.reduced:
+                return "%15.6f %15.6f %15.6f"%(self.K,
+                                               self.c,
+                                               self.n)
             return "%28s %15.6f %15.6f %15.6f"%(self.name, self.K,
                                                 self.c, self.n)
 
@@ -421,8 +435,11 @@ class DihedralPotential(object):
             self.K = 0.
             self.d = 0
             self.n = 0
+            self.reduced = False
 
         def __str__(self):
+            if self.reduced:
+                return "%15.6f %15i %15i"%(self.K, self.d, self.n)
             return "%28s %15.6f %15i %15i"%(self.name, self.K, self.d, self.n)
 
     class Helix(object):
@@ -650,8 +667,14 @@ class ImproperPotential(object):
             self.C1 = 0.
             self.C2 = 0.
             self.a = 0
+            self.reduced = False
 
         def __str__(self):
+            if self.reduced:
+                return "%15.6f %15.6f %15.6f %15i"%(self.C0,
+                                                    self.C1,
+                                                    self.C2,
+                                                    self.a)
             return "%28s %15.6f %15.6f %15.6f %15i"%(self.name,
                                                      self.C0,
                                                      self.C1,
@@ -694,8 +717,12 @@ class PairPotential(object):
             self.name = "lj/cut/coul/long" 
             self.eps = 0.
             self.sig = 0.
+            self.reduced = False
 
         def __str__(self):
+            if self.reduced:
+                return "%15.6f %15.6f"%(self.eps,
+                                        self.sig)
             return "%28s %15.6f %15.6f"%(self.name,
                                          self.eps,
                                          self.sig)

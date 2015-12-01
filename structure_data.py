@@ -170,7 +170,9 @@ class Structure(object):
     
     def compute_pair_terms(self):
         """Place holder for hydrogen bonding?"""
-    
+        for j in self.atoms:
+            pair = PairTerm(j, j)
+            self.pairs.append(pair)
         return
 
     def minimum_cell(self, cutoff=12.5):
@@ -417,7 +419,7 @@ class PairTerm(object):
         self._atoms = (atm1, atm2)
         self.potential = None
         self.index = self.__ID
-        PairTerm.__ID + = 1
+        PairTerm.__ID += 1
     
     def set_atoms(self, atm1, atm2):
         self._atoms = (atm1, atm2)
@@ -599,17 +601,17 @@ class Cell(object):
 
     def minimum_supercell(self, cutoff):
         """Calculate the smallest supercell with a half-cell width cutoff."""
-        a_cross_b = cross(self.cell[0], self.cell[1])
-        b_cross_c = cross(self.cell[1], self.cell[2])
-        c_cross_a = cross(self.cell[2], self.cell[0])
+        a_cross_b = np.cross(self.cell[0], self.cell[1])
+        b_cross_c = np.cross(self.cell[1], self.cell[2])
+        c_cross_a = np.cross(self.cell[2], self.cell[0])
 
-        volume = dot(self.cell[0], b_cross_c)
+        volume = np.dot(self.cell[0], b_cross_c)
 
         widths = [volume / np.linalg.norm(b_cross_c),
                   volume / np.linalg.norm(c_cross_a),
                   volume / np.linalg.norm(a_cross_b)]
 
-        return tuple(int(ceil(2*cutoff/x)) for x in widths)
+        return tuple(int(math.ceil(2*cutoff/x)) for x in widths)
 
     @property
     def minimum_width(self):

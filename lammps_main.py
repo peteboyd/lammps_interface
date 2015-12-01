@@ -56,9 +56,13 @@ def construct_data_file(ff):
     for key in sorted(ff.unique_bond_types.keys()):
         bond = ff.unique_bond_types[key]
         if bond.potential is None:
-            no_bond.append("%5i : %s %s"%(key, bond.atoms[0].force_field_type, bond.atoms[1].force_field_type))
+            no_bond.append("%5i : %s %s"%(key, 
+                                bond.atoms[0].force_field_type, 
+                                bond.atoms[1].force_field_type))
         else:
-            ff1, ff2 = bond.atoms[0].force_field_type, bond.atoms[1].force_field_type
+            ff1, ff2 = (bond.atoms[0].force_field_type, 
+                        bond.atoms[1].force_field_type)
+
             string += "%5i %s "%(key, bond.potential)
             string += "# %s %s\n"%(ff1, ff2)
 
@@ -69,10 +73,15 @@ def construct_data_file(ff):
         atom_a, atom_b, atom_c = angle.atoms
 
         if angle.potential is None:
-            no_angle.append("%5i : %s %s %s"%(key, atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type))
+            no_angle.append("%5i : %s %s %s"%(key, 
+                                  atom_a.force_field_type, 
+                                  atom_b.force_field_type, 
+                                  atom_c.force_field_type))
         else:
             string += "%5i %s "%(key, angle.potential)
-            string += "# %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type)
+            string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                                      atom_b.force_field_type, 
+                                      atom_c.force_field_type)
     
 
     string +=  "\nDihedral Coeffs\n\n"
@@ -80,26 +89,41 @@ def construct_data_file(ff):
         dihedral = ff.unique_dihedral_types[key]
         atom_a, atom_b, atom_c, atom_d = dihedral.atoms
         if dihedral.potential is None:
-            no_dihedral.append("%5i : %s %s %s %s"%(key, atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type))
+            no_dihedral.append("%5i : %s %s %s %s"%(key, 
+                               atom_a.force_field_type, 
+                               atom_b.force_field_type, 
+                               atom_c.force_field_type, 
+                               atom_d.force_field_type))
         else:
             # include options to not print the name of the function on this line (i.e. no hybrid) if not needed.
             string += "%5i %s "%(key, dihedral.potential)
-            string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
+            string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
+                                         atom_b.force_field_type, 
+                                         atom_c.force_field_type, 
+                                         atom_d.force_field_type)
 
     string += "\nImproper Coeffs\n\n"
     for key in sorted(ff.unique_improper_types.keys()):
         improper = ff.unique_improper_types[key]
         atom_a, atom_b, atom_c, atom_d = improper.atoms  
         if improper.potential is None:
-            no_improper.append("%5i : %s %s %s %s"%(key, atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type))
+            no_improper.append("%5i : %s %s %s %s"%(key, 
+                atom_a.force_field_type, 
+                atom_b.force_field_type, 
+                atom_c.force_field_type, 
+                atom_d.force_field_type))
         else:
             string += "%5i %s "%(key, improper.potential)
-            string += "# %s %s %s %s\n"%(atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type)
+            string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
+                                         atom_b.force_field_type, 
+                                         atom_c.force_field_type, 
+                                         atom_d.force_field_type)
 
     string += "\nPair Coeffs\n\n"
     for key, pair in sorted(ff.unique_pair_types.items()):
         # TODO(change eps to 0 for Al, Si, Ge)
         string += "%5i %s "%(key, pair.potential)
+        string += "# %s %s\n"%(pair.atom[0].force_field_type, pair.atom[1].force_field_type)
     
     # Nest this in an if statement
     if any([no_bond, no_angle, no_dihedral, no_improper]):
@@ -196,12 +220,12 @@ def construct_input_file(ff):
     inp_str += "%-15s %s\n"%("boundary","p p p")
     inp_str += "%-15s %s\n"%("dielectric","1")
     inp_str += "\n"
-    inp_str += "%-15s %s\n"%("pair_style", "hybrid lj/cut/coul/long 8.50000 11.5")
-    inp_str += "%-15s %s\n"%("bond_style","hybrid harmonic")
-    inp_str += "%-15s %s\n"%("angle_style","hybrid fourier fourier/simple")
-    inp_str += "%-15s %s\n"%("dihedral_style","hybrid harmonic")
-    inp_str += "%-15s %s\n"%("improper_style","hybrid fourier")
-    inp_str += "%-15s %s\n"%("kspace_style","ewald 0.001") 
+    inp_str += "%-15s %s\n"%("pair_style", "%s %.3f"%(ff.pair_style, ff.cutoff))
+    inp_str += "%-15s %s\n"%("bond_style", ff.bond_style)
+    inp_str += "%-15s %s\n"%("angle_style", ff.angle_style)
+    inp_str += "%-15s %s\n"%("dihedral_style", ff.dihedral_style)
+    inp_str += "%-15s %s\n"%("improper_style", ff.improper_style)
+    inp_str += "%-15s %s\n"%("kspace_style", ff.kspace_style) 
     inp_str += "\n"
     inp_str += "%-15s %s\n"%("box tilt","large")
     inp_str += "%-15s %s\n"%("read_data","data.%s"%(ff.structure.name))
@@ -257,7 +281,7 @@ def main():
 
     # doesn't really follow the logic of the program, but can only be done 
     # when the atoms have been assigned to a force field.
-    # ff.struct.compute_pair_terms() 
+    ff.structure.compute_pair_terms() 
 
     ff.compute_force_field_terms()
     data_str = construct_data_file(ff) 

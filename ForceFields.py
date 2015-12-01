@@ -3,6 +3,7 @@ from uff_nonbonded import UFF_DATA_nonbonded
 from structure_data import Structure, Atom, Bond, Angle, Dihedral, PairTerm
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
 import math
+import numpy as np
 from operator import mul
 import itertools
 import abc
@@ -174,11 +175,54 @@ class ForceField(object):
             else:
                 count += 1
                 type = count
-                improper_type[p1] = type
+                pair_type[p1] = type
                 self.pair_term(pair)
                 self.unique_pair_types[type] = pair
             pair.ff_type_index = type
         return
+
+    @abc.abstractmethod
+    def define_styles(self):
+        self.kspace_style = "ewald %f"%(0.001)
+        bonds = set([j.potential.name for j in list(self.unique_bond_types.values())])
+        if len(list(bonds)) > 1:
+            self.bond_style = "hybrid %s"%" ".join(list(bonds))
+        else:
+            self.bond_style = "%s"%list(bonds)[0]
+            for b in list(self.unique_bond_types.values()):
+                b.potential.reduced = True
+
+        angles = set([j.potential.name for j in list(self.unique_angle_types.values())])
+        if len(list(angles)) > 1:
+            self.angle_style = "hybrid %s"%" ".join(list(angles))
+        else:
+            self.angle_style = "%s"%list(angles)[0]
+            for a in list(self.unique_angle_types.values()):
+                a.potential.reduced = True
+
+        dihedrals = set([j.potential.name for j in list(self.unique_dihedral_types.values())])
+        if len(list(dihedrals)) > 1:
+            self.dihedral_style = "hybrid %s"%" ".join(list(dihedrals))
+        else:
+            self.dihedral_style = "%s"%list(dihedrals)[0]
+            for d in list(self.unique_dihedral_types.values()):
+                d.potential.reduced = True
+
+        impropers = set([j.potential.name for j in list(self.unique_improper_types.values())])
+        if len(list(impropers)) > 1:
+            self.improper_style = "hybrid %s"%" ".join(list(impropers))
+        else:
+            self.improper_style = "%s"%list(impropers)[0]
+            for i in list(self.unique_improper_types.values()):
+                i.potential.reduced = True
+
+        pairs = set([j.potential.name for j in list(self.unique_pair_types.values())])
+        if len(list(pairs)) > 1:
+            self.pair_style = "hybrid %s"%" ".join(list(pairs))
+        else:
+            self.pair_style = "%s"%list(pairs)[0]
+            for p in list(self.unique_pair_types.values()):
+                p.potential.reduced = True
 
     @abc.abstractmethod
     def compute_force_field_terms(self):
@@ -188,6 +232,7 @@ class ForceField(object):
         self.unique_dihedrals()
         self.unique_impropers()
         self.unique_pair_terms()
+        self.define_styles()
 
 
 class UserFF(ForceField):
@@ -914,14 +959,18 @@ class UFF(ForceField):
     def pair_term(self, pair):
         atom1 = pair.atoms[0]
         atom2 = pair.atoms[1]
-        eps1 = UFF_DATA[atom.force_field_type][3]
-        sig1 = UFF_DATA[atom.force_field_type][2]*(2**(-1./6.))
-        eps2 = UFF_DATA[atom.force_field_type][3]
-        sig2 = UFF_DATA[atom.force_field_type][2]*(2**(-1./6.))
+        eps1 = UFF_DATA[atom1.force_field_type][3]
+        sig1 = UFF_DATA[atom1.force_field_type][2]*(2**(-1./6.))
+        eps2 = UFF_DATA[atom2.force_field_type][3]
+        sig2 = UFF_DATA[atom2.force_field_type][2]*(2**(-1./6.))
         # default LB mixing.
         eps = np.sqrt(eps1*eps2)
         sig = (sig1 + sig2) / 2.
-        pair.potential = PairPotential.LjCutCoulLong()
-        pair.eps = eps
-        pair.sig = sig
+        pot = PairPotential.LjCutCoulLong()
+        pot.eps = eps
+        pot.sig = sig
+        pair.potential = pot 
 
+    @property
+    def cutoff(self):
+        return 12.5
