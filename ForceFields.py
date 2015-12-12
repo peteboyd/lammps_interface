@@ -1,4 +1,5 @@
 from uff import UFF_DATA
+from dreiding import DREIDING_DATA
 from uff_nonbonded import UFF_DATA_nonbonded
 from structure_data import Structure, Atom, Bond, Angle, Dihedral, PairTerm
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
@@ -974,3 +975,51 @@ class UFF(ForceField):
     @property
     def cutoff(self):
         return 12.5
+
+
+class Dreiding(ForceField):
+
+    def __init__(self, struct):
+        self.structure = struct
+        self.unique_atom_types = {}
+        self.unique_bond_types = {}
+        self.unique_angle_types = {}
+        self.unique_dihedral_types = {}
+        self.unique_improper_types = {}
+        self.unique_hbond_types = {}
+        self.unique_pair_types = {}
+
+
+    def bond_term(self, bond, type='harmonic'):
+        """The DREIDING Force Field contains two possible bond terms, harmonic and Morse.
+        The authors recommend using harmonic as a default, and Morse potentials for more
+        'refined' calculations. 
+        Here we will assume a harmonic term by default, then the user can chose to switch
+        to Morse if they so choose. (change type argument to 'morse')
+        
+        E = 0.5 * K * (R - Req)^2
+        
+
+        E = D * [exp{-(alpha*R - Req)} - 1]^2
+
+
+        
+        """
+        atom1, atom2 = bond.atoms
+        fflabel1, fflabel2 = atom1.force_field_type, atom2.force_field_type
+        K = 700.
+        R1 = 
+        R2 = 
+        Re = R1 + R2 - 0.01
+        if type == 'harmonic':
+
+            bond.potential = BondPotential.Harmonic()
+            bond.potential.K = K/2.
+
+            bond.potential.R0 = r0
+
+        elif type.lower() == 'morse':
+            D = 70
+            alpha = np.sqrt(K/2./D)
+
+            bond.potential = BondPotential.Morse()
