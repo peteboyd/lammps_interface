@@ -88,11 +88,15 @@ class BondPotential(object):
         """
         def __init__(self):
             self.name = "morse" # morse/omp exists
-            self.K = 0.
+            self.D = 0.
+            self.alpha = 0.
             self.R0 = 0.
+            self.reduced = False
 
         def __str__(self):
-            return ""
+            if self.reduced:
+                return "%15.6f %15.6f %15.6f"%(self.D, self.alpha, self.R0)
+            return "%28s %15.6f %15.6f %15.6f"%(self.name, self.D, self.alpha, self.R0)
 
     class NonLinear(object):
         """Potential defined as
@@ -202,9 +206,13 @@ class AnglePotential(object):
         def __init__(self):
             self.name = "cosine" # cosine/omp exists 
             self.K = 0.
+            self.reduced = False
 
         def __str__(self):
-            return ""
+            if self.reduced:
+                return "%15.6f"%(self.K)
+            return "%28s %15.6f"%(self.name,
+                                  self.K)
 
     class CosineDelta(object):
         """Potential defined as
@@ -248,9 +256,14 @@ class AnglePotential(object):
             self.name = "cosine/squared" # cosine/squared/omp exists 
             self.K = 0.
             self.theta0 = 0.
-
+            self.reduced = False
         def __str__(self):
-            return ""
+            if self.reduced:
+                return "%15.6f %15.6f"%(self.K,
+                                        self.theta0)
+            return "%28s %15.6f %15.6f"%(self.name,
+                                         self.K,
+                                         self.theta0)
 
     class Harmonic(object):
         """Potential defined as
@@ -415,9 +428,11 @@ class DihedralPotential(object):
             self.n = 0
             self.d = 0
             self.w = 0. # should be kept at 0 for charmm force fields
-
+            self.reduced = False
         def __str__(self):
-            return ""
+            if self.reduced:
+                return "%15.6f %15i %15i %15.6f"%(self.K, self.d, self.n, self.w)
+            return "%28s %15.6f %15i %15i %15.6f"%(self.name, self.K, self.d, self.n, self.w)
 
     class Class2(object):
         def __init__(self):

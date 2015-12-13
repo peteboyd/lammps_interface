@@ -988,7 +988,37 @@ class Dreiding(ForceField):
         self.unique_improper_types = {}
         self.unique_hbond_types = {}
         self.unique_pair_types = {}
+    
+    def get_bond_order(self, type1, type2, order=None):
+        """Return the bond order based on the DREIDING atom types."""
+        if order is None:
+            try:
+                o1 = type1[2]
+            except IndexError:
+                o1 = '3'
+            try:
+                o2 = type2[2]
+            except IndexError:
+                o2 = '3'
 
+            if (o1 == "_"):
+                o1 = '3'
+            if (o2 == "_"):
+                o2 = '3'
+
+            if (o1 == '2') and (o2 == '2'):
+                return 2.
+            elif (o1 == '1') and (o2 == '1'):
+                return 3.
+            # This is not explicitly stated in the DREIDING paper, but
+            # we are assuming here that an aromitic bond has an order
+            # of 1.5
+            elif (o1 == 'R') and (o2 == 'R'):
+                return 1.5
+            else:
+                return 1.0
+        else:
+            return order
 
     def bond_term(self, bond, type='harmonic'):
         """The DREIDING Force Field contains two possible bond terms, harmonic and Morse.
@@ -1007,19 +1037,69 @@ class Dreiding(ForceField):
         """
         atom1, atom2 = bond.atoms
         fflabel1, fflabel2 = atom1.force_field_type, atom2.force_field_type
-        K = 700.
-        R1 = 
-        R2 = 
+        R1 = DREIDING_DATA[fflabel1][0]
+        R2 = DREIDING_DATA[fflabel2][0]
+        order = self.get_bond_order(fflabel1, fflabel2, bond.order)
+        K = order*700.
+        D = order*70.
         Re = R1 + R2 - 0.01
-        if type == 'harmonic':
+        if type.lower() == 'harmonic':
 
             bond.potential = BondPotential.Harmonic()
             bond.potential.K = K/2.
 
-            bond.potential.R0 = r0
+            bond.potential.R0 = Re
 
         elif type.lower() == 'morse':
-            D = 70
-            alpha = np.sqrt(K/2./D)
-
+            alpha = order * np.sqrt(K/2./D)
             bond.potential = BondPotential.Morse()
+            bond.potential.D = D
+            bond.potential.alpha = alpha
+            bond.potential.R = Re
+
+    def angle_term(self, angle):
+        """
+        Harmonic cosine angle
+
+        E = 0.5*C*[cos(theta) - cos(theta0)]^2
+
+        This is available in LAMMPS as the cosine/squared angle style
+        (NB. the prefactor includes the usual 1/2 term.)
+
+        if theta0 == 180, use
+
+        E = K*(1 + cos(theta))
+
+        This is available in LAMMPS as the cosine angle style
+
+        """
+        K = 100.0
+        a_atom, b_atom, c_atom = angle.atoms
+        btype = b_atom.force_field_type
+        theta0 = DREIDING_DATA[btype][1]
+        if (theta0 == 180.):
+            angle.potential = AnglePotential.Cosine()
+            angle.potential.K = K
+        else:
+            angle.potential = AnglePotential.CosineSquared()
+            K = 0.5*K/(np.sin(theta0*DEG2RAD))**2
+            angle.potential.K = K
+            angle.potential.theta0 = theta0
+
+    def dihedral_term(self, dihedral):
+       """
+
+       The DREIDING dihedral is of the form
+
+       E = 0.5*V*[1 - cos(n*(phi - phi0))]
+
+       LAMMPS has a similar potential 'charmm' which is described as
+
+       E = K*[1 + cos(n*phi - d)]
+
+       Can this be manimulated to re-produce the DREIDING
+       dihedral term?
+       """
+
+
+
