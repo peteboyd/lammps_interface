@@ -225,7 +225,7 @@ def construct_input_file(ff):
     inp_str += "%-15s %s\n"%("dihedral_style", ff.dihedral_style)
     inp_str += "%-15s %s\n"%("improper_style", ff.improper_style)
     inp_str += "%-15s %s\n"%("kspace_style", ff.kspace_style) 
-    inp_str += "%-15s %s\n"%("pair_modify","tail yes mix arithmetic") # LB mixin of pairwise terms.. should be user-defined.
+    inp_str += "%-15s %s\n"%("pair_modify","tail yes")
     inp_str += "\n"
     inp_str += "%-15s %s\n"%("box tilt","large")
     inp_str += "%-15s %s\n"%("read_data","data.%s"%(ff.structure.name))
@@ -237,7 +237,7 @@ def construct_input_file(ff):
     inp_str += "%-15s %s\n"%("dump_modify", "%s_mov element %s"%(
                              ff.structure.name, 
                              " ".join([ff.unique_atom_types[key].element 
-                                        for key in sorted(ff.unique_atom_types.keys())]))
+                                        for key in sorted(ff.unique_atom_types.keys())])))
     inp_str += "%-15s %s\n"%("min_style","cg")
     inp_str += "%-15s %s\n"%("minimize","1.0e-4 1.0e-6 10000 100000")
     inp_str += "%-15s %s\n"%("fix","1 all box/relax tri 0.0 vmax 0.01")

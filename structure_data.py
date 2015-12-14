@@ -146,13 +146,6 @@ class Structure(object):
         improper_type = {}
 
         for atom_b in self.atoms:
-            # I think these are UFF specific.. 
-            # TODO: either remove these 'compute' functions from the structure class
-            # and put them in specific force field classes, 
-            # or keep them and add clauses for which angles, bonds, dihedrals etc
-            # to use in the force field classes.
-            if not atom_b.atomic_number in (6, 7, 8, 15, 33, 51, 83):
-                continue
             if len(atom_b.neighbours) != 3:
                 continue
             ib = atom_b.index
@@ -170,10 +163,9 @@ class Structure(object):
     
     def compute_pair_terms(self):
         """Place holder for hydrogen bonding?"""
-        for j in self.atoms:
-            pair = PairTerm(j, j)
-            self.pairs.append(pair)
         return
+        #for i in self.atoms:
+        #    pair = PairTerm(i, i)
 
     def minimum_cell(self, cutoff=12.5):
         """Determine the minimum cell size such that half the orthogonal cell

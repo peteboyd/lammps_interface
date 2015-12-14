@@ -644,9 +644,14 @@ class ImproperPotential(object):
             self.name = "umbrella" # umbrella/omp exists
             self.K = 0.
             self.omega0 = 0.
-
+            self.reduced = True
         def __str__(self):
-            return ""
+            if self.reduced:
+                return "%15.6f %15.6f "%(self.K,
+                                         self.omega0)
+            return "%28s %15.6f %15.6f"%(self.name,
+                                         self.K,
+                                         self.omega0)
     
     class Cossq(object):
         """Potential defined as
@@ -741,3 +746,27 @@ class PairPotential(object):
             return "%28s %15.6f %15.6f"%(self.name,
                                          self.eps,
                                          self.sig)
+
+    class BuckCoulLong(object):
+        """Potential defined as
+
+        E = A*exp{-r/rho} - C/r^{6}
+
+
+        """
+        def __init__(self):
+            self.name = "buck/coul/long"
+            self.A = 0.0
+            self.rho = 0.0
+            self.C = 0.0
+            self.reduced = False
+
+        def __str__(self):
+            if self.reduced:
+                return "%15.6f %15.6f %15.6f"%(self.A,
+                                               self.rho,
+                                               self.C)
+            return "%28s %15.6f %15.6f %15.6f"%(self.name,
+                                                self.A,
+                                                self.rho,
+                                                self.C)

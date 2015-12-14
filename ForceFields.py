@@ -129,46 +129,63 @@ class ForceField(object):
         """How many times to list the same set of atoms ???"""
         count = 0
         improper_type = {}
-        for improper in self.structure.impropers:
-            atom_a, atom_b, atom_c, atom_d = improper.atoms
-            type_a, type_b, type_c, type_d = (atom_a.ff_type_index, atom_b.ff_type_index,
-                                              atom_c.ff_type_index, atom_d.ff_type_index)
-            d1 = (type_b, type_a, type_c, type_d)
-            d2 = (type_b, type_a, type_d, type_c)
-            d3 = (type_b, type_c, type_d, type_a)
-            d4 = (type_b, type_c, type_a, type_d)
-            d5 = (type_b, type_d, type_a, type_c)
-            d6 = (type_b, type_d, type_c, type_a)
+        remove = []
+        for idx,improper in enumerate(self.structure.impropers):
+            if improper.potential is not None:
+                atom_a, atom_b, atom_c, atom_d = improper.atoms
+                type_a, type_b, type_c, type_d = (atom_a.ff_type_index, atom_b.ff_type_index,
+                                                  atom_c.ff_type_index, atom_d.ff_type_index)
+                d1 = (type_b, type_a, type_c, type_d)
+                d2 = (type_b, type_a, type_d, type_c)
+                d3 = (type_b, type_c, type_d, type_a)
+                d4 = (type_b, type_c, type_a, type_d)
+                d5 = (type_b, type_d, type_a, type_c)
+                d6 = (type_b, type_d, type_c, type_a)
 
-            if d1 in improper_type.keys():
-                type = improper_type[d1]
-            elif d2 in improper_type.keys():
-                type = improper_type[d2]
-            elif d3 in improper_type.keys():
-                type = improper_type[d3]
-            elif d4 in improper_type.keys():
-                type = improper_type[d4]
-            elif d5 in improper_type.keys():
-                type = improper_type[d5]
-            elif d6 in improper_type.keys():
-                type = improper_type[d6]
+                if d1 in improper_type.keys():
+                    type = improper_type[d1]
+                elif d2 in improper_type.keys():
+                    type = improper_type[d2]
+                elif d3 in improper_type.keys():
+                    type = improper_type[d3]
+                elif d4 in improper_type.keys():
+                    type = improper_type[d4]
+                elif d5 in improper_type.keys():
+                    type = improper_type[d5]
+                elif d6 in improper_type.keys():
+                    type = improper_type[d6]
+                else:
+                    count += 1
+                    type = count
+                    improper_type[d1] = type
+                    self.improper_term(improper)
+                    self.unique_improper_types[type] = improper
+
+                improper.ff_type_index = type
             else:
-                count += 1
-                type = count
-                improper_type[d1] = type
-                self.improper_term(improper)
-                self.unique_improper_types[type] = improper
+                remove.append(idx)
+        for j in reversed(sorted(remove)):
+            del(self.structure.impropers[j])
 
-            improper.ff_type_index = type     
+        # re-index the imporopers
+        for idx, improper in enumerate(self.structure.impropers):
+            improper.index = idx
+
 
     @abc.abstractmethod
     def unique_pair_terms(self):
-        """This is force field dependant."""
+        """This is force field dependent."""
         count = 0 
         pair_type = {}
-        for pair in self.structure.pairs:
-            p1 = (pair.atoms[0].ff_type_index, pair.atoms[1].ff_type_index)
-            p2 = (pair.atoms[1].ff_type_index, pair.atoms[0].ff_type_index)
+        atom_types = list(self.unique_atom_types.keys())
+        for (pair1,pair2) in itertools.combinations_with_replacement(atom_types):
+            a1 = self.unique_atom_types[pair1]
+            a2 = self.unique_atom_types[pair2]
+
+            p1 = (a1.ff_type_index, a2.ff_type_index)
+            p2 = (a2.ff_type_index, a1.ff_type_index)
+            pair = PairTerm(a1, a2)
+
             if p1 in pair_type.keys():
                 type = pair_type[p1]
             elif p2 in pair_type.keys():
@@ -920,6 +937,8 @@ class UFF(ForceField):
 
         """
         atom_a, atom_b, atom_c, atom_d = improper.atoms
+        if not atom_b.atomic_number in (6, 7, 8, 15, 33, 51, 83):
+            return
         if atom_b.force_field_type in ('N_3', 'N_2', 'N_R', 'O_2', 'O_R'):
             c0 = 1.0
             c1 = -1.0
@@ -986,7 +1005,6 @@ class Dreiding(ForceField):
         self.unique_angle_types = {}
         self.unique_dihedral_types = {}
         self.unique_improper_types = {}
-        self.unique_hbond_types = {}
         self.unique_pair_types = {}
    
     def get_hybridization(self, type):
@@ -1207,5 +1225,95 @@ class Dreiding(ForceField):
         dihedral.potential.w = w
 
     def improper_term(self, improper):
+        """
+
+                a                        J
+               /                        /
+              /                        /
+        c----b     , DREIDING =  K----I
+              \                        \ 
+               \                        \ 
+                d                        L
+
+        for all non-planar configurations, DREIDING uses
+
+        E = 0.5*C*(cos(phi) - cos(phi0))^2
+
+        For systems with planar equilibrium geometries, phi0 = 0
+        E = K*[1 - cos(phi)]
+
+        This is available in LAMMPS as the 'umbrella' improper potential.
+
+        """
+        
+        a_atom, b_atom, c_atom, d_atom = improper.atoms
+        btype = b_atom.force_field_type
+        hyb = self.get_hybridization(btype)
+        sp2 = ["R", "2"]
+        # special case: ignore N column 
+        sp3_N = ["N_3", "P_3", "As3", "Sb3"]
+        if hyb in sp2:
+            K = 40.0/3.
+        if btype in sb3_N:
+            return
+
+        improper.potential = ImproperPotential.Umbrella()
+
+        improper.potential.K = K
+        improper.omega0 = DREIDING_DATA[btype][4]
+
+    def pair_term(self, pair, nbpot="LJ"):
+        """ DREIDING can adopt the exponential-6 or
+        Ex6 = A*exp{-C*R} - B*R^{-6}
+
+        the Lennard-Jones type interactions.
+        Elj = A*R^{-12} - B*R^{-6}
+
+        This will eventually be user-defined
 
 
+        also included in this function is the determination
+        of explicit hydrogen bonding types..
+        """
+
+        atom1 = pair.atoms[0]
+        atom2 = pair.atoms[1]
+
+
+        eps1 = DREIDING_DATA[atom1.force_field_type][3]
+        R1 = DREIDING_DATA[atom1.force_field_type][2]
+        sig1 = R1*(2**(-1./6.))
+        eps2 = DREIDING_DATA[atom2.force_field_type][3]
+        R2 = DREIDING_DATA[atom2.force_field_type][2]
+        sig2 = R2*(2**(-1./6.))
+
+        if nbpot == "LJ"
+            # default LB mixing.
+            
+            eps = np.sqrt(eps1*eps2)
+            sig = (sig1 + sig2) / 2.
+            pot = PairPotential.LjCutCoulLong()
+            pot.eps = eps
+            pot.sig = sig
+            pair.potential = pot 
+
+        else:
+            S1 = DREIDING_DATA[atom1.force_field_type][5]
+            S2 = DREIDING_DATA[atom2.force_field_type][5]
+
+            A1 = eps1*(6./(S1 - 6.))*np.exp(S1)
+            rho1 = R1
+            C1 = eps1*(S1/(S1 - 6.)*R1**6)
+
+            A2 = eps2*(6./(S2 - 6.))*np.exp(S2)
+            rho2 = R2
+            C2 = eps2*(S2/(S2 - 6.)*R2**6)
+
+            pot = PairPotential.BuckLongCoulLong()
+            pot.A = np.sqrt(A1*A2)
+            pot.C = np.sqrt(C1*C2) 
+            pot.rho = (rho1 + rho2)/2.
+
+    @property
+    def cutoff(self):
+        return 12.5
