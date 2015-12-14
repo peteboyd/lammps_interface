@@ -988,23 +988,20 @@ class Dreiding(ForceField):
         self.unique_improper_types = {}
         self.unique_hbond_types = {}
         self.unique_pair_types = {}
-    
+   
+    def get_hybridization(self, type):
+        try:
+            hy = type[2]
+        except IndexError:
+            hy = '_'
+        return hy 
+
     def get_bond_order(self, type1, type2, order=None):
         """Return the bond order based on the DREIDING atom types."""
         if order is None:
-            try:
-                o1 = type1[2]
-            except IndexError:
-                o1 = '3'
-            try:
-                o2 = type2[2]
-            except IndexError:
-                o2 = '3'
 
-            if (o1 == "_"):
-                o1 = '3'
-            if (o2 == "_"):
-                o2 = '3'
+            o1 = self.get_hybridization(type1)
+            o2 = self.get_hybridization(type2)
 
             if (o1 == '2') and (o2 == '2'):
                 return 2.
@@ -1087,19 +1084,128 @@ class Dreiding(ForceField):
             angle.potential.theta0 = theta0
 
     def dihedral_term(self, dihedral):
-       """
+        """
 
-       The DREIDING dihedral is of the form
+        The DREIDING dihedral is of the form
 
-       E = 0.5*V*[1 - cos(n*(phi - phi0))]
+        E = 0.5*V*[1 - cos(n*(phi - phi0))]
 
-       LAMMPS has a similar potential 'charmm' which is described as
+        LAMMPS has a similar potential 'charmm' which is described as
 
-       E = K*[1 + cos(n*phi - d)]
+        E = K*[1 + cos(n*phi - d)]
 
-       Can this be manimulated to re-produce the DREIDING
-       dihedral term?
-       """
+        In this case the 'd' term must be multiplied by 'n' before
+        inputting to lammps. In addition a +180 degrees out-of-phase
+        shift must be added to 'd' to ensure that the potential behaves
+        the same as the DREIDING article intended.
+        """
 
+        a_atom, b_atom, c_atom, d_atom = dihedral.atoms
+
+        btype = b_atom.force_field_type
+        ctype = c_atom.force_field_type
+
+        order = dihedral.bc_bond.order
+        a_hyb = self.get_hybridization(a_atom.force_field_type)
+        b_hyb = self.get_hybridization(btype)
+        c_hyb = self.get_hybridization(ctype)
+        d_hyb = self.get_hybridization(d_atom.force_field_type)
+
+        # special cases associated with oxygen column, listed here
+        oxygen_sp3 = ["O_3", "S_3", "Se3", "Te3"]
+        non_oxygen_sp2 = ["C_R", "N_R", "B_2", "C_2", "N_2"]
+
+        sp2 = ["R", "2"]
+
+        # a)
+        if((b_hyb == "3")and(c_hyb == "3")):
+            V = 2.0
+            n = 3
+            phi0 = 180.0
+            # h) special case..
+            if((btype in oxygen_sp3) and (ctype in oxygen_sp3)): 
+                V = 2.0
+                n = 2
+                phi0 = 90.0
+
+        # b)
+        elif(((b_hyb in sp2) and (c_hyb == "3"))or(
+            (b_hyb == "3") and (c_hyb in sp2))):
+            V = 1.0
+            n = 6
+            phi0 = 0.0
+            # i) special case.. 
+            if(((btype in oxygen_sp3)and(ctype in non_oxygen_sp2)) or
+                    (ctype in oxygen_sp3)and(btype in non_oxygen_sp2)):
+                V = 2.0
+                n = 2
+                phi0 = 180.0
+            # j) special case..
+
+            if(((b_hyb in sp2) and (a_hyb not in sp2))or(
+                (c_hyb in sp2) and (d_hyb not in sp2))):
+                V = 2.0
+                n = 3
+                phi0 = 180.0
+
+        # c)
+        elif((b_hyb == "2") and (c_hyb == "2") and (order == 2.)):
+            V = 45.0
+            n = 2
+            phi0 = 180.0
+
+        # d)
+        elif((b_hyb == "R") and (c_hyb == "R") and (order == 1.5)):
+            V = 25.0
+            n = 2
+            phi0 = 180.0
+
+        # e)
+        elif((b_hyb in sp2) and (c_hyb in sp2) and (order == 1.0)):
+            V = 5.0
+            n = 2
+            phi0 = 180.0
+            # f) just check if neighbours are aromatic, then apply the exception
+            # NB: this may fail for phenyl esters if the oxygen atoms are not 
+            # labelled as "R" (i.e. will fail if they are O_2 or O_3)
+            if(b_hyb == "R" and c_hyb == "R"):
+                b_arom = True
+                for id in b_atom.neighbours:
+                    hyb = self.get_hybridization(
+                            self.structure.atoms[id].force_field_type)
+                    if (hyb != "R"):
+                        b_arom = False
+                c_arom = True
+                for id in c_atom.neighbours:
+                    hyb = self.get_hybridization(
+                            self.structure.atoms[id].force_field_type)
+                    if (hyb != "R"):
+                        c_arom = False
+                if (b_arom and c_arom):
+                    V *= 2.0
+        # g)
+        elif((b_hyb == "1")or(b_hyb == "_")or
+                (c_hyb == "1")or(c_hyb == "_")):
+            V = 0.0
+            n = 2
+            phi0 = 180.0
+
+        # divide V by the number of dihedral angles
+        # to compute across this a-b bond
+        b_neigh = len(b_atom.neighbours)
+        c_neigh = len(c_atom.neighbours)
+        norm = float(b_neigh * c_neigh)
+
+        V /= norm
+        d = n*phi0 + 180.0
+        # default is to include the full 1-4 non-bonded interactions.
+        w = 1.0 
+        dihedral.potential = DihedralPotential.Charmm()
+        dihedral.potential.K = V
+        dihedral.potential.n = n
+        dihedral.potential.d = d
+        dihedral.potential.w = w
+
+    def improper_term(self, improper):
 
 
