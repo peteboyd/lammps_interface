@@ -239,7 +239,7 @@ def construct_input_file(ff):
     inp_str += "%-15s %s\n"%("dielectric","1")
     inp_str += "\n"
     if(len(ff.unique_pair_types.keys()) > 0):
-        inp_str += "%-15s %s\n"%("pair_style", "%s %.3f"%(ff.pair_style, ff.cutoff))
+        inp_str += "%-15s %s\n"%("pair_style", ff.pair_style)
     if(len(ff.unique_bond_types.keys()) > 0):
         inp_str += "%-15s %s\n"%("bond_style", ff.bond_style)
     if(len(ff.unique_angle_types.keys()) > 0):
@@ -255,7 +255,7 @@ def construct_input_file(ff):
     # general catch-all for extra force field commands needed.
     inp_str += ff.special_commands()
 
-    inp_ntr += "%-15s %s\n"%("box tilt","large")
+    inp_str += "%-15s %s\n"%("box tilt","large")
     inp_str += "%-15s %s\n"%("read_data","data.%s"%(ff.structure.name))
 
     if(not ff.pair_in_data):
@@ -306,12 +306,6 @@ def main():
     # NB: half box width should be a user-defined command,
     # or default to 2.5*sigma_max of the requested force field
     # currently defaults to 12.5 anstroms
-    struct.minimum_cell(cutoff=12.5)
-
-    struct.compute_angles()
-    struct.compute_dihedrals()
-    struct.compute_improper_dihedrals()
-
     #obtain desired force field class from command line, parse 
     # string to real class value
     try:
@@ -319,6 +313,13 @@ def main():
     except AttributeError:
         print("Error: could not find the force field: %s"%options.force_field)
         sys.exit()
+    
+    struct.minimum_cell(cutoff=ff.cutoff)
+
+    struct.compute_angles()
+    struct.compute_dihedrals()
+    struct.compute_improper_dihedrals()
+
 
     # doesn't really follow the logic of the program, but can only be done 
     # when the atoms have been assigned to a force field.

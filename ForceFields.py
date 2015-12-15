@@ -177,6 +177,7 @@ class ForceField(object):
 
     @abc.abstractmethod
     def define_styles(self):
+        # should be more robust, some of the styles require multiple parameters specified on these lines
         self.kspace_style = "ewald %f"%(0.001)
         bonds = set([j.potential.name for j in list(self.unique_bond_types.values())])
         if len(list(bonds)) > 1:
@@ -211,13 +212,13 @@ class ForceField(object):
                 i.potential.reduced = True
         else:
             self.improper_style = "" 
-        pairs = set([j.potential.name for j in list(self.unique_pair_types.values())])
+        pairs = set(["%r"%(j.potential) for j in list(self.unique_pair_types.values())])
         if len(list(pairs)) > 1:
-            self.pair_style = "hybrid/overlay %s"%" ".join(list(pairs))
+            self.pair_style = "hybrid/overlay %s"%(" ".join(list(pairs)))
             # by default, turn off listing Pair Coeff in the data file if this is the case
             self.pair_in_data = False
         else:
-            self.pair_style = "%s"%list(pairs)[0]
+            self.pair_style = list(pairs)[0]
             for p in list(self.unique_pair_types.values()):
                 p.potential.reduced = True
 
@@ -992,11 +993,12 @@ class UFF(ForceField):
         pot = PairPotential.LjCutCoulLong()
         pot.eps = eps
         pot.sig = sig
+        pot.cutoff = self.cutoff
         pair.potential = pot 
     
     def special_commands(self):
         st = ""
-        st += "-15s %s %s\n"%("pair_modify", "tail yes", "mix arithmetic")
+        st += "%-15s %s %s\n"%("pair_modify", "tail yes", "mix arithmetic")
         return st
 
     @property
@@ -1039,7 +1041,8 @@ class Dreiding(ForceField):
                 label = atom.element
             else:
                 label = atom.force_field_type
-
+            if atom.h_bond_donor:
+                label += "_HB"
             try:
                 type = ff_type[label]
             except KeyError:
@@ -1047,16 +1050,6 @@ class Dreiding(ForceField):
                 type = count
                 ff_type[label] = type  
                 self.unique_atom_types[type] = atom 
-            # add another type if the atom is a H-BOND donor
-            if atom.h_bond_donor:
-                label += "_HB"
-                try:
-                    type = ff_type[label]
-                except KeyError:
-                    count += 1
-                    type = count
-                    ff_type[label] = type
-                    self.unique_atom_types[type] = atom
 
             atom.ff_type_index = type
 
@@ -1319,7 +1312,7 @@ class Dreiding(ForceField):
 
     def unique_pair_terms(self, nbpot="LJ", hbpot="morse"):
         """Include hydrogen bonding terms"""
-        atom_types = sorted(list(self.unqiue_atom_types.keys()))
+        atom_types = sorted(list(self.unique_atom_types.keys()))
         electro_neg_atoms = ["N", "O", "F"]
         pair_count = 0
         for (i, j) in itertools.combinations_with_replacement(
@@ -1333,7 +1326,7 @@ class Dreiding(ForceField):
             # condition, two donors cannot form a hydrogen bond..
             # this might be too restrictive?
             if (atomi.h_bond_donor and (not atomj.h_bond_donor) and
-                    (atomj in electro_neg_atoms)):
+                    (atomj.element in electro_neg_atoms)):
                 # get H__HB type
                 htype = None
                 for nn in atomi.neighbours:
@@ -1345,7 +1338,7 @@ class Dreiding(ForceField):
                 pair_count += 1
                 self.unique_pair_types[pair_count] = pair2
             elif (atomj.h_bond_donor and (not atomi.h_bond_donor) and
-                    (atomi in electro_neg_atoms)):
+                    (atomi.element in electro_neg_atoms)):
                 # get H__HB type
                 htype = None
                 for nn in atomj.neighbours:
@@ -1375,9 +1368,9 @@ class Dreiding(ForceField):
             if(flipped):
                 pair.potential.donor = 'j'
             pair.potential.D0 = 9.5
-            pair.alpha = 10.0/ 2. / R0
+            pair.potential.alpha = 10.0/ 2. / R0
             pair.potential.R0 = R0
-            pair.potential.n = 2.0
+            pair.potential.n = 2
             # one can edit these values for bookkeeping.
             pair.potential.Rin = 9.0
             pair.potential.Rout = 11.0
@@ -1413,6 +1406,7 @@ class Dreiding(ForceField):
             pot = PairPotential.LjCutCoulLong()
             pot.eps = eps
             pot.sig = sig
+            pot.cutoff = self.cutoff
             pair.potential = pot 
 
         else:
@@ -1431,11 +1425,13 @@ class Dreiding(ForceField):
             pot.A = np.sqrt(A1*A2)
             pot.C = np.sqrt(C1*C2) 
             pot.rho = (rho1 + rho2)/2.
+            pot.cutoff = self.cutoff
+            pair.potential = pot 
 
     def special_commands(self):
         st = ""
-        st += "-15s %s\n"%("pair_modify", "tail yes")
-        st += "-15s %s\n"%("special_bonds", "dreiding") # equivalent to 'special_bonds lj 0.0 0.0 1.0'
+        st += "%-15s %s\n"%("pair_modify", "tail yes")
+        st += "%-15s %s\n"%("special_bonds", "dreiding") # equivalent to 'special_bonds lj 0.0 0.0 1.0'
         return st
 
     @property

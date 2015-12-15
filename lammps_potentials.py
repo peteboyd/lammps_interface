@@ -738,7 +738,7 @@ class PairPotential(object):
             self.eps = 0.
             self.sig = 0.
             self.reduced = False
-
+            self.cutoff = 0.
         def __str__(self):
             if self.reduced:
                 return "%15.6f %15.6f"%(self.eps,
@@ -746,6 +746,8 @@ class PairPotential(object):
             return "%28s %15.6f %15.6f"%(self.name,
                                          self.eps,
                                          self.sig)
+        def __repr__(self):
+            return "%s %.3f"%(self.name, self.cutoff)
 
     class BuckCoulLong(object):
         """Potential defined as
@@ -760,6 +762,7 @@ class PairPotential(object):
             self.rho = 0.0
             self.C = 0.0
             self.reduced = False
+            self.cutoff = 0.
 
         def __str__(self):
             if self.reduced:
@@ -770,7 +773,8 @@ class PairPotential(object):
                                                 self.A,
                                                 self.rho,
                                                 self.C)
-
+        def __repr__(self):
+            return "%s %.3f"%(self.name, self.cutoff)
 
     class HbondDreidingMorse(object):
         """Potential defined as
@@ -785,7 +789,7 @@ class PairPotential(object):
             self.D0 = 0.0
             self.alpha = 0.0
             self.R0 = 0.0
-            self.n = 0.0
+            self.n = 0
             self.Rin = 0.0
             self.Rout = 0.0
             self.a_cut = 0.0
@@ -793,7 +797,7 @@ class PairPotential(object):
 
         def __str__(self):
             if self.reduced:
-                return "%i %s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(
+                return "%i %s %15.6f %15.6f %15.6f %15i %15.6f %15.6f %15.6f"%(
                                                self.htype,
                                                self.donor,
                                                self.D0,
@@ -803,7 +807,7 @@ class PairPotential(object):
                                                self.Rin,
                                                self.Rout,
                                                self.a_cut)
-            return "%28s %i %s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(
+            return "%28s %i %s %15.6f %15.6f %15.6f %15i %15.6f %15.6f %15.6f"%(
                                                self.name,
                                                self.htype,
                                                self.donor,
@@ -814,3 +818,8 @@ class PairPotential(object):
                                                self.Rin,
                                                self.Rout,
                                                self.a_cut)
+
+        def __repr__(self):
+            return "%s %i %.3f %.3f %.3f"%(self.name, self.n, self.Rin,
+                                           self.Rout, self.a_cut)
+
