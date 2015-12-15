@@ -131,72 +131,48 @@ class ForceField(object):
         improper_type = {}
         remove = []
         for idx,improper in enumerate(self.structure.impropers):
-            if improper.potential is not None:
-                atom_a, atom_b, atom_c, atom_d = improper.atoms
-                type_a, type_b, type_c, type_d = (atom_a.ff_type_index, atom_b.ff_type_index,
-                                                  atom_c.ff_type_index, atom_d.ff_type_index)
-                d1 = (type_b, type_a, type_c, type_d)
-                d2 = (type_b, type_a, type_d, type_c)
-                d3 = (type_b, type_c, type_d, type_a)
-                d4 = (type_b, type_c, type_a, type_d)
-                d5 = (type_b, type_d, type_a, type_c)
-                d6 = (type_b, type_d, type_c, type_a)
+            atom_a, atom_b, atom_c, atom_d = improper.atoms
+            type_a, type_b, type_c, type_d = (atom_a.ff_type_index, atom_b.ff_type_index,
+                                              atom_c.ff_type_index, atom_d.ff_type_index)
+            d1 = (type_b, type_a, type_c, type_d)
+            d2 = (type_b, type_a, type_d, type_c)
+            d3 = (type_b, type_c, type_d, type_a)
+            d4 = (type_b, type_c, type_a, type_d)
+            d5 = (type_b, type_d, type_a, type_c)
+            d6 = (type_b, type_d, type_c, type_a)
 
-                if d1 in improper_type.keys():
-                    type = improper_type[d1]
-                elif d2 in improper_type.keys():
-                    type = improper_type[d2]
-                elif d3 in improper_type.keys():
-                    type = improper_type[d3]
-                elif d4 in improper_type.keys():
-                    type = improper_type[d4]
-                elif d5 in improper_type.keys():
-                    type = improper_type[d5]
-                elif d6 in improper_type.keys():
-                    type = improper_type[d6]
-                else:
+            if d1 in improper_type.keys():
+                type = improper_type[d1]
+            elif d2 in improper_type.keys():
+                type = improper_type[d2]
+            elif d3 in improper_type.keys():
+                type = improper_type[d3]
+            elif d4 in improper_type.keys():
+                type = improper_type[d4]
+            elif d5 in improper_type.keys():
+                type = improper_type[d5]
+            elif d6 in improper_type.keys():
+                type = improper_type[d6]
+            else:
+                self.improper_term(improper)
+                if improper.potential is not None:
                     count += 1
                     type = count
                     improper_type[d1] = type
-                    self.improper_term(improper)
                     self.unique_improper_types[type] = improper
-
-                improper.ff_type_index = type
-            else:
-                remove.append(idx)
+                else:
+                    remove.append(idx)
+            improper.ff_type_index = type
         for j in reversed(sorted(remove)):
             del(self.structure.impropers[j])
 
         # re-index the imporopers
         for idx, improper in enumerate(self.structure.impropers):
-            improper.index = idx
-
+            improper.index = idx 
 
     @abc.abstractmethod
     def unique_pair_terms(self):
         """This is force field dependent."""
-        count = 0 
-        pair_type = {}
-        atom_types = list(self.unique_atom_types.keys())
-        for (pair1,pair2) in itertools.combinations_with_replacement(atom_types):
-            a1 = self.unique_atom_types[pair1]
-            a2 = self.unique_atom_types[pair2]
-
-            p1 = (a1.ff_type_index, a2.ff_type_index)
-            p2 = (a2.ff_type_index, a1.ff_type_index)
-            pair = PairTerm(a1, a2)
-
-            if p1 in pair_type.keys():
-                type = pair_type[p1]
-            elif p2 in pair_type.keys():
-                type = pair_type[p2]
-            else:
-                count += 1
-                type = count
-                pair_type[p1] = type
-                self.pair_term(pair)
-                self.unique_pair_types[type] = pair
-            pair.ff_type_index = type
         return
 
     @abc.abstractmethod
@@ -229,14 +205,17 @@ class ForceField(object):
         impropers = set([j.potential.name for j in list(self.unique_improper_types.values())])
         if len(list(impropers)) > 1:
             self.improper_style = "hybrid %s"%" ".join(list(impropers))
-        else:
+        elif len(list(impropers)) == 1:
             self.improper_style = "%s"%list(impropers)[0]
             for i in list(self.unique_improper_types.values()):
                 i.potential.reduced = True
-
+        else:
+            self.improper_style = "" 
         pairs = set([j.potential.name for j in list(self.unique_pair_types.values())])
         if len(list(pairs)) > 1:
-            self.pair_style = "hybrid %s"%" ".join(list(pairs))
+            self.pair_style = "hybrid/overlay %s"%" ".join(list(pairs))
+            # by default, turn off listing Pair Coeff in the data file if this is the case
+            self.pair_in_data = False
         else:
             self.pair_style = "%s"%list(pairs)[0]
             for p in list(self.unique_pair_types.values()):
@@ -648,8 +627,8 @@ class UFF(ForceField):
     """
     
     def __init__(self, struct):
+        self.pair_in_data = True
         self.structure = struct
-
         self.unique_atom_types = {}
         self.unique_bond_types = {}
         self.unique_angle_types = {}
@@ -975,6 +954,30 @@ class UFF(ForceField):
         improper.potential.C0 = c0
         improper.potential.C1 = c1
         improper.potential.C2 = c2
+    
+    def unique_pair_terms(self):
+        """This is force field dependent."""
+        count = 0 
+        pair_type = {}
+        atom_types = list(self.unique_atom_types.keys())
+        for at in sorted(atom_types):
+            atom = self.unique_atom_types[at]
+            #a1 = self.unique_atom_types[pair1]
+            #a2 = self.unique_atom_types[pair2]
+
+            p1 = (atom.ff_type_index, atom.ff_type_index)
+            #pair = PairTerm(a1, a2)
+            pair = PairTerm(atom, atom)
+            if p1 in pair_type.keys():
+                type = pair_type[p1]
+            else:
+                count += 1
+                type = count
+                pair_type[p1] = type
+                self.pair_term(pair)
+                self.unique_pair_types[type] = pair
+            pair.ff_type_index = type
+        return
 
     def pair_term(self, pair):
         atom1 = pair.atoms[0]
@@ -990,6 +993,11 @@ class UFF(ForceField):
         pot.eps = eps
         pot.sig = sig
         pair.potential = pot 
+    
+    def special_commands(self):
+        st = ""
+        st += "-15s %s %s\n"%("pair_modify", "tail yes", "mix arithmetic")
+        return st
 
     @property
     def cutoff(self):
@@ -999,6 +1007,7 @@ class UFF(ForceField):
 class Dreiding(ForceField):
 
     def __init__(self, struct):
+        self.pair_in_data = False
         self.structure = struct
         self.unique_atom_types = {}
         self.unique_bond_types = {}
@@ -1007,6 +1016,51 @@ class Dreiding(ForceField):
         self.unique_improper_types = {}
         self.unique_pair_types = {}
    
+    def unique_atoms(self):
+        """Computes the number of unique atoms in the structure"""
+        count = 0
+        ff_type = {}
+        electro_neg_atoms = ["N", "O", "F"]
+        # RE-TYPE H_ to H__HB if needed
+        for atom in self.structure.atoms:
+            if atom.element == "H":
+                for n in atom.neighbours:
+                    atj = self.structure.atoms[n]
+                    if ((atj.element in electro_neg_atoms)
+                        and (atom.force_field_type != "H__HB")):
+                        print("WARNING: the atom %i is mis-labeled as %s. "%(
+                            atom.index, atom.force_field_type) +
+                            "Renaming to H__HB for hydrogen bonding possibilities.")
+                        atom.force_field_type = "H__HB"
+                        atj.h_bond_donor = True
+
+        for atom in self.structure.atoms:
+            if atom.force_field_type is None:
+                label = atom.element
+            else:
+                label = atom.force_field_type
+
+            try:
+                type = ff_type[label]
+            except KeyError:
+                count += 1
+                type = count
+                ff_type[label] = type  
+                self.unique_atom_types[type] = atom 
+            # add another type if the atom is a H-BOND donor
+            if atom.h_bond_donor:
+                label += "_HB"
+                try:
+                    type = ff_type[label]
+                except KeyError:
+                    count += 1
+                    type = count
+                    ff_type[label] = type
+                    self.unique_atom_types[type] = atom
+
+            atom.ff_type_index = type
+
+
     def get_hybridization(self, type):
         try:
             hy = type[2]
@@ -1167,7 +1221,7 @@ class Dreiding(ForceField):
                 phi0 = 180.0
 
         # c)
-        elif((b_hyb == "2") and (c_hyb == "2") and (order == 2.)):
+        elif((b_hyb in sp2) and (c_hyb in sp2) and (order == 2.)):
             V = 45.0
             n = 2
             phi0 = 180.0
@@ -1213,11 +1267,12 @@ class Dreiding(ForceField):
         b_neigh = len(b_atom.neighbours)
         c_neigh = len(c_atom.neighbours)
         norm = float(b_neigh * c_neigh)
-
         V /= norm
         d = n*phi0 + 180.0
         # default is to include the full 1-4 non-bonded interactions.
-        w = 1.0 
+        # but this breaks Lammps unless extra work-arounds are in place.
+        # the weighting is added via a special_bonds keyword
+        w = 0.0 
         dihedral.potential = DihedralPotential.Charmm()
         dihedral.potential.K = V
         dihedral.potential.n = n
@@ -1254,7 +1309,7 @@ class Dreiding(ForceField):
         sp3_N = ["N_3", "P_3", "As3", "Sb3"]
         if hyb in sp2:
             K = 40.0/3.
-        if btype in sb3_N:
+        if btype in sp3_N:
             return
 
         improper.potential = ImproperPotential.Umbrella()
@@ -1262,7 +1317,73 @@ class Dreiding(ForceField):
         improper.potential.K = K
         improper.omega0 = DREIDING_DATA[btype][4]
 
-    def pair_term(self, pair, nbpot="LJ"):
+    def unique_pair_terms(self, nbpot="LJ", hbpot="morse"):
+        """Include hydrogen bonding terms"""
+        atom_types = sorted(list(self.unqiue_atom_types.keys()))
+        electro_neg_atoms = ["N", "O", "F"]
+        pair_count = 0
+        for (i, j) in itertools.combinations_with_replacement(
+                                     atom_types, 2):
+            atomi = self.unique_atom_types[i]
+            atomj = self.unique_atom_types[j]
+            pair = PairTerm(atomi, atomj)
+            self.pair_term(pair, nbpot)
+            pair_count += 1
+            self.unique_pair_types[pair_count] = pair
+            # condition, two donors cannot form a hydrogen bond..
+            # this might be too restrictive?
+            if (atomi.h_bond_donor and (not atomj.h_bond_donor) and
+                    (atomj in electro_neg_atoms)):
+                # get H__HB type
+                htype = None
+                for nn in atomi.neighbours:
+                    at = self.structure.atoms[nn]
+                    if at.force_field_type == "H__HB":
+                        htype = at.ff_type_index
+                pair2 = PairTerm(atomi, atomj)
+                self.hbond_pair(pair2, hbpot, htype, flipped=False)
+                pair_count += 1
+                self.unique_pair_types[pair_count] = pair2
+            elif (atomj.h_bond_donor and (not atomi.h_bond_donor) and
+                    (atomi in electro_neg_atoms)):
+                # get H__HB type
+                htype = None
+                for nn in atomj.neighbours:
+                    at = self.structure.atoms[nn]
+                    if at.force_field_type == "H__HB":
+                        htype = at.ff_type_index
+                pair2 = PairTerm(atomi, atomj)
+                self.hbond_pair(pair2, hbpot, htype, flipped=True)
+                pair_count += 1
+                self.unique_pair_types[pair_count] = pair2
+
+    def hbond_pair(self, pair, nbpot, htype, flipped=False):
+        """
+        DREIDING can describe hbonded donor and acceptors
+        using a lj function or a morse potential
+
+        the morse potential is apparently better, so it
+        will be default here
+        
+        Generic HBOND is used, but DREIDING III
+        specified in 10.1021/ja8100227 should probably be used.
+        """
+        if (nbpot == 'morse'):
+            pair.potential = PairPotential.HbondDreidingMorse()
+            R0 = 2.75
+            pair.potential.htype = htype
+            if(flipped):
+                pair.potential.donor = 'j'
+            pair.potential.D0 = 9.5
+            pair.alpha = 10.0/ 2. / R0
+            pair.potential.R0 = R0
+            pair.potential.n = 2.0
+            # one can edit these values for bookkeeping.
+            pair.potential.Rin = 9.0
+            pair.potential.Rout = 11.0
+            pair.potential.a_cut = 90.0
+
+    def pair_term(self, pair, nbpot):
         """ DREIDING can adopt the exponential-6 or
         Ex6 = A*exp{-C*R} - B*R^{-6}
 
@@ -1271,9 +1392,6 @@ class Dreiding(ForceField):
 
         This will eventually be user-defined
 
-
-        also included in this function is the determination
-        of explicit hydrogen bonding types..
         """
 
         atom1 = pair.atoms[0]
@@ -1287,7 +1405,7 @@ class Dreiding(ForceField):
         R2 = DREIDING_DATA[atom2.force_field_type][2]
         sig2 = R2*(2**(-1./6.))
 
-        if nbpot == "LJ"
+        if nbpot == "LJ":
             # default LB mixing.
             
             eps = np.sqrt(eps1*eps2)
@@ -1313,6 +1431,12 @@ class Dreiding(ForceField):
             pot.A = np.sqrt(A1*A2)
             pot.C = np.sqrt(C1*C2) 
             pot.rho = (rho1 + rho2)/2.
+
+    def special_commands(self):
+        st = ""
+        st += "-15s %s\n"%("pair_modify", "tail yes")
+        st += "-15s %s\n"%("special_bonds", "dreiding") # equivalent to 'special_bonds lj 0.0 0.0 1.0'
+        return st
 
     @property
     def cutoff(self):

@@ -163,9 +163,9 @@ class Structure(object):
     
     def compute_pair_terms(self):
         """Place holder for hydrogen bonding?"""
-        return
-        #for i in self.atoms:
-        #    pair = PairTerm(i, i)
+        for i in self.atoms:
+            pair = PairTerm(i, i)
+            self.pairs.append(pair)
 
     def minimum_cell(self, cutoff=12.5):
         """Determine the minimum cell size such that half the orthogonal cell
@@ -590,6 +590,7 @@ class Atom(object):
         self.ff_type_index = 0 # keeps track of the unique integer value assigned to the force field type
         Atom.__ID += 1
         self.image_index = -1 # If a copy, keeps the original index here.
+        self.h_bond_donor = False # keep track of h-bonding atoms (for DREIDING)
 
     def scaled_pos(self, inv_cell):
         return np.dot(self.coordinates[:3], inv_cell)

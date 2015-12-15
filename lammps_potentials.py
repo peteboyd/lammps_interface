@@ -770,3 +770,47 @@ class PairPotential(object):
                                                 self.A,
                                                 self.rho,
                                                 self.C)
+
+
+    class HbondDreidingMorse(object):
+        """Potential defined as
+
+        E = D0*[exp{-2*alpha*(r-R0)} - 2*exp{-alpha*(r-R0)}]*cos^n(theta)
+
+        """
+        def __init__(self):
+            self.name = "hbond/dreiding/morse"
+            self.htype = 0
+            self.donor = 'i'
+            self.D0 = 0.0
+            self.alpha = 0.0
+            self.R0 = 0.0
+            self.n = 0.0
+            self.Rin = 0.0
+            self.Rout = 0.0
+            self.a_cut = 0.0
+            self.reduced = False
+
+        def __str__(self):
+            if self.reduced:
+                return "%i %s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(
+                                               self.htype,
+                                               self.donor,
+                                               self.D0,
+                                               self.alpha,
+                                               self.R0,
+                                               self.n,
+                                               self.Rin,
+                                               self.Rout,
+                                               self.a_cut)
+            return "%28s %i %s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(
+                                               self.name,
+                                               self.htype,
+                                               self.donor,
+                                               self.D0,
+                                               self.alpha,
+                                               self.R0,
+                                               self.n,
+                                               self.Rin,
+                                               self.Rout,
+                                               self.a_cut)
