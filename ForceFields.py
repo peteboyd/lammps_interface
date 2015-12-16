@@ -1261,13 +1261,14 @@ class Dreiding(ForceField):
         c_neigh = len(c_atom.neighbours)
         norm = float(b_neigh * c_neigh)
         V /= norm
-        d = n*phi0 + 180.0
+        d = phi0 + 180.0
+        #d = n*phi0 + 180.0
         # default is to include the full 1-4 non-bonded interactions.
         # but this breaks Lammps unless extra work-arounds are in place.
         # the weighting is added via a special_bonds keyword
         w = 0.0 
         dihedral.potential = DihedralPotential.Charmm()
-        dihedral.potential.K = V
+        dihedral.potential.K = V/2.
         dihedral.potential.n = n
         dihedral.potential.d = d
         dihedral.potential.w = w

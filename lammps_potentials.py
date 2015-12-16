@@ -691,15 +691,17 @@ class ImproperPotential(object):
 
         def __str__(self):
             if self.reduced:
-                return "%15.6f %15.6f %15.6f %15i"%(self.C0,
-                                                    self.C1,
-                                                    self.C2,
-                                                    self.a)
-            return "%28s %15.6f %15.6f %15.6f %15i"%(self.name,
-                                                     self.C0,
-                                                     self.C1,
-                                                     self.C2,
-                                                     self.a)
+                return "%15.6f %15.6f %15.6f %15.6f %15i"%(self.K,
+                                                           self.C0,
+                                                           self.C1,
+                                                           self.C2,
+                                                           self.a)
+            return "%28s %15.6f %15.6f %15.6f %15.6f %15i"%(self.name,
+                                                            self.K,
+                                                            self.C0,
+                                                            self.C1,
+                                                            self.C2,
+                                                            self.a)
     
     class Ring(object):
         """Potential defined as
