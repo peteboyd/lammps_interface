@@ -105,23 +105,6 @@ class ForceField(object):
         count = 0
         dihedral_type = {}
         for dihedral in self.structure.dihedrals:
-            #atom_a, atom_b, atom_c, atom_d = dihedral.atoms
-            #type_a, type_b, type_c, type_d = (atom_a.ff_type_index,
-            #                                  atom_b.ff_type_index,
-            #                                  atom_c.ff_type_index,
-            #                                  atom_d.ff_type_index)
-            #M = len(atom_c.neighbours)*len(atom_b.neighbours)
-            #try:
-            #    type = dihedral_type[(type_a, type_b, type_c, type_d, M)]
-            #except KeyError:
-            #    try:
-            #        type = dihedral_type[(type_d, type_c, type_b, type_a, M)]
-            #    except KeyError:
-            #        count += 1
-            #        type = count
-            #        dihedral_type[(type_a, type_b, type_c, type_d, M)] = type
-            #        self.dihedral_term(dihedral)
-            #        self.unique_dihedral_types[type] = dihedral
             # just use the potential parameter string
             self.dihedral_term(dihedral)
             dtype = "%s"%dihedral.potential
@@ -141,38 +124,20 @@ class ForceField(object):
         improper_type = {}
         remove = []
         for idx,improper in enumerate(self.structure.impropers):
-            atom_a, atom_b, atom_c, atom_d = improper.atoms
-            type_a, type_b, type_c, type_d = (atom_a.ff_type_index, atom_b.ff_type_index,
-                                              atom_c.ff_type_index, atom_d.ff_type_index)
-            d1 = (type_b, type_a, type_c, type_d)
-            d2 = (type_b, type_a, type_d, type_c)
-            d3 = (type_b, type_c, type_d, type_a)
-            d4 = (type_b, type_c, type_a, type_d)
-            d5 = (type_b, type_d, type_a, type_c)
-            d6 = (type_b, type_d, type_c, type_a)
 
-            if d1 in improper_type.keys():
-                type = improper_type[d1]
-            elif d2 in improper_type.keys():
-                type = improper_type[d2]
-            elif d3 in improper_type.keys():
-                type = improper_type[d3]
-            elif d4 in improper_type.keys():
-                type = improper_type[d4]
-            elif d5 in improper_type.keys():
-                type = improper_type[d5]
-            elif d6 in improper_type.keys():
-                type = improper_type[d6]
-            else:
-                self.improper_term(improper)
-                if improper.potential is not None:
+            self.improper_term(improper)
+            if improper.potential is not None:
+                itype = "%s"%improper.potential
+                try:
+                    type = improper_type[itype]
+                except KeyError:
                     count += 1
                     type = count
-                    improper_type[d1] = type
+                    improper_type[itype] = type
                     self.unique_improper_types[type] = improper
-                else:
-                    remove.append(idx)
-            improper.ff_type_index = type
+                improper.ff_type_index = type
+            else:
+                remove.append(idx)
         for j in reversed(sorted(remove)):
             del(self.structure.impropers[j])
 
