@@ -241,9 +241,17 @@ class AnglePotential(object):
             self.C = 0.
             self.B = 0
             self.n = 0
+            self.reduced = False
 
         def __str__(self):
-            return ""
+            if self.reduced:
+                return "%15.6f %15i %15i"%(self.K,
+                                          self.B,
+                                          self.n)
+            return "%28s %15.6f %15i %15i"%(self.name,
+                                            self.K,
+                                            self.B,
+                                            self.n)
 
     class CosineSquared(object):
         """Potential defined as
@@ -264,7 +272,6 @@ class AnglePotential(object):
             return "%28s %15.6f %15.6f"%(self.name,
                                          self.K,
                                          self.theta0)
-
     class Harmonic(object):
         """Potential defined as
 
@@ -278,7 +285,12 @@ class AnglePotential(object):
             self.theta0 = 0.
 
         def __str__(self):
-            return ""
+            if self.reduced:
+                return "%15.6f %15.6f"%(self.K,
+                                        self.theta0)
+            return "%28s %15.6f %15.6f"%(self.name,
+                                         self.K,
+                                         self.theta0)
 
     class Table(object):
         def __init__(self):
@@ -431,8 +443,8 @@ class DihedralPotential(object):
             self.reduced = False
         def __str__(self):
             if self.reduced:
-                return "%15.6f %15i %15i %15.6f"%(self.K, self.d, self.n, self.w)
-            return "%28s %15.6f %15i %15i %15.6f"%(self.name, self.K, self.d, self.n, self.w)
+                return "%15.6f %15i %15i %15.6f"%(self.K, self.d, self.n, self.w) 
+            return "%28s %15.6f %15i %15i %15.6f"%(self.name, self.K, self.d, self.n, self.w) 
 
     class Class2(object):
         def __init__(self):

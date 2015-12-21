@@ -105,23 +105,33 @@ class ForceField(object):
         count = 0
         dihedral_type = {}
         for dihedral in self.structure.dihedrals:
-            atom_a, atom_b, atom_c, atom_d = dihedral.atoms
-            type_a, type_b, type_c, type_d = (atom_a.ff_type_index,
-                                              atom_b.ff_type_index,
-                                              atom_c.ff_type_index,
-                                              atom_d.ff_type_index)
-            M = len(atom_c.neighbours)*len(atom_b.neighbours)
+            #atom_a, atom_b, atom_c, atom_d = dihedral.atoms
+            #type_a, type_b, type_c, type_d = (atom_a.ff_type_index,
+            #                                  atom_b.ff_type_index,
+            #                                  atom_c.ff_type_index,
+            #                                  atom_d.ff_type_index)
+            #M = len(atom_c.neighbours)*len(atom_b.neighbours)
+            #try:
+            #    type = dihedral_type[(type_a, type_b, type_c, type_d, M)]
+            #except KeyError:
+            #    try:
+            #        type = dihedral_type[(type_d, type_c, type_b, type_a, M)]
+            #    except KeyError:
+            #        count += 1
+            #        type = count
+            #        dihedral_type[(type_a, type_b, type_c, type_d, M)] = type
+            #        self.dihedral_term(dihedral)
+            #        self.unique_dihedral_types[type] = dihedral
+            # just use the potential parameter string
+            self.dihedral_term(dihedral)
+            dtype = "%s"%dihedral.potential
             try:
-                type = dihedral_type[(type_a, type_b, type_c, type_d, M)]
+                type = dihedral_type[dtype]
             except KeyError:
-                try:
-                    type = dihedral_type[(type_d, type_c, type_b, type_a, M)]
-                except KeyError:
-                    count += 1
-                    type = count
-                    dihedral_type[(type_a, type_b, type_c, type_d, M)] = type
-                    self.dihedral_term(dihedral)
-                    self.unique_dihedral_types[type] = dihedral 
+                count += 1 
+                type = count
+                dihedral_type[dtype] = type
+                self.unique_dihedral_types[type] = dihedral
             dihedral.ff_type_index = type
 
     @abc.abstractmethod
@@ -1144,7 +1154,9 @@ class Dreiding(ForceField):
             angle.potential.K = K
         else:
             angle.potential = AnglePotential.CosineSquared()
+            #angle.potential = AnglePotential.Harmonic()
             K = 0.5*K/(np.sin(theta0*DEG2RAD))**2
+            #K = 0.5*K
             angle.potential.K = K
             angle.potential.theta0 = theta0
 
@@ -1220,7 +1232,8 @@ class Dreiding(ForceField):
             phi0 = 180.0
 
         # d)
-        elif((b_hyb == "R") and (c_hyb == "R") and (order == 1.5)):
+        # bypasses e) for the moment..
+        elif((b_hyb in sp2) and (c_hyb in sp2) and (order == 1.5)):
             V = 25.0
             n = 2
             phi0 = 180.0
@@ -1236,14 +1249,17 @@ class Dreiding(ForceField):
             if(b_hyb == "R" and c_hyb == "R"):
                 b_arom = True
                 for id in b_atom.neighbours:
-                    hyb = self.get_hybridization(
-                            self.structure.atoms[id].force_field_type)
-                    if (hyb != "R"):
+                    # Need to make sure this isn't part of the same ring.
+                    n_atom = self.structure.atoms[id]
+                    hyb = self.get_hybridization(n_atom.force_field_type)
+                    if (hyb != "R"): 
                         b_arom = False
+
                 c_arom = True
                 for id in c_atom.neighbours:
-                    hyb = self.get_hybridization(
-                            self.structure.atoms[id].force_field_type)
+                    # Need to make sure this isn't part of the same ring.
+                    n_atom = self.structure.atoms[id]
+                    hyb = self.get_hybridization(n_atom.force_field_type)
                     if (hyb != "R"):
                         c_arom = False
                 if (b_arom and c_arom):
@@ -1260,9 +1276,10 @@ class Dreiding(ForceField):
         b_neigh = len(b_atom.neighbours)
         c_neigh = len(c_atom.neighbours)
         norm = float(b_neigh * c_neigh)
+        print(V, V/norm)
         V /= norm
-        d = phi0 + 180.0
-        #d = n*phi0 + 180.0
+        #d = phi0 + 180.0
+        d = (n*phi0)%360 + 180.0
         # default is to include the full 1-4 non-bonded interactions.
         # but this breaks Lammps unless extra work-arounds are in place.
         # the weighting is added via a special_bonds keyword

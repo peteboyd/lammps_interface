@@ -150,9 +150,9 @@ class Structure(object):
                 continue
             ib = atom_b.index
             # three improper torsion angles about each atom
-            for idx,(ia,ic,id) in enumerate(itertools.permutations(atom_b.neighbours)):
-                if idx == 3:
-                    break
+            local_impropers = list(itertools.permutations(atom_b.neighbours))
+            for idx in range(0, 6, 2):
+                (ia, ic, id) = local_impropers[idx]
                 atom_a, atom_c, atom_d = self.atoms[ia], self.atoms[ic], self.atoms[id]
 
                 abbond = self.get_bond(atom_a, atom_b)
