@@ -81,23 +81,18 @@ class ForceField(object):
         ang_type = {}
         count = 0
         for angle in self.structure.angles:
-            atom_a, atom_b, atom_c = angle.atoms
-            type_a, type_b, type_c = atom_a.ff_type_index, atom_b.ff_type_index, atom_c.ff_type_index
+
             # compute and store angle terms
             self.angle_term(angle)
-
+            atype = "%s"%angle.potential
             try:
-                type = ang_type[(type_a, type_b, type_c)]
+                type = ang_type[atype]
 
             except KeyError:
-                try:
-                    type = ang_type[(type_c, type_b, type_a)]
-                
-                except KeyError:
-                    count += 1
-                    type = count
-                    ang_type[(type_a, type_b, type_c)] = type
-                    self.unique_angle_types[type] = angle 
+                count += 1
+                type = count
+                ang_type[atype] = type
+                self.unique_angle_types[type] = angle 
             angle.ff_type_index = type
 
     @abc.abstractmethod
