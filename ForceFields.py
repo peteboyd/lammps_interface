@@ -59,21 +59,19 @@ class ForceField(object):
         count = 0
         bb_type = {}
         for bond in self.structure.bonds:
-            idx1, idx2 = bond.indices
-            atm1, atm2 = self.structure.atoms[idx1], self.structure.atoms[idx2]
-            
-            self.bond_term(bond)        
-            try:
-                type = bb_type[(atm1.ff_type_index, atm2.ff_type_index, bond.order)]
-            except KeyError:
-                try:
-                    type = bb_type[(atm2.ff_type_index, atm1.ff_type_index, bond.order)]
-                except KeyError:
-                    count += 1
-                    type = count
-                    bb_type[(atm1.ff_type_index, atm2.ff_type_index, bond.order)] = type
+            self.bond_term(bond)
 
-                    self.unique_bond_types[type] = bond 
+            btype = "%s"%bond.potential
+            try:
+                type = bb_type[btype]
+
+            except KeyError:
+                count += 1
+                type = count
+                bb_type[btype] = type
+
+                self.unique_bond_types[type] = bond
+
             bond.ff_type_index = type
     
     @abc.abstractmethod
