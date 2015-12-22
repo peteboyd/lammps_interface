@@ -1235,7 +1235,7 @@ class Dreiding(ForceField):
         c_neigh = len(c_atom.neighbours) - 1
         norm = float(b_neigh * c_neigh)
         V /= norm
-        d = (n*phi0)%360
+        d = n*phi0 + 180
         # default is to include the full 1-4 non-bonded interactions.
         # but this breaks Lammps unless extra work-arounds are in place.
         # the weighting is added via a special_bonds keyword
@@ -1352,23 +1352,111 @@ class Dreiding(ForceField):
             ff2 = atom2.force_field_type
             D0 = 9.0
             R0 = 2.75
-            if(ff1 == "N_3"):
-                if(ff2 == "Cl_"):
-                    D0 = 3.23
-                    R0 = 3.575
-                elif(ff2 == "O_3"):
-                    D0 = 1.31
-                    R0 = 3.41
-                elif(ff2 == "O_2"):
-                    D0 = 1.25
-                    R0 = 3.405
-                elif(ff2 == "N_3"):
-                    D0 = 0.1870
-                    R0 = 3.90
-                elif(ff2 == "N_3"):
-                    D0 = 0.93
-                    R0 = 3.47
+            # Table S3 of the SI of 10.1021/ja8100227 is poorly documented,
+            # I have parameterized, to the best of my ability, what was intended
+            # in that paper. This message posted on the lammps-users
+            # message board http://lammps.sandia.gov/threads/msg36158.html
+            # was helpful
+            # N_3H == tertiary amine
+            # N_3P == primary amine
+            # N_3HP == protonated primary amine
+            ineigh = []
+            jneigh = []
+            for n in atom1.neighbours:
+                at = self.structure.atoms[n]
+                ineigh.append(at.element)
+            for n in atom2.neighbours:
+                at = self.structure.atoms[n]
+                jneigh.append(at.element)
 
+            if(ff1 == "N_3"):
+                # tertiary amine
+                if ((ineigh.count("H") < 3) and (len(ineigh) == 4)or
+                        ineigh.count("H")<2 and (len(ineigh) == 3)):
+                    if(ff2 == "Cl_"):
+                        D0 = 3.23
+                        R0 = 3.575
+                    elif(ff2 == "O_3"):
+                        D0 = 1.31
+                        R0 = 3.41
+                    elif(ff2 == "O_2"):
+                        D0 = 1.25
+                        R0 = 3.405
+                    elif(ff2 == "N_3"):
+                        if((jneigh.count("H") > 0)):
+                            D0 = 0.93  
+                            R0 = 3.47
+                        else:
+                            D0 = 0.1870
+                            R0 = 3.90
+                # primary amine
+                elif((ineigh.count("H") == 2) and (len(ineigh) == 3)):
+                    if(ff2 == "Cl_"):
+                        D0 = 10.00 
+                        R0 = 2.9795
+                    elif(ff2 == "O_3"):
+                        D0 = 2.21
+                        R0 = 3.12
+                    elif(ff2 == "O_2"):
+                        D0 = 8.38
+                        R0 = 2.77 
+                    elif(ff2 == "N_3"):
+                        if((jneigh.count("H") > 0)):
+                            D0 = 8.45
+                            R0 = 2.84
+                        else:
+                            D0 = 5.0
+                            R0 = 2.765
+                # protonated primary amine
+                elif((ineigh.count("H") == 3) and (len(ineigh) >= 3)):
+                    if(ff2 == "Cl_"):
+                        D0 = 7.6
+                        R0 = 3.275
+                    elif(ff2 == "O_3"):
+                        D0 = 1.22
+                        R0 = 3.2 
+                    elif(ff2 == "O_2"):
+                        D0 = 8.56
+                        R0 = 2.635
+                    elif(ff2 == "N_3"):
+                        if((jneigh.count("H") > 0)):
+                            D0 = 10.14
+                            R0 = 2.6 
+                        else:
+                            D0 = 0.8
+                            R0 = 3.22 
+            elif(ff1 == "N_R"):
+                if(ff2 == "Cl_"):
+                    D0 = 5.6   
+                    R0 = 3.265 
+                elif(ff2 == "O_3"):
+                    D0 = 1.38
+                    R0 = 3.17
+                elif(ff2 == "O_2"):
+                    D0 = 3.88
+                    R0 = 2.9  
+                elif(ff2 == "N_3"):
+                    if((jneigh.count("H") > 0)):
+                        D0 = 2.44
+                        R0 = 3.15
+                    else:
+                        D0 = 0.43
+                        R0 = 3.4  
+            elif(ff1 == "O_3"):
+                if(ff2 == "O_2"):
+                    D0 = 1.33
+                    R0 = 3.15 
+                elif(ff2 == "N_3"):
+                    if((jneigh.count("H") > 0)):
+                        D0 = 1.97
+                        R0 = 3.12
+                    else:
+                        D0 = 1.25
+                        R0 = 3.15 
+            else:
+                # generic HB
+                D0 = 9.5
+                R0 = 2.75
             pair.potential.D0 = D0 
             pair.potential.alpha = 10.0/ 2. / R0
             pair.potential.R0 = R0
