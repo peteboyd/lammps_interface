@@ -444,8 +444,8 @@ class DihedralPotential(object):
             self.reduced = False
         def __str__(self):
             if self.reduced:
-                return "%15.6f %15i %15i %15.6f"%(self.K, self.d, self.n, self.w) 
-            return "%28s %15.6f %15i %15i %15.6f"%(self.name, self.K, self.d, self.n, self.w) 
+                return "%15.6f %15i %15i %15.6f"%(self.K, self.n, self.d, self.w) 
+            return "%28s %15.6f %15i %15i %15.6f"%(self.name, self.K, self.n, self.d, self.w) 
 
     class Class2(object):
         def __init__(self):
