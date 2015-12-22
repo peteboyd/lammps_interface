@@ -1231,13 +1231,11 @@ class Dreiding(ForceField):
 
         # divide V by the number of dihedral angles
         # to compute across this a-b bond
-        b_neigh = len(b_atom.neighbours)
-        c_neigh = len(c_atom.neighbours)
+        b_neigh = len(b_atom.neighbours) - 1
+        c_neigh = len(c_atom.neighbours) - 1
         norm = float(b_neigh * c_neigh)
-        print(V, V/norm)
         V /= norm
-        #d = phi0 + 180.0
-        d = (n*phi0)%360 + 180.0
+        d = (n*phi0)%360
         # default is to include the full 1-4 non-bonded interactions.
         # but this breaks Lammps unless extra work-arounds are in place.
         # the weighting is added via a special_bonds keyword
@@ -1276,15 +1274,17 @@ class Dreiding(ForceField):
         sp2 = ["R", "2"]
         # special case: ignore N column 
         sp3_N = ["N_3", "P_3", "As3", "Sb3"]
+        K = 40.0
         if hyb in sp2:
-            K = 40.0/3.
+            K /= 3.
         if btype in sp3_N:
             return
 
+        omega0 = DREIDING_DATA[btype][4]
         improper.potential = ImproperPotential.Umbrella()
 
         improper.potential.K = K
-        improper.omega0 = DREIDING_DATA[btype][4]
+        improper.omega0 = omega0 
 
     def unique_pair_terms(self, nbpot="LJ", hbpot="morse"):
         """Include hydrogen bonding terms"""
@@ -1301,7 +1301,7 @@ class Dreiding(ForceField):
             self.unique_pair_types[pair_count] = pair
             # condition, two donors cannot form a hydrogen bond..
             # this might be too restrictive?
-            if (atomi.h_bond_donor and (not atomj.h_bond_donor) and
+            if (atomi.h_bond_donor and 
                     (atomj.element in electro_neg_atoms)):
                 # get H__HB type
                 htype = None
@@ -1313,7 +1313,7 @@ class Dreiding(ForceField):
                 self.hbond_pair(pair2, hbpot, htype, flipped=False)
                 pair_count += 1
                 self.unique_pair_types[pair_count] = pair2
-            elif (atomj.h_bond_donor and (not atomi.h_bond_donor) and
+            if (atomj.h_bond_donor and 
                     (atomi.element in electro_neg_atoms)):
                 # get H__HB type
                 htype = None
@@ -1339,11 +1339,37 @@ class Dreiding(ForceField):
         """
         if (nbpot == 'morse'):
             pair.potential = PairPotential.HbondDreidingMorse()
-            R0 = 2.75
             pair.potential.htype = htype
             if(flipped):
                 pair.potential.donor = 'j'
-            pair.potential.D0 = 9.5
+
+                atom1 = pair.atoms[1]
+                atom2 = pair.atoms[0]
+            else:
+                atom1 = pair.atoms[0]
+                atom2 = pair.atoms[1]
+            ff1 = atom1.force_field_type
+            ff2 = atom2.force_field_type
+            D0 = 9.0
+            R0 = 2.75
+            if(ff1 == "N_3"):
+                if(ff2 == "Cl_"):
+                    D0 = 3.23
+                    R0 = 3.575
+                elif(ff2 == "O_3"):
+                    D0 = 1.31
+                    R0 = 3.41
+                elif(ff2 == "O_2"):
+                    D0 = 1.25
+                    R0 = 3.405
+                elif(ff2 == "N_3"):
+                    D0 = 0.1870
+                    R0 = 3.90
+                elif(ff2 == "N_3"):
+                    D0 = 0.93
+                    R0 = 3.47
+
+            pair.potential.D0 = D0 
             pair.potential.alpha = 10.0/ 2. / R0
             pair.potential.R0 = R0
             pair.potential.n = 2

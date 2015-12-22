@@ -283,6 +283,7 @@ class AnglePotential(object):
             self.name = "harmonic" # harmonic/kk and harmonic/omp exist 
             self.K = 0.
             self.theta0 = 0.
+            self.reduced = False
 
         def __str__(self):
             if self.reduced:
@@ -623,9 +624,17 @@ class ImproperPotential(object):
             self.K = 0.
             self.d = 0
             self.n = 0
+            self.reduced = False
 
         def __str__(self):
-            return ""
+            if self.reduced:
+                return "%15.6f %15i %15i "%(self.K,
+                                         self.d,
+                                         self.n)
+            return "%28s %15.6f %15i %15i"%(self.name,
+                                         self.K,
+                                         self.d,
+                                         self.n)
     
     class Harmonic(object):
         """Potential defined as
