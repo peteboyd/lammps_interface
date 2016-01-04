@@ -1198,7 +1198,8 @@ class Dreiding(ForceField):
 
         # e)
         elif((b_hyb in sp2) and (c_hyb in sp2) and (order == 1.0)):
-            V = 5.0
+            #V = 5.0
+            V = 25.0 # temp fix aromatic...
             n = 2
             phi0 = 180.0
             # f) just check if neighbours are aromatic, then apply the exception
