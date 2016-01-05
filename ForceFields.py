@@ -1303,7 +1303,8 @@ class Dreiding(ForceField):
             # condition, two donors cannot form a hydrogen bond..
             # this might be too restrictive?
             if (atomi.h_bond_donor and 
-                    (atomj.element in electro_neg_atoms)):
+                    (atomj.element in electro_neg_atoms) and 
+                    (not atomj.h_bond_donor)):
                 # get H__HB type
                 htype = None
                 for nn in atomi.neighbours:
@@ -1315,7 +1316,8 @@ class Dreiding(ForceField):
                 pair_count += 1
                 self.unique_pair_types[pair_count] = pair2
             if (atomj.h_bond_donor and 
-                    (atomi.element in electro_neg_atoms)):
+                    (atomi.element in electro_neg_atoms) and
+                    (not atomi.h_bond_donor)):
                 # get H__HB type
                 htype = None
                 for nn in atomj.neighbours:
