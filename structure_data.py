@@ -37,7 +37,63 @@ class Structure(object):
                                          data['_cell_angle_beta'], 
                                          data['_cell_angle_gamma']]]
         self.cell.set_params(cellparams)
-        x, y, z = data['_atom_site_fract_x'], data['_atom_site_fract_y'], data['_atom_site_fract_z']
+
+        if '_atom_site_fract_x' in data:
+            x = np.array([float(j) for j in data['_atom_site_fract_x']])
+            x = np.dot(x, self.cell.cell)
+        elif (('_atom_site_x' in data) or 
+              ('_atom_site_cartn_x' in data) or 
+              ('_atom_site_Cartn_x' in data):
+            try:
+                x = np.array([float(j) for j in data['_atom_site_x']])
+            except Keyerror:
+                pass
+            try:
+                x = np.array([float(j) for j in data['_atom_site_cartn_x']])
+            except KeyError:
+                pass
+            try:
+                x = np.array([float(j) for j in data['_atom_site_Cartn_x']])
+            except KeyError:
+                pass
+        
+        if '_atom_site_fract_y' in data:
+            y = np.array([float(j) for j in data['_atom_site_fract_y']])
+            y = np.dot(y, self.cell.cell)
+        elif (('_atom_site_y' in data) or 
+              ('_atom_site_cartn_y' in data) or 
+              ('_atom_site_Cartn_y' in data):
+            try:
+                y = np.array([float(j) for j in data['_atom_site_y']])
+            except Keyerror:
+                pass
+            try:
+                y = np.array([float(j) for j in data['_atom_site_cartn_y']])
+            except KeyError:
+                pass
+            try:
+                y = np.array([float(j) for j in data['_atom_site_Cartn_y']])
+            except KeyError:
+                pass
+
+        if '_atom_site_fract_z' in data:
+            z = np.array([float(j) for j in data['_atom_site_fract_z']])
+            z = np.dot(z, self.cell.cell)
+        elif (('_atom_site_z' in data) or 
+              ('_atom_site_cartn_z' in data) or 
+              ('_atom_site_Cartn_z' in data)):
+            try:
+                z = np.array([float(j) for j in data['_atom_site_z']])
+            except Keyerror:
+                pass
+            try:
+                z = np.array([float(j) for j in data['_atom_site_cartn_z']])
+            except KeyError:
+                pass
+            try:
+                z = np.array([float(j) for j in data['_atom_site_Cartn_z']])
+            except KeyError:
+                pass
         
         # Charge assignment may have to be a bit more inclusive than just setting _atom_site_charge
         # in the .cif file.. will have to think of a user-friendly way to introduce charges..
@@ -53,8 +109,7 @@ class Structure(object):
         
         index = 0
         for l,e,ff,fx,fy,fz,c in zip(label,element,ff_param,x,y,z,charges):
-            fcoord = np.array([float(j) for j in (fx, fy, fz)])
-            atom = Atom(element=e.strip(), coordinates = np.dot(fcoord, self.cell.cell))
+            atom = Atom(element=e.strip(), coordinates = (fx,fy,fz))
             atom.force_field_type = ff.strip()
             atom.ciflabel = l.strip()
             atom.charge = c 
@@ -69,13 +124,15 @@ class Structure(object):
             atm2 = self.get_atom_from_label(label2.strip())
             #TODO(check if atm2 crosses a periodic boundary to bond with atm1)
             #.cif file double counts bonds for some reason.. maybe symmetry related
-            if (atm2.index not in atm1.neighbours) and (atm1.index not in atm2.neighbours):
-                atm1.neighbours.append(atm2.index)
-                atm2.neighbours.append(atm1.index)
-                bond = Bond(atm1=atm1, atm2=atm2, 
-                            order=CCDC_BOND_ORDERS[t.strip()])
-                self.bonds.append(bond)
-
+            try:
+                if (atm2.index not in atm1.neighbours) and (atm1.index not in atm2.neighbours):
+                    atm1.neighbours.append(atm2.index)
+                    atm2.neighbours.append(atm1.index)
+                    bond = Bond(atm1=atm1, atm2=atm2, 
+                                order=CCDC_BOND_ORDERS[t.strip()])
+                    self.bonds.append(bond)
+            except AttributeError:
+                print("Warning, bonding seems to be misspecified in .cif file")
         # unwrap symmetry elements if they exist
 
     def get_atom_from_label(self, label):

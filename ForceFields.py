@@ -1191,7 +1191,7 @@ class Dreiding(ForceField):
 
         # d)
         # bypasses e) for the moment..
-        elif((b_hyb in sp2) and (c_hyb in sp2) and (order == 1.5)):
+        elif((b_hyb in sp2) and (c_hyb in sp2) and (order >= 1.5)):
             V = 25.0
             n = 2
             phi0 = 180.0
