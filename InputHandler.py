@@ -26,6 +26,13 @@ class Options(object):
         parser.add_argument("-V", "--version",
                             action="version",
                             version="%(prog)s version "+__version__)
+        parser.add_argument("-o", "--outputcif",
+                            action="store_true",
+                            dest="output_cif",
+                            help="Write a .cif file for visualization."+
+                                 " Necessary for debugging purposes, this"+
+                                 " file can show the user how the structure "+
+                                 "has been interpreted by the program.")
         #split the command line options into separate groups for nicer
         #visualization.
         force_field_group = parser.add_argument_group("Force Field options")
@@ -41,7 +48,10 @@ class Options(object):
         simulation_group.add_argument("--minimize", action="store_true",
                                       dest="minimize",
                                       default=True,
-                                      help="Request a geometry optimization.")
+                                      help="Request input files necessary for"
+                                      + " a geometry optimization.")
+
+
         parser.add_argument(metavar="CIF", dest="cif_file",
                             help="path to cif file to interpret")
 

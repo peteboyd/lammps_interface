@@ -294,14 +294,9 @@ def main():
     # command line parsing
     options = Options()
 
-    cifname = None 
-    cif = CIF()
-    
-    cif.read(options.cif_file)
-
     mofname = clean(options.cif_file)
     struct = Structure(name=mofname)
-    struct.from_CIF(cif)
+    struct.from_CIF(options.cif_file)
     # compute minimum supercell
     # NB: half box width should be a user-defined command,
     # or default to 2.5*sigma_max of the requested force field
@@ -313,13 +308,16 @@ def main():
     except AttributeError:
         print("Error: could not find the force field: %s"%options.force_field)
         sys.exit()
+    if options.output_cif:
+        print("output of .cif file requested. Exiting.")
+        struct.write_cif()
+        sys.exit()
     
     struct.minimum_cell(cutoff=ff.cutoff)
 
     struct.compute_angles()
     struct.compute_dihedrals()
     struct.compute_improper_dihedrals()
-
 
     # doesn't really follow the logic of the program, but can only be done 
     # when the atoms have been assigned to a force field.

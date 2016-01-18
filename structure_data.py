@@ -3,6 +3,7 @@ from datetime import date
 import numpy as np
 from scipy.spatial import distance
 import math
+import shlex
 from copy import copy
 import itertools
 
@@ -26,13 +27,17 @@ class Structure(object):
         self.dihedrals = []
         self.impropers = []
         self.pairs = []
+        self.charge = 0.0
 
-    def from_CIF(self, cifobj):
+    def from_CIF(self, cifname):
         """Reads the structure data from the CIF
         - currently does not read the symmetry of the cell
         - does not unpack the assymetric unit (assumes P1)
         - assumes that the appropriate keys are in the cifobj (no error checking)
         """
+
+        cifobj = CIF()
+        cifobj.read(cifname)
 
         data = cifobj._data
         # obtain atoms and cell
@@ -44,12 +49,12 @@ class Structure(object):
                                          data['_cell_angle_gamma']]]
         self.cell.set_params(cellparams)
 
+        x, y, z = [], [], []
         if '_atom_site_fract_x' in data:
-            x = np.array([float(j) for j in data['_atom_site_fract_x']])
-            x = np.dot(x, self.cell.cell)
+            fx = np.array([float(j) for j in data['_atom_site_fract_x']])
         elif (('_atom_site_x' in data) or 
               ('_atom_site_cartn_x' in data) or 
-              ('_atom_site_Cartn_x' in data):
+              ('_atom_site_Cartn_x' in data)):
             try:
                 x = np.array([float(j) for j in data['_atom_site_x']])
             except Keyerror:
@@ -64,11 +69,10 @@ class Structure(object):
                 pass
         
         if '_atom_site_fract_y' in data:
-            y = np.array([float(j) for j in data['_atom_site_fract_y']])
-            y = np.dot(y, self.cell.cell)
+            fy = np.array([float(j) for j in data['_atom_site_fract_y']])
         elif (('_atom_site_y' in data) or 
               ('_atom_site_cartn_y' in data) or 
-              ('_atom_site_Cartn_y' in data):
+              ('_atom_site_Cartn_y' in data)):
             try:
                 y = np.array([float(j) for j in data['_atom_site_y']])
             except Keyerror:
@@ -83,8 +87,7 @@ class Structure(object):
                 pass
 
         if '_atom_site_fract_z' in data:
-            z = np.array([float(j) for j in data['_atom_site_fract_z']])
-            z = np.dot(z, self.cell.cell)
+            fz = np.array([float(j) for j in data['_atom_site_fract_z']])
         elif (('_atom_site_z' in data) or 
               ('_atom_site_cartn_z' in data) or 
               ('_atom_site_Cartn_z' in data)):
@@ -100,7 +103,17 @@ class Structure(object):
                 z = np.array([float(j) for j in data['_atom_site_Cartn_z']])
             except KeyError:
                 pass
-        
+        try:
+            for xx, yy, zz in zip(fx, fy, fz):
+                cx,cy,cz = np.dot((xx,yy,zz), self.cell.cell)
+                x.append(cx)
+                y.append(cy)
+                z.append(cz)
+            x = np.array(x)
+            y = np.array(y)
+            z = np.array(z)
+        except:
+            pass
         # Charge assignment may have to be a bit more inclusive than just setting _atom_site_charge
         # in the .cif file.. will have to think of a user-friendly way to introduce charges..
         if '_atom_type_partial_charge' in data:
@@ -109,56 +122,80 @@ class Structure(object):
 
             charges = [0. for i in range(0, len(x))]
 
-        label, element, ff_param = (data['_atom_site_label'], 
-                                    data['_atom_site_type_symbol'], 
-                                    data['_atom_site_description'])
+        self.charge = np.sum(charges)
+
+        # bunch of try excepts for different important labels in the cif file.
+        try:
+            label = data['_atom_site_label']
+        except KeyError:
+            label = ['X' for i in range(0, len(x))]
+            print("Warning, no atom labels specified in cif file")
+
+        try:
+            element = data['_atom_site_type_symbol']
+        except KeyError:
+            element = ['X' for i in range(0, len(x))]
+            print("Warning, no elements specified in cif file. "+
+                    "This will make generating ff files very difficult!")
+        guess_atom_types = False
+        try:
+            ff_param = [i.strip() for i in data['_atom_site_description']]
+        except:
+            guess_atom_types = True
+            ff_param = [None for i in range(0, len(x))]
+            print("Warning, force field atom types not specified in the cif file."+
+                    " Attempting to guess atom types.")
         
         index = 0
         for l,e,ff,fx,fy,fz,c in zip(label,element,ff_param,x,y,z,charges):
             atom = Atom(element=e.strip(), coordinates = (fx,fy,fz))
-            atom.force_field_type = ff.strip()
+            atom.force_field_type = ff
             atom.ciflabel = l.strip()
             atom.charge = c 
             self.atoms.append(atom)
         # obtain bonds
-        a, b, type = (data['_geom_bond_atom_site_label_1'], 
-                      data['_geom_bond_atom_site_label_2'], 
-                      data['_ccdc_geom_bond_type'])
+        if '_geom_bond_atom_site_label_1' in data:
+            a, b, type = (data['_geom_bond_atom_site_label_1'], 
+                          data['_geom_bond_atom_site_label_2'], 
+                          data['_ccdc_geom_bond_type'])
 
-        for label1, label2, t in zip(a,b,type):
-            atm1 = self.get_atom_from_label(label1.strip())
-            atm2 = self.get_atom_from_label(label2.strip())
-            #TODO(check if atm2 crosses a periodic boundary to bond with atm1)
-            #.cif file double counts bonds for some reason.. maybe symmetry related
-            try:
-                if (atm2.index not in atm1.neighbours) and (atm1.index not in atm2.neighbours):
-                    atm1.neighbours.append(atm2.index)
-                    atm2.neighbours.append(atm1.index)
-                    bond = Bond(atm1=atm1, atm2=atm2, 
-                                order=CCDC_BOND_ORDERS[t.strip()])
-                    self.bonds.append(bond)
-            except AttributeError:
-                print("Warning, bonding seems to be misspecified in .cif file")
-        # unwrap symmetry elements if they exist
+            for label1, label2, t in zip(a,b,type):
+                atm1 = self.get_atom_from_label(label1.strip())
+                atm2 = self.get_atom_from_label(label2.strip())
+                #TODO(check if atm2 crosses a periodic boundary to bond with atm1)
+                #.cif file double counts bonds for some reason.. maybe symmetry related
+                try:
+                    if (atm2.index not in atm1.neighbours) and (atm1.index not in atm2.neighbours):
+                        atm1.neighbours.append(atm2.index)
+                        atm2.neighbours.append(atm1.index)
+                        bond = Bond(atm1=atm1, atm2=atm2, 
+                                    order=CCDC_BOND_ORDERS[t.strip()])
+                        self.bonds.append(bond)
+                except AttributeError:
+                    print("Warning, bonding seems to be misspecified in .cif file")
+            #TODO unwrap symmetry elements if they exist
+        else:
+            print("No bonding found in file, attempting to populate bonding..")
+            self.compute_bonding()
 
-    def compute_bonding(self):
-        distance.cdist()
-        coords = [a.coordinates for a in self.atoms]
+    def compute_bonding(self, scale_factor=0.8):
+        coords = np.array([a.coordinates for a in self.atoms])
         elems = [a.element for a in self.atoms]
         distmat = np.empty((coords.shape[0], coords.shape[0]))
-        for (i,j) in np.triu_indices(coords.shape[0], k=1):
+        for (i,j) in zip(*np.triu_indices(coords.shape[0], k=1)):
             dist = self.min_img_distance(coords[i], coords[j])
             distmat[i,j] = dist
             e1 = elems[i]
             e2 = elems[j]
             covrad = COVALENT_RADII[e1] + COVALENT_RADII[e2]
-            if(dist< sf*covrad):
+            if(dist*scale_factor < covrad):
                 # figure out bond orders when typing.
                 bond = Bond(atm1=self.atoms[i], atm2=self.atoms[j], order=1)
                 self.bonds.append(bond)
+                self.atoms[i].neighbours.append(self.atoms[j].index)
+                self.atoms[j].neighbours.append(self.atoms[i].index)
+        self.compute_bond_image_flag()
 
-
-    
     def get_atom_from_label(self, label):
         for atom in self.atoms:
             if atom.ciflabel == label:
@@ -330,6 +367,101 @@ class Structure(object):
         four = np.dot(one - two - three, self.cell.cell)
         return np.linalg.norm(four)
 
+    def compute_bond_image_flag(self):
+        """Update bonds to contain bond type, distances, and min img
+        shift."""
+        supercells = np.array(list(itertools.product((-1, 0, 1), repeat=3)))
+        unit_repr = np.array([5,5,5], dtype=int)
+        for bond in self.bonds:
+            atom1,atom2 = bond.atoms
+            fcoords = atom2.scaled_pos(self.cell.inverse) + supercells
+            coords = []
+            for j in fcoords:
+                coords.append(np.dot(j, self.cell.cell))
+            coords = np.array(coords)
+            dists = distance.cdist([atom1.coordinates[:3]], coords)
+            dists = dists[0].tolist()
+            image = dists.index(min(dists))
+            dist = min(dists)
+            sym = '.' if all([i==0 for i in supercells[image]]) else \
+                    "1_%i%i%i"%(tuple(np.array(supercells[image],dtype=int) +
+                                      unit_repr))
+            bond.symflag = sym
+
+    def write_cif(self):
+        """Currently used for debugging purposes"""
+        c = CIF(name="%s.debug"%self.name)
+        # data block
+        c.add_data("data", data_=self.name)
+        c.add_data("data", _audit_creation_date=
+                            CIF.label(c.get_time()))
+        c.add_data("data", _audit_creation_method=
+                            CIF.label("Lammps Interface v.%s"%(str(0))))
+        if self.charge:
+            c.add_data("data", _chemical_properties_physical=
+                               "net charge is %12.5f"%(self.charge))
+
+        # sym block
+        c.add_data("sym", _symmetry_space_group_name_H_M=
+                            CIF.label("P1"))
+        c.add_data("sym", _symmetry_Int_Tables_number=
+                            CIF.label("1"))
+        c.add_data("sym", _symmetry_cell_setting=
+                            CIF.label("triclinic"))
+
+        # sym loop block
+        c.add_data("sym_loop", _symmetry_equiv_pos_as_xyz=
+                            CIF.label("'x, y, z'"))
+
+        # cell block
+        c.add_data("cell", _cell_length_a=CIF.cell_length_a(self.cell.a))
+        c.add_data("cell", _cell_length_b=CIF.cell_length_b(self.cell.b))
+        c.add_data("cell", _cell_length_c=CIF.cell_length_c(self.cell.c))
+        c.add_data("cell", _cell_angle_alpha=CIF.cell_angle_alpha(self.cell.alpha))
+        c.add_data("cell", _cell_angle_beta=CIF.cell_angle_beta(self.cell.beta))
+        c.add_data("cell", _cell_angle_gamma=CIF.cell_angle_gamma(self.cell.gamma))
+        # atom block
+        element_counter = {}
+        for id, atom in enumerate(self.atoms):
+            label = "%s%i"%(atom.element, atom.index)
+            c.add_data("atoms", _atom_site_label=
+                                    CIF.atom_site_label(label))
+            c.add_data("atoms", _atom_site_type_symbol=
+                                    CIF.atom_site_type_symbol(atom.element))
+            c.add_data("atoms", _atom_site_description=
+                                    CIF.atom_site_description(atom.force_field_type))
+            fc = atom.scaled_pos(self.cell.inverse)
+            c.add_data("atoms", _atom_site_fract_x=
+                                    CIF.atom_site_fract_x(fc[0]))
+            c.add_data("atoms", _atom_site_fract_y=
+                                    CIF.atom_site_fract_y(fc[1]))
+            c.add_data("atoms", _atom_site_fract_z=
+                                    CIF.atom_site_fract_z(fc[2]))
+
+        # bond block
+        for bond in self.bonds:
+            at1, at2 = bond.atoms
+            type = CCDC_BOND_ORDERS[bond.order]
+            dist = bond.length
+            sym = bond.symflag
+
+            label1 = "%s%i"%(at1.element, at1.index) 
+            label2 = "%s%i"%(at2.element, at2.index)
+            c.add_data("bonds", _geom_bond_atom_site_label_1=
+                                        CIF.geom_bond_atom_site_label_1(label1))
+            c.add_data("bonds", _geom_bond_atom_site_label_2=
+                                        CIF.geom_bond_atom_site_label_2(label2))
+            c.add_data("bonds", _geom_bond_distance=
+                                        CIF.geom_bond_distance(dist))
+            c.add_data("bonds", _geom_bond_site_symmetry_2=
+                                        CIF.geom_bond_site_symmetry_2(sym))
+            c.add_data("bonds", _ccdc_geom_bond_type=
+                                        CIF.ccdc_geom_bond_type(type))
+
+        file = open("%s.cif"%c.name, "w")
+        file.writelines(str(c))
+        file.close()
+
 class Bond(object):
     __ID = 0
 
@@ -338,6 +470,7 @@ class Bond(object):
         self.order = order
         self._atoms = (atm1, atm2)
         self.length = 0.
+        self.symflag = 0
         self.ff_type_index = 0
         self.midpoint = np.array([0., 0., 0.])
         self.potential = None
@@ -909,9 +1042,6 @@ class CIF(object):
             self._readfile(file)
 
     def read(self, filename):
-        self._readfile(filename)
-
-    def _readfile(self, filename):
         filestream = open(filename, 'r')
         filelines = filestream.readlines()
         blocks = []
@@ -961,8 +1091,8 @@ class CIF(object):
                 self.insert_block_order(loopcount)
 
             if blockread:
-                split_line = line.strip().split()
-                # problem for symmetry line
+                #split_line = line.strip().split()
+                split_line = shlex.split(line)
                 assert len(loopentries[loopcount]) == len(split_line)
                 for key, val in zip(loopentries[loopcount], split_line):
                     self.add_data(loopcount, **{key:self.general_label(val)})
