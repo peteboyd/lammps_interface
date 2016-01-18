@@ -1,10 +1,16 @@
 #!/usr/bin/env python
 from datetime import date
 import numpy as np
+from scipy.spatial import distance
 import math
 from copy import copy
 import itertools
-from atomic import MASS, ATOMIC_NUMBER
+
+try:
+    import networkx as nx
+except ImportError:
+    print("Warning: could not load networkx module, interpreting bonds will be difficult")
+from atomic import MASS, ATOMIC_NUMBER, COVALENT_RADII
 from ccdc import CCDC_BOND_ORDERS
 DEG2RAD=np.pi/180.
 
@@ -135,11 +141,28 @@ class Structure(object):
                 print("Warning, bonding seems to be misspecified in .cif file")
         # unwrap symmetry elements if they exist
 
+    def compute_bonding(self):
+        distance.cdist()
+        coords = [a.coordinates for a in self.atoms]
+        elems = [a.element for a in self.atoms]
+        distmat = np.empty((coords.shape[0], coords.shape[0]))
+        for (i,j) in np.triu_indices(coords.shape[0], k=1):
+            dist = self.min_img_distance(coords[i], coords[j])
+            distmat[i,j] = dist
+            e1 = elems[i]
+            e2 = elems[j]
+            covrad = COVALENT_RADII[e1] + COVALENT_RADII[e2]
+            if(dist< sf*covrad):
+                # figure out bond orders when typing.
+                bond = Bond(atm1=self.atoms[i], atm2=self.atoms[j], order=1)
+                self.bonds.append(bond)
+
+
+    
     def get_atom_from_label(self, label):
         for atom in self.atoms:
             if atom.ciflabel == label:
                 return atom
-    
 
     def compute_angles(self):
         for atom in self.atoms:
