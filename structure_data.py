@@ -198,7 +198,22 @@ class Structure(object):
             self.compute_atom_bond_typing()
 
     def compute_atom_bond_typing(self):
-        pass
+        # have bonds, have cycles
+        cycles = []
+        try:
+            cycles = list(nx.cycle_basis(self.graph))
+        except NameError:
+            pass
+        print(cycles)
+        for atom in self.atoms:
+            # N O C S
+            if atom.element == "C":
+                if len(atom.neighbours) == 4:
+                    atom.hybridization = 'sp3'
+                elif len(atom.neighbours) == 3:
+                    atom.hybridization = 'sp2'
+                elif len(atom.neighbours) <= 2:
+                    atom.hybridization = 'sp'
 
     def obtain_graph(self):
         """Attempt to assign bond and atom types based on graph analysis."""
