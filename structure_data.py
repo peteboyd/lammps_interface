@@ -28,6 +28,10 @@ class Structure(object):
         self.impropers = []
         self.pairs = []
         self.charge = 0.0
+        try:
+            self.graph = nx.Graph()
+        except NameError:
+            self.graph = None
 
     def from_CIF(self, cifname):
         """Reads the structure data from the CIF
@@ -128,7 +132,7 @@ class Structure(object):
         try:
             label = data['_atom_site_label']
         except KeyError:
-            label = ['X' for i in range(0, len(x))]
+            label = ['X%i'%(i) for i in range(0, len(x))]
             print("Warning, no atom labels specified in cif file")
 
         try:
@@ -159,7 +163,18 @@ class Structure(object):
                           data['_geom_bond_atom_site_label_2'], 
                           data['_ccdc_geom_bond_type'])
 
-            for label1, label2, t in zip(a,b,type):
+            try:
+                symms = data['_geom_bond_site_symmetry_2']
+            except KeyError:
+                symms = ['.' for i in range(len(a))]
+
+            try:
+                dists = data['_geom_bond_distance']
+            except KeyError:
+                dists = [0.0 for i in range(len(a))]
+
+
+            for (label1, label2, t, dist, sym)in zip(a,b,type,dists,symms):
                 atm1 = self.get_atom_from_label(label1.strip())
                 atm2 = self.get_atom_from_label(label2.strip())
                 #TODO(check if atm2 crosses a periodic boundary to bond with atm1)
@@ -170,6 +185,8 @@ class Structure(object):
                         atm2.neighbours.append(atm1.index)
                         bond = Bond(atm1=atm1, atm2=atm2, 
                                     order=CCDC_BOND_ORDERS[t.strip()])
+                        bond.length = float(dist)
+                        bond.symflag = sym
                         self.bonds.append(bond)
                 except AttributeError:
                     print("Warning, bonding seems to be misspecified in .cif file")
@@ -177,6 +194,25 @@ class Structure(object):
         else:
             print("No bonding found in file, attempting to populate bonding..")
             self.compute_bonding()
+            self.obtain_graph()
+            self.compute_atom_bond_typing()
+
+    def compute_atom_bond_typing(self):
+        pass
+
+    def obtain_graph(self):
+        """Attempt to assign bond and atom types based on graph analysis."""
+        if self.graph is None:
+            print("Warning atom and bond typing could not be completed due "+
+                    "to lacking networkx module. All bonds will be of 'single' type" +
+                    " which may result in a poor description of your system!")
+            return
+
+        for atom in self.atoms:
+            self.graph.add_node(atom.ciflabel)
+        for bond in self.bonds:
+            at1, at2 = bond.atoms
+            self.graph.add_edge(at1.ciflabel, at2.ciflabel)
 
     def compute_bonding(self, scale_factor=0.8):
         coords = np.array([a.coordinates for a in self.atoms])
@@ -184,13 +220,14 @@ class Structure(object):
         distmat = np.empty((coords.shape[0], coords.shape[0]))
         for (i,j) in zip(*np.triu_indices(coords.shape[0], k=1)):
             dist = self.min_img_distance(coords[i], coords[j])
-            distmat[i,j] = dist
+            distmat[j,i] = dist
             e1 = elems[i]
             e2 = elems[j]
             covrad = COVALENT_RADII[e1] + COVALENT_RADII[e2]
             if(dist*scale_factor < covrad):
                 # figure out bond orders when typing.
                 bond = Bond(atm1=self.atoms[i], atm2=self.atoms[j], order=1)
+                bond.length = dist
                 self.bonds.append(bond)
                 self.atoms[i].neighbours.append(self.atoms[j].index)
                 self.atoms[j].neighbours.append(self.atoms[i].index)
