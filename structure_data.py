@@ -152,7 +152,7 @@ class Structure(object):
         
         index = 0
         for l,e,ff,fx,fy,fz,c in zip(label,element,ff_param,x,y,z,charges):
-            atom = Atom(element=e.strip(), coordinates = (fx,fy,fz))
+            atom = Atom(element=e.strip(), coordinates = np.array([fx,fy,fz]))
             atom.force_field_type = ff
             atom.ciflabel = l.strip()
             atom.charge = c 
@@ -202,9 +202,9 @@ class Structure(object):
         cycles = []
         try:
             cycles = list(nx.cycle_basis(self.graph))
+
         except NameError:
             pass
-        print(cycles)
         for atom in self.atoms:
             # N O C S
             if atom.element == "C":
@@ -214,6 +214,135 @@ class Structure(object):
                     atom.hybridization = 'sp2'
                 elif len(atom.neighbours) <= 2:
                     atom.hybridization = 'sp'
+
+            elif atom.element == "N":
+                if len(atom.neighbours) >= 3:
+                    atom.hybridization = 'sp3'
+                elif len(atom.neighbours) == 2:
+                    atom.hybridization = 'sp2'
+                elif len(atom.neighbours) == 1:
+                    atom.hybridization = 'sp'
+            elif atom.element == "O":
+                if len(atom.neighbours) == 2:
+                    atom.hybridization = 'sp3'
+                elif len(atom.neighbours) == 1:
+                    atom.hybridization = 'sp2'
+            elif atom.element == "S":
+                if len(atom.neighbours) == 2:
+                    atom.hybridization = 'sp3'
+                elif len(atom.neighbours) == 1:
+                    atom.hybridization = 'sp2'
+        # probably not a good test for aromaticity..
+        organic = set(["H", "C", "N", "O", "S"])
+
+        arom = set(["C", "N", "O", "S"])
+        for j in cycles:
+            atoms = [self.get_atom_from_label(k) for k in j]
+            elements = [k.element for k in atoms]
+            neigh = [len(k.neighbours) for k in atoms]
+            if len(j) <= 8 and np.all(np.array(neigh) <= 3) and set(elements) <= arom:
+                for a in atoms:
+                    a.hybridization = "aromatic"
+                    a.is_cycle = True
+                    a.rings.append(j)
+        for bond in self.bonds:
+            atoms = bond.atoms
+            elements = [a.element for a in atoms]
+            if atoms[0].hybridization == "aromatic" and atoms[1].hybridization == "aromatic":
+                samering = False
+                for r in atoms[0].rings:
+                    if atoms[1].ciflabel in r:
+                        samering = True
+                if(samering):
+                    bond.order = 1.5
+
+            if set(elements) == set(["C", "O"]):
+                car = atoms[elements.index("C")]
+                oxy = atoms[elements.index("O")]
+                carnn = [self.atoms[j] for j in car.neighbours if j != oxy.index]
+                try:
+                    carnelem = [j.element for j in carnn]
+                except:
+                    carnelem = []
+
+                oxynn = [self.atoms[j] for j in oxy.neighbours if j != car.index]
+                try:
+                    oxynelem = [j.element for j in oxynn]
+                except:
+                    oxynelem = []
+                if "O" in carnelem:
+                    at = carnn[carnelem.index("O")]
+                    if len(at.neighbours) == 1:
+                        if len(oxy.neighbours) == 1:
+                            #CO2
+                            car.hybridization = 'sp'
+                            oxy.hybridization = 'sp2'
+                            bond.order = 2.
+                        else:
+                            # ester
+                            if set(oxynelem) <= organic:
+                                car.hybridization = 'sp2'
+                                oxy.hybridization = 'sp2'
+                                bond.order = 1 # this is the ether part of an ester... 
+                            #carboxylate?
+                            else:
+                                car.hybridization = 'aromatic'
+                                oxy.hybridization = 'aromatic'
+                                bond.order = 1.5
+
+                    else:
+                        atnelem = [self.atoms[k].element for k in at.neighbours]
+                        if (set(atnelem) <= organic):
+                            # ester
+                            if len(oxy.neighbours) == 1:
+                                car.hybridization = 'sp2'
+                                oxy.hybridization = 'sp2'
+                                bond.order = 2. # carbonyl part of ester
+                            # some kind of resonance structure?
+                            else:
+                                car.hybridization = 'aromatic'
+                                oxy.hybridization = 'aromatic'
+                                bond.order = 1.5
+                        else:
+                            car.hybridization = 'aromatic'
+                            oxy.hybridization = 'aromatic'
+                            bond.order = 1.5
+                if "N" in carnelem:
+                    at = carnn[carnelem.index("N")]
+                    # C=O of amide group
+                    if len(oxy.neighbours) == 1:
+                        bond.order = 1.5
+                        car.hybridization = 'aromatic'
+                        oxy.hybridization = 'aromatic'
+                # only one carbon oxygen connection.. could be C=O, R-C-O-R, R-C=O-R
+                if (not "O" in carnelem) and (not "N" in carnelem):
+                    if len(oxynn) > 0:
+                        # ether
+                        oxy.hybridization = 'sp3'
+                        bond.order = 1.0
+                    else:
+                        if car.is_ring and car.hybridization == 'aromatic':
+                            oxy.hybridization = 'aromatic'
+                            bond.order = 1.5
+                        # carbonyl
+                        else:
+                            oxy.hybridization = 'sp2'
+                            bond.order = 2.0
+            if set(elements) == set(["C", "N"]) and not samering:
+                car = atoms[elements.index("C")]
+                nit = atoms[elements.index("N")]
+                nitnn = [self.atoms[j] for j in nit.neighbours if j != car.index]
+                nitnelem = [k.element for k in nitnn]
+                # aromatic amine connected -- assume part of delocalized system
+                if car.hybridization == 'aromatic' and set(['H']) == set(nitnelem):
+                    bond.order = 1.5
+                    nit.hybridization = 'aromatic'
+                # amide?
+                elif len(car.neighbours) == 3 and len(nitnn) >=2:
+                    if "O" in carnelem:
+                        bond.order = 1.5 # (amide)
+                        nit.hybridization = 'aromatic'
+
 
     def obtain_graph(self):
         """Attempt to assign bond and atom types based on graph analysis."""
@@ -346,56 +475,108 @@ class Structure(object):
             the super- and unit cells.
         """
         sc = self.cell.minimum_supercell(cutoff)
+        unitatomlen = len(self.atoms)
+        unit_repr = np.array([5,5,5], dtype=int)
+        origincell = np.array([0., 0., 0.])
         if np.any(np.array(sc) > 1):
             print("Warning: unit cell is not large enough to"
             +" support a non-bonded cutoff of %.2f Angstroms\n"%cutoff +
             "Re-sizing to a %i x %i x %i supercell. "%(sc))
             cells = list(itertools.product(*[itertools.product(range(j)) for j in sc]))
             repatoms = []
+            repbonds = []
+            maxcell = np.array(sc)
             for cell in cells[1:]:
                 repatoms += self.replicate(cell)
             self.atoms += repatoms
+            # do bonding
+            for cell in cells:
+                newcell = np.array(cell).flatten()
+                offset = cells.index(cell)*unitatomlen
+                for bond in self.bonds:
+                    (atom1, atom2) = bond.atoms
+                    newatom1 = self.atoms[atom1.index + offset]
+                    newatom2 = self.atoms[atom2.index + offset]
+
+                    if bond.symflag != '.':
+                        ocell = newcell + (np.array([int(j) for j in bond.symflag[2:]]) - unit_repr)
+                        print(ocell)
+                        if any(ocell < origincell) or any(ocell > maxcell):
+                            # new symflag.
+                            imgcell = ocell % maxcell
+                            print(imgcell)
+                            imgoffset = cells.index(tuple([tuple([i]) for i in imgcell]))*unitatomlen 
+                            print(imgoffset) 
+                        # first new bond
+                        del(atom1.neighbours[atom1.neighbours.index(atom2.index)])
+                        atom1.neighbours.append(newatom2.index)
+                        newatom2.neighbours.append(atom1.index)
+                        bond._atoms = atom1, newatom2
+                        bond.symflag = '.'
+
+                        # second new bond
+                        del(atom2.neighbours[atom2.neighbours.index(atom1.index)])
+                        atom2.neighbours.append(newatom1.index)
+                        newatom1.neighbours.append(atom2.index)
+                        newbond = Bond(newatom1, atom2, order=bond.order)
+                        newbond.ff_type_index = int(bond.ff_type_index)
+                        newbond.symflag = '.' 
+                        newbond.length = bond.length
+                        repbonds.append(newbond)
+                    else:
+                        newbond = Bond(newatom1, newatom2, order=bond.order)
+                        newbond.ff_type_index = int(bond.ff_type_index)
+                        newbond.symflag = bond.symflag 
+                        newbond.length = bond.length
+
+                        newatom1.neighbours.append(newatom2.index)
+                        newatom2.neighbours.append(newatom1.index)
+                        repbonds.append(newbond)
+                prevcell = newcell
+                #determine which direction
+
+            self.bonds += repbonds
             # update lattice boxsize to supercell
             self.cell.multiply(sc)
-            remove_bonds = []
-            add_bonds = []
-            for idx, bond in enumerate(self.bonds):
-                (atom1, atom2) = bond.atoms
-                # decide whether a new bond should be formed, or an old one will suffice.
-                list1 = [atom1.index] + atom1.images
-                list2 = [atom2.index] + atom2.images
-                bonding = itertools.product(list1, list2)
+            #remove_bonds = []
+            #add_bonds = []
+            #for idx, bond in enumerate(self.bonds):
+            #    (atom1, atom2) = bond.atoms
+            #    # decide whether a new bond should be formed, or an old one will suffice.
+            #    list1 = [atom1.index] + atom1.images
+            #    list2 = [atom2.index] + atom2.images
+            #    bonding = itertools.product(list1, list2)
 
-                coords1 = np.array([self.atoms[a].coordinates for a in list1])
-                coords2 = np.array([self.atoms[a].coordinates for a in list2])
-                distmat = np.empty((coords1.shape[0], coords2.shape[0]))
-                for (i,j), val in np.ndenumerate(distmat):
-                    dist = self.min_img_distance(coords1[i], coords2[j])
-                    distmat[i,j] = dist
+            #    coords1 = np.array([self.atoms[a].coordinates for a in list1])
+            #    coords2 = np.array([self.atoms[a].coordinates for a in list2])
+            #    distmat = np.empty((coords1.shape[0], coords2.shape[0]))
+            #    for (i,j), val in np.ndenumerate(distmat):
+            #        dist = self.min_img_distance(coords1[i], coords2[j])
+            #        distmat[i,j] = dist
 
-                dist = np.min(distmat)
-                bondids = [(i,j) for i,j in zip(*(np.where(distmat - dist < 0.001)))]
-                # ensure that the total number of bonds detected is the same as the number
-                # of images.
-                assert (len(bondids) == int(np.prod(sc))), print("Experienced problem expanding bonding to the supercell!")
-                # original image bond crosses unit cell boundary
-                if (0,0) not in bondids:
-                    remove_bonds.append(idx)
-                    # update neighbour lists
-                    del(atom1.neighbours[atom1.neighbours.index(atom2.index)])
-                    del(atom2.neighbours[atom2.neighbours.index(atom1.index)])
-                else:
-                    del(bondids[bondids.index((0,0))])
-                for (i,j) in [(list1[k],list2[l]) for (k,l) in bondids]:
-                    newbond = Bond(self.atoms[i], self.atoms[j], order=int(bond.order))
-                    newbond.ff_type_index = int(bond.ff_type_index)
-                    self.atoms[i].neighbours.append(j)
-                    self.atoms[j].neighbours.append(i)
-                    add_bonds.append(newbond)
-            for newbond in add_bonds:
-                self.bonds.append(newbond)
-            for idbad in reversed(sorted(remove_bonds)):
-                del(self.bonds[idbad])
+            #    dist = np.min(distmat)
+            #    bondids = [(i,j) for i,j in zip(*(np.where(distmat - dist < 0.001)))]
+            #    # ensure that the total number of bonds detected is the same as the number
+            #    # of images.
+            #    assert (len(bondids) == int(np.prod(sc))), print("Experienced problem expanding bonding to the supercell!")
+            #    # original image bond crosses unit cell boundary
+            #    if (0,0) not in bondids:
+            #        remove_bonds.append(idx)
+            #        # update neighbour lists
+            #        del(atom1.neighbours[atom1.neighbours.index(atom2.index)])
+            #        del(atom2.neighbours[atom2.neighbours.index(atom1.index)])
+            #    else:
+            #        del(bondids[bondids.index((0,0))])
+            #    for (i,j) in [(list1[k],list2[l]) for (k,l) in bondids]:
+            #        newbond = Bond(self.atoms[i], self.atoms[j], order=int(bond.order))
+            #        newbond.ff_type_index = int(bond.ff_type_index)
+            #        self.atoms[i].neighbours.append(j)
+            #        self.atoms[j].neighbours.append(i)
+            #        add_bonds.append(newbond)
+            #for newbond in add_bonds:
+            #    self.bonds.append(newbond)
+            #for idbad in reversed(sorted(remove_bonds)):
+            #    del(self.bonds[idbad])
             # re-index bonds
             for newidx, bond in enumerate(self.bonds):
                 bond.index=newidx
@@ -849,6 +1030,9 @@ class Atom(object):
         self.neighbours = []
         self.ciflabel = None
         self.images = []
+        self.rings = []
+        self.in_cycle = False
+        self.hybridization = ''
         self.force_field_type = None
         self.coordinates = coordinates
         self.charge = 0.

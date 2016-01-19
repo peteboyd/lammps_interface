@@ -308,12 +308,13 @@ def main():
     except AttributeError:
         print("Error: could not find the force field: %s"%options.force_field)
         sys.exit()
+    ff.detect_ff_terms() 
+    ff.cutoff = options.cutoff
+    struct.minimum_cell(cutoff=options.cutoff)
     if options.output_cif:
         print("output of .cif file requested. Exiting.")
         struct.write_cif()
         sys.exit()
-    
-    struct.minimum_cell(cutoff=ff.cutoff)
 
     struct.compute_angles()
     struct.compute_dihedrals()

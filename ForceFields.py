@@ -16,6 +16,8 @@ class ForceField(object):
 
     __metaclass__ = abc.ABCMeta
 
+    cutoff = 12.5
+
     @abc.abstractmethod
     def bond_term(self):
         """Computes the bond parameters"""
@@ -199,7 +201,6 @@ class ForceField(object):
         self.unique_impropers()
         self.unique_pair_terms()
         self.define_styles()
-
 
 class UserFF(ForceField):
 
@@ -969,9 +970,36 @@ class UFF(ForceField):
         st += "%-15s %s %s\n"%("pair_modify", "tail yes", "mix arithmetic")
         return st
 
-    @property
-    def cutoff(self):
-        return 12.5
+    def detect_ff_terms(self):
+        # for each atom determine the ff type if it is None
+        organics = ["C", "N", "O", "S"]
+        halides = ["F", "Cl", "Br", "I"]
+        for atom in self.structure.atoms:
+            if atom.force_field_type is None:
+                if atom.element in organics:
+                    if atom.hybridization == "sp3":
+                        atom.force_field_type = "%s_3"%atom.element
+                    elif atom.hybridization == "aromatic":
+                        atom.force_field_type = "%s_R"%atom.element
+                    elif atom.hybridization == "sp2":
+                        atom.force_field_type = "%s_2"%atom.element
+                    elif atom.hybridization == "sp":
+                        atom.force_field_type = "%s_1"%atom.element
+                elif atom.element == "H":
+                    atom.force_field_type = "H_"
+                elif atom.element in halides:
+                    atom.force_field_type = atom.element
+                    if atom.element == "F":
+                        atom.force_field_type += "_"
+                else:
+                    ffs = list(UFF_DATA.keys())
+                    for j in ffs:
+                        if atom.element == j[:2].strip("_"):
+                            atom.force_field_type = j
+            if atom.force_field_type is None:
+                print("ERROR: could not find the proper force field type for atom %i"%(atom.index)+
+                        " with element: %s"%(atom.element))
+                sys.exit()
 
 
 class Dreiding(ForceField):
@@ -1527,6 +1555,34 @@ class Dreiding(ForceField):
         st += "%-15s %s\n"%("special_bonds", "dreiding") # equivalent to 'special_bonds lj 0.0 0.0 1.0'
         return st
 
-    @property
-    def cutoff(self):
-        return 12.5
+    def detect_ff_terms(self):
+        # for each atom determine the ff type if it is None
+        organics = ["C", "N", "O", "S"]
+        halides = ["F", "Cl", "Br", "I"]
+        for atom in self.structure.atoms:
+            if atom.force_field_type is None:
+                if atom.element in organics:
+                    if atom.hybridization == "sp3":
+                        atom.force_field_type = "%s_3"%atom.element
+                    elif atom.hybridization == "aromatic":
+                        atom.force_field_type = "%s_R"%atom.element
+                    elif atom.hybridization == "sp2":
+                        atom.force_field_type = "%s_2"%atom.element
+                    elif atom.hybridization == "sp":
+                        atom.force_field_type = "%s_1"%atom.element
+                elif atom.element == "H":
+                    atom.force_field_type == "H_"
+                elif atom.element in halides:
+                    atom.force_field_type == atom.element
+                    if atom.element == "F":
+                        atom.force_field_type += "_"
+                else:
+                    ffs = list(DREIDING_DATA.keys())
+                    for j in ffs:
+                        if atom.element == j[:2].strip("_"):
+                            atom.force_field_type == j
+            if atom.force_field_type is None:
+                print("ERROR: could not find the proper force field type for atom %i"%(atom.index)+
+                        " with element: %s"%(atom.element))
+                sys.exit()
+

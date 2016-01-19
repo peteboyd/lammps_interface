@@ -50,6 +50,13 @@ class Options(object):
                                       default=True,
                                       help="Request input files necessary for"
                                       + " a geometry optimization.")
+        simulation_group.add_argument("--cutoff", action="store",
+                                      type=float, dest="cutoff",
+                                      default=12.5,
+                                      help="Set the long-range cutoff "+
+                                      "to this value in Angstroms." + 
+                                      " This will determine the size of "+
+                                      "the supercell computed for the simulation.")
 
 
         parser.add_argument(metavar="CIF", dest="cif_file",
