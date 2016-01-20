@@ -109,7 +109,7 @@ class Structure(object):
                 pass
         try:
             for xx, yy, zz in zip(fx, fy, fz):
-                cx,cy,cz = np.dot((xx,yy,zz), self.cell.cell)
+                cx,cy,cz = np.dot(np.array([xx,yy,zz]), self.cell.cell)
                 x.append(cx)
                 y.append(cy)
                 z.append(cz)
@@ -198,9 +198,8 @@ class Structure(object):
             self.compute_bonding()
             self.obtain_graph()
             self.compute_atom_bond_typing()
-
+    
     def compute_atom_bond_typing(self):
-        # have bonds, have cycles
         cycles = []
         try:
             for atom in self.atoms:
@@ -367,8 +366,7 @@ class Structure(object):
                     except KeyError:
                         cr2 = COVALENT_RADII[atoms[1].element]
                     covrad = cr1 + cr2
-                    print(bond.length, covrad)
-                    if (bond.length <= covrad):
+                    if (bond.length <= covrad*.95):
                         bond.order = 2.0
                 elif set([a.hybridization for a in atoms]) == set(['sp']):
                     try:
@@ -380,7 +378,7 @@ class Structure(object):
                     except KeyError:
                         cr2 = COVALENT_RADII[atoms[1].element]
                     covrad = cr1 + cr2 
-                    if (bond.length <= covrad):
+                    if (bond.length <= covrad*.95):
                         bond.order = 3.0
 
     def obtain_graph(self):
@@ -397,22 +395,19 @@ class Structure(object):
             at1, at2 = bond.atoms
             self.graph.add_edge(at1.ciflabel, at2.ciflabel)
 
-    def compute_bonding(self, scale_factor=0.8):
+    def compute_bonding(self, scale_factor=0.9):
         coords = np.array([a.coordinates for a in self.atoms])
         elems = [a.element for a in self.atoms]
         distmat = np.empty((coords.shape[0], coords.shape[0]))
         for (i,j) in zip(*np.triu_indices(coords.shape[0], k=1)):
             e1 = elems[i]
             e2 = elems[j]
-            print(e1, e2)
             dist = self.min_img_distance(coords[i], coords[j])
             distmat[j,i] = dist
             covrad = COVALENT_RADII[e1] + COVALENT_RADII[e2]
             if(dist*scale_factor < covrad):
                 # figure out bond orders when typing.
                 bond = Bond(atm1=self.atoms[i], atm2=self.atoms[j], order=1)
-                if(e1 == "C") and (e2 == "C"):
-                    print(dist)
                 bond.length = dist
                 self.bonds.append(bond)
                 self.atoms[i].neighbours.append(self.atoms[j].index)
@@ -598,7 +593,7 @@ class Structure(object):
         # re-calculate bonding across periodic images. 
     def replicate(self, image):
         """Replicate the structure in the image direction"""
-        trans = np.sum(np.multiply(self.cell.cell.T, np.array(image)).T, axis=1)
+        trans = np.sum(np.multiply(self.cell.cell, np.array(image)).T, axis=1)
         l = len(self.atoms)
         repatoms = []
         for atom in self.atoms:
@@ -608,12 +603,10 @@ class Structure(object):
         return repatoms
 
     def min_img_distance(self, coords1, coords2):
-        print("before ",np.linalg.norm(coords1 - coords2))
         one = np.dot(self.cell.inverse, coords1) % 1
         two = np.dot(self.cell.inverse, coords2) % 1
         three = np.around(one - two)
         four = np.dot(one - two - three, self.cell.cell)
-        print("after ", np.linalg.norm(four))
         return np.linalg.norm(four)
 
     def compute_bond_image_flag(self):
@@ -1060,7 +1053,7 @@ class Atom(object):
         self.h_bond_donor = False # keep track of h-bonding atoms (for DREIDING)
 
     def scaled_pos(self, inv_cell):
-        return np.dot(self.coordinates[:3], inv_cell)
+        return np.dot(inv_cell, self.coordinates[:3])
 
     def in_cell_scaled(self, inv_cell):
         return np.array([i%1 for i in self.scaled_pos(inv_cell)])
