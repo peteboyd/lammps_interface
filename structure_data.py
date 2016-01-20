@@ -29,7 +29,7 @@ class Structure(object):
         self.pairs = []
         self.charge = 0.0
         try:
-            self.graph = nx.DiGraph()
+            self.graph = nx.Graph()
         except NameError:
             self.graph = None
 
@@ -186,10 +186,12 @@ class Structure(object):
                         bond = Bond(atm1=atm1, atm2=atm2, 
                                     order=CCDC_BOND_ORDERS[t.strip()])
                         bond.length = float(dist)
-                        bond.symflag = sym
+                        bond.symflag = sym.strip()
                         self.bonds.append(bond)
                 except AttributeError:
                     print("Warning, bonding seems to be misspecified in .cif file")
+            if '_geom_bond_site_symmetry_2' not in data.keys():
+                self.compute_bond_image_flag()
             #TODO unwrap symmetry elements if they exist
         else:
             print("No bonding found in file, attempting to populate bonding..")
@@ -201,8 +203,19 @@ class Structure(object):
         # have bonds, have cycles
         cycles = []
         try:
-            cycles = list(nx.recursive_simple_cycles(self.graph))
-            print(cycles)
+            for atom in self.atoms:
+                label = atom.ciflabel
+                for n in atom.neighbours:
+                    nlabel = self.atoms[n].ciflabel
+                    # fastest way I could think of..
+                    self.graph.remove_edge(label, nlabel)
+                    cycle = []
+                    try:
+                        cycle = list(nx.all_shortest_paths(self.graph, label, nlabel))
+                    except nx.exception.NetworkXNoPath:
+                        pass
+                    self.graph.add_edge(label, nlabel)
+                    cycles += cycle
         except NameError:
             pass
         for atom in self.atoms:
@@ -240,7 +253,6 @@ class Structure(object):
             atoms = [self.get_atom_from_label(k) for k in j]
             elements = [k.element for k in atoms]
             neigh = [len(k.neighbours) for k in atoms]
-            print(j)
             if len(j) <= 8 and np.all(np.array(neigh) <= 3) and set(elements) <= arom:
                 for a in atoms:
                     a.hybridization = "aromatic"
@@ -249,8 +261,8 @@ class Structure(object):
         for bond in self.bonds:
             atoms = bond.atoms
             elements = [a.element for a in atoms]
+            samering = False
             if atoms[0].hybridization == "aromatic" and atoms[1].hybridization == "aromatic":
-                samering = False
                 for r in atoms[0].rings:
                     if atoms[1].ciflabel in r:
                         samering = True
@@ -322,7 +334,7 @@ class Structure(object):
                         oxy.hybridization = 'sp3'
                         bond.order = 1.0
                     else:
-                        if car.is_ring and car.hybridization == 'aromatic':
+                        if car.is_cycle and car.hybridization == 'aromatic':
                             oxy.hybridization = 'aromatic'
                             bond.order = 1.5
                         # carbonyl
@@ -343,7 +355,33 @@ class Structure(object):
                     if "O" in carnelem:
                         bond.order = 1.5 # (amide)
                         nit.hybridization = 'aromatic'
-
+            if (not atoms[0].is_cycle) and (not atoms[1].is_cycle) and (set(elements) <= organic):
+                if set([a.hybridization for a in atoms]) == set(['sp2']):
+                    # check bond length.. probably not a good indicator..
+                    try:
+                        cr1 = COVALENT_RADII['%s_2'%atoms[0].element]
+                    except KeyError:
+                        cr1 = COVALENT_RADII[atoms[0].element]
+                    try:
+                        cr2 = COVALENT_RADII['%s_2'%(atoms[1].element)]
+                    except KeyError:
+                        cr2 = COVALENT_RADII[atoms[1].element]
+                    covrad = cr1 + cr2
+                    print(bond.length, covrad)
+                    if (bond.length <= covrad):
+                        bond.order = 2.0
+                elif set([a.hybridization for a in atoms]) == set(['sp']):
+                    try:
+                        cr1 = COVALENT_RADII['%s_1'%atoms[0].element]
+                    except KeyError:
+                        cr1 = COVALENT_RADII[atoms[0].element]
+                    try:
+                        cr2 = COVALENT_RADII['%s_1'%(atoms[1].element)]
+                    except KeyError:
+                        cr2 = COVALENT_RADII[atoms[1].element]
+                    covrad = cr1 + cr2 
+                    if (bond.length <= covrad):
+                        bond.order = 3.0
 
     def obtain_graph(self):
         """Attempt to assign bond and atom types based on graph analysis."""
@@ -364,14 +402,17 @@ class Structure(object):
         elems = [a.element for a in self.atoms]
         distmat = np.empty((coords.shape[0], coords.shape[0]))
         for (i,j) in zip(*np.triu_indices(coords.shape[0], k=1)):
-            dist = self.min_img_distance(coords[i], coords[j])
-            distmat[j,i] = dist
             e1 = elems[i]
             e2 = elems[j]
+            print(e1, e2)
+            dist = self.min_img_distance(coords[i], coords[j])
+            distmat[j,i] = dist
             covrad = COVALENT_RADII[e1] + COVALENT_RADII[e2]
             if(dist*scale_factor < covrad):
                 # figure out bond orders when typing.
                 bond = Bond(atm1=self.atoms[i], atm2=self.atoms[j], order=1)
+                if(e1 == "C") and (e2 == "C"):
+                    print(dist)
                 bond.length = dist
                 self.bonds.append(bond)
                 self.atoms[i].neighbours.append(self.atoms[j].index)
@@ -471,9 +512,9 @@ class Structure(object):
         width is greater than or equal to 'cutoff' which is default
         12.5 angstroms.
         
-        NB: this replaces the original unit cell with a supercell.
-            there may be a better way to do this if one needs to keep both
-            the super- and unit cells.
+        NB: this replaces and overwrites the original unit cell data 
+            with a supercell. There may be a better way to do this 
+            if one needs to keep both the super- and unit cells.
         """
         sc = self.cell.minimum_supercell(cutoff)
         unitatomlen = len(self.atoms)
@@ -490,13 +531,16 @@ class Structure(object):
             for cell in cells[1:]:
                 repatoms += self.replicate(cell)
             self.atoms += repatoms
+            totatomlen = len(self.atoms)
             # do bonding
+            delbonds = []
             for cell in cells:
                 newcell = np.array(cell).flatten()
                 offset = cells.index(cell)*unitatomlen
-                for bond in self.bonds:
+                for bidx, bond in enumerate(self.bonds):
                     (atom1, atom2) = bond.atoms
-                    newatom1 = self.atoms[atom1.index%unitatomlen + offset]
+                    newatom1 = self.atoms[(atom1.index%unitatomlen + offset)]
+                    newatom2 = self.atoms[(atom2.index%unitatomlen + offset)]
                     if bond.symflag != '.':
                         # check if the current cell is at the extrema of the supercell
                         ocell = newcell + np.array([int(j) for j in bond.symflag[2:]]) - unit_repr
@@ -506,21 +550,19 @@ class Structure(object):
 
                         # new symflag
                         if(np.all(newcell == np.zeros(3))):
-                            bond._atoms = (newatom1, newatom2)
-                            if any(ocell < origincell) or any(ocell > maxcell):
-                                pass 
-                            else:
-                                bond.symflag = '.'
+                            delbonds.append(bidx)
 
+                        newbond = Bond(newatom1, newatom2, order=bond.order)
+                        newbond.length = bond.length
+                        if any(ocell < origincell) or any(ocell >= maxcell):
+                            newflaga = np.array([5,5,5])
+                            newflaga[np.where(ocell >= maxcell)] = 6
+                            newflaga[np.where(ocell < np.zeros(3))] = 4
+                            newflag = "1_%i%i%i"%(tuple(newflaga))
+                            newbond.symflag = newflag
                         else:
-
-                            newbond = Bond(newatom1, newatom2, order=bond.order)
-                            newbond.length = bond.length
-                            if any(ocell < origincell) or any(ocell > maxcell):
-                                newbond.symflag = bond.symflag
-                            else:
-                                newbond.symflag = '.'
-                            repbonds.append(newbond)
+                            newbond.symflag = '.'
+                        repbonds.append(newbond)
                         
                         oldind2 = atom2.index + offset
                         try:
@@ -535,7 +577,6 @@ class Structure(object):
                             pass
                         newatom2.neighbours.append(newatom1.index)
                     else:
-                        newatom2 = self.atoms[atom2.index%unitatomlen + offset]
                         if(np.any(newcell != np.zeros(3))):
                             newbond = Bond(newatom1, newatom2, order=bond.order)
                             newbond.length = bond.length
@@ -548,72 +589,8 @@ class Structure(object):
             self.bonds += repbonds
             # update lattice boxsize to supercell
             self.cell.multiply(sc)
-                    #    # first new bond
-                    #    del(atom1.neighbours[atom1.neighbours.index(atom2.index)])
-                    #    atom1.neighbours.append(newatom2.index)
-                    #    newatom2.neighbours.append(atom1.index)
-                    #    bond._atoms = atom1, newatom2
-                    #    bond.symflag = '.'
-
-                    #    # second new bond
-                    #    del(atom2.neighbours[atom2.neighbours.index(atom1.index)])
-                    #    atom2.neighbours.append(newatom1.index)
-                    #    newatom1.neighbours.append(atom2.index)
-                    #    newbond = Bond(newatom1, atom2, order=bond.order)
-                    #    newbond.ff_type_index = int(bond.ff_type_index)
-                    #    newbond.symflag = '.' 
-                    #    newbond.length = bond.length
-                    #    repbonds.append(newbond)
-                    #else:
-                    #    newbond = Bond(newatom1, newatom2, order=bond.order)
-                    #    newbond.ff_type_index = int(bond.ff_type_index)
-                    #    newbond.symflag = bond.symflag 
-                    #    newbond.length = bond.length
-
-                    #    newatom1.neighbours.append(newatom2.index)
-                    #    newatom2.neighbours.append(newatom1.index)
-                    #    repbonds.append(newbond)
-                #determine which direction
-
-            #remove_bonds = []
-            #add_bonds = []
-            #for idx, bond in enumerate(self.bonds):
-            #    (atom1, atom2) = bond.atoms
-            #    # decide whether a new bond should be formed, or an old one will suffice.
-            #    list1 = [atom1.index] + atom1.images
-            #    list2 = [atom2.index] + atom2.images
-            #    bonding = itertools.product(list1, list2)
-
-            #    coords1 = np.array([self.atoms[a].coordinates for a in list1])
-            #    coords2 = np.array([self.atoms[a].coordinates for a in list2])
-            #    distmat = np.empty((coords1.shape[0], coords2.shape[0]))
-            #    for (i,j), val in np.ndenumerate(distmat):
-            #        dist = self.min_img_distance(coords1[i], coords2[j])
-            #        distmat[i,j] = dist
-
-            #    dist = np.min(distmat)
-            #    bondids = [(i,j) for i,j in zip(*(np.where(distmat - dist < 0.001)))]
-            #    # ensure that the total number of bonds detected is the same as the number
-            #    # of images.
-            #    assert (len(bondids) == int(np.prod(sc))), print("Experienced problem expanding bonding to the supercell!")
-            #    # original image bond crosses unit cell boundary
-            #    if (0,0) not in bondids:
-            #        remove_bonds.append(idx)
-            #        # update neighbour lists
-            #        del(atom1.neighbours[atom1.neighbours.index(atom2.index)])
-            #        del(atom2.neighbours[atom2.neighbours.index(atom1.index)])
-            #    else:
-            #        del(bondids[bondids.index((0,0))])
-            #    for (i,j) in [(list1[k],list2[l]) for (k,l) in bondids]:
-            #        newbond = Bond(self.atoms[i], self.atoms[j], order=int(bond.order))
-            #        newbond.ff_type_index = int(bond.ff_type_index)
-            #        self.atoms[i].neighbours.append(j)
-            #        self.atoms[j].neighbours.append(i)
-            #        add_bonds.append(newbond)
-            #for newbond in add_bonds:
-            #    self.bonds.append(newbond)
-            #for idbad in reversed(sorted(remove_bonds)):
-            #    del(self.bonds[idbad])
+            for idbad in reversed(sorted(delbonds)):
+                del(self.bonds[idbad])
             # re-index bonds
             for newidx, bond in enumerate(self.bonds):
                 bond.index=newidx
@@ -631,10 +608,12 @@ class Structure(object):
         return repatoms
 
     def min_img_distance(self, coords1, coords2):
+        print("before ",np.linalg.norm(coords1 - coords2))
         one = np.dot(self.cell.inverse, coords1) % 1
         two = np.dot(self.cell.inverse, coords2) % 1
         three = np.around(one - two)
         four = np.dot(one - two - three, self.cell.cell)
+        print("after ", np.linalg.norm(four))
         return np.linalg.norm(four)
 
     def compute_bond_image_flag(self):
@@ -709,7 +688,9 @@ class Structure(object):
                                     CIF.atom_site_fract_z(fc[2]))
 
         # bond block
-        for bond in self.bonds:
+        # must re-sort them based on bond type (Mat Sudio)
+        tosort = [(bond.order, bond) for bond in self.bonds]
+        for ord, bond in sorted(tosort, key=lambda tup: tup[0]):
             at1, at2 = bond.atoms
             type = CCDC_BOND_ORDERS[bond.order]
             dist = bond.length
@@ -1068,7 +1049,7 @@ class Atom(object):
         self.ciflabel = None
         self.images = []
         self.rings = []
-        self.in_cycle = False
+        self.is_cycle = False
         self.hybridization = ''
         self.force_field_type = None
         self.coordinates = coordinates
