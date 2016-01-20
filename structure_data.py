@@ -29,7 +29,7 @@ class Structure(object):
         self.pairs = []
         self.charge = 0.0
         try:
-            self.graph = nx.Graph()
+            self.graph = nx.DiGraph()
         except NameError:
             self.graph = None
 
@@ -201,8 +201,8 @@ class Structure(object):
         # have bonds, have cycles
         cycles = []
         try:
-            cycles = list(nx.cycle_basis(self.graph))
-
+            cycles = list(nx.recursive_simple_cycles(self.graph))
+            print(cycles)
         except NameError:
             pass
         for atom in self.atoms:
@@ -240,6 +240,7 @@ class Structure(object):
             atoms = [self.get_atom_from_label(k) for k in j]
             elements = [k.element for k in atoms]
             neigh = [len(k.neighbours) for k in atoms]
+            print(j)
             if len(j) <= 8 and np.all(np.array(neigh) <= 3) and set(elements) <= arom:
                 for a in atoms:
                     a.hybridization = "aromatic"
@@ -495,49 +496,85 @@ class Structure(object):
                 offset = cells.index(cell)*unitatomlen
                 for bond in self.bonds:
                     (atom1, atom2) = bond.atoms
-                    newatom1 = self.atoms[atom1.index + offset]
-                    newatom2 = self.atoms[atom2.index + offset]
-
+                    newatom1 = self.atoms[atom1.index%unitatomlen + offset]
                     if bond.symflag != '.':
-                        ocell = newcell + (np.array([int(j) for j in bond.symflag[2:]]) - unit_repr)
-                        print(ocell)
-                        if any(ocell < origincell) or any(ocell > maxcell):
-                            # new symflag.
-                            imgcell = ocell % maxcell
-                            print(imgcell)
-                            imgoffset = cells.index(tuple([tuple([i]) for i in imgcell]))*unitatomlen 
-                            print(imgoffset) 
-                        # first new bond
-                        del(atom1.neighbours[atom1.neighbours.index(atom2.index)])
-                        atom1.neighbours.append(newatom2.index)
-                        newatom2.neighbours.append(atom1.index)
-                        bond._atoms = atom1, newatom2
-                        bond.symflag = '.'
+                        # check if the current cell is at the extrema of the supercell
+                        ocell = newcell + np.array([int(j) for j in bond.symflag[2:]]) - unit_repr
+                        imgcell = ocell % maxcell
+                        imgoffset = cells.index(tuple([tuple([i]) for i in imgcell]))*unitatomlen
+                        newatom2 = self.atoms[atom2.index%unitatomlen + imgoffset]
 
-                        # second new bond
-                        del(atom2.neighbours[atom2.neighbours.index(atom1.index)])
-                        atom2.neighbours.append(newatom1.index)
-                        newatom1.neighbours.append(atom2.index)
-                        newbond = Bond(newatom1, atom2, order=bond.order)
-                        newbond.ff_type_index = int(bond.ff_type_index)
-                        newbond.symflag = '.' 
-                        newbond.length = bond.length
-                        repbonds.append(newbond)
-                    else:
-                        newbond = Bond(newatom1, newatom2, order=bond.order)
-                        newbond.ff_type_index = int(bond.ff_type_index)
-                        newbond.symflag = bond.symflag 
-                        newbond.length = bond.length
+                        # new symflag
+                        if(np.all(newcell == np.zeros(3))):
+                            bond._atoms = (newatom1, newatom2)
+                            if any(ocell < origincell) or any(ocell > maxcell):
+                                pass 
+                            else:
+                                bond.symflag = '.'
 
+                        else:
+
+                            newbond = Bond(newatom1, newatom2, order=bond.order)
+                            newbond.length = bond.length
+                            if any(ocell < origincell) or any(ocell > maxcell):
+                                newbond.symflag = bond.symflag
+                            else:
+                                newbond.symflag = '.'
+                            repbonds.append(newbond)
+                        
+                        oldind2 = atom2.index + offset
+                        try:
+                            del(newatom1.neighbours[newatom1.neighbours.index(oldind2)])
+                        except ValueError:
+                            pass
                         newatom1.neighbours.append(newatom2.index)
+                        oldind1 = atom1.index + imgoffset
+                        try:
+                            del(newatom2.neighbours[newatom2.neighbours.index(oldind1)])
+                        except ValueError:
+                            pass
                         newatom2.neighbours.append(newatom1.index)
-                        repbonds.append(newbond)
-                prevcell = newcell
-                #determine which direction
+                    else:
+                        newatom2 = self.atoms[atom2.index%unitatomlen + offset]
+                        if(np.any(newcell != np.zeros(3))):
+                            newbond = Bond(newatom1, newatom2, order=bond.order)
+                            newbond.length = bond.length
+                            newbond.symflag = '.'
+                            repbonds.append(newbond)
+                            #new images, shouldn't have to delete existing neighbours
+                            newatom1.neighbours.append(newatom2.index)
+                            newatom2.neighbours.append(newatom1.index)
 
             self.bonds += repbonds
             # update lattice boxsize to supercell
             self.cell.multiply(sc)
+                    #    # first new bond
+                    #    del(atom1.neighbours[atom1.neighbours.index(atom2.index)])
+                    #    atom1.neighbours.append(newatom2.index)
+                    #    newatom2.neighbours.append(atom1.index)
+                    #    bond._atoms = atom1, newatom2
+                    #    bond.symflag = '.'
+
+                    #    # second new bond
+                    #    del(atom2.neighbours[atom2.neighbours.index(atom1.index)])
+                    #    atom2.neighbours.append(newatom1.index)
+                    #    newatom1.neighbours.append(atom2.index)
+                    #    newbond = Bond(newatom1, atom2, order=bond.order)
+                    #    newbond.ff_type_index = int(bond.ff_type_index)
+                    #    newbond.symflag = '.' 
+                    #    newbond.length = bond.length
+                    #    repbonds.append(newbond)
+                    #else:
+                    #    newbond = Bond(newatom1, newatom2, order=bond.order)
+                    #    newbond.ff_type_index = int(bond.ff_type_index)
+                    #    newbond.symflag = bond.symflag 
+                    #    newbond.length = bond.length
+
+                    #    newatom1.neighbours.append(newatom2.index)
+                    #    newatom2.neighbours.append(newatom1.index)
+                    #    repbonds.append(newbond)
+                #determine which direction
+
             #remove_bonds = []
             #add_bonds = []
             #for idx, bond in enumerate(self.bonds):
