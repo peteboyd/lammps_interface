@@ -1020,17 +1020,39 @@ class Dreiding(ForceField):
         ff_type = {}
         electro_neg_atoms = ["N", "O", "F"]
         # RE-TYPE H_ to H__HB if needed
+        remember = {}
         for atom in self.structure.atoms:
             if atom.element == "H":
                 for n in atom.neighbours:
                     atj = self.structure.atoms[n]
                     if ((atj.element in electro_neg_atoms)
                         and (atom.force_field_type != "H__HB")):
-                        print("WARNING: the atom %i is mis-labeled as %s. "%(
+                        decision = True
+                        if atj.molecule_id[0] is not None:
+                            try:
+                                decision = remember[atj.molecule_id[0]]
+                            except KeyError:
+                                decision = input("Would you like molecule with atoms (%s), index %i"%(
+                                                 ','.join(atj.molecule_id[0]), atj.molecule_id[1]) + 
+                                                 " at atom %i, %s to form hydrogen bonds? [y/n]"%(
+                                                     atj.index, atj.element)).lower()
+                                if decision == 'n' or 'no':
+                                    decision = False
+                                elif decision == 'y' or 'yes':
+                                    decision = True
+                                else:
+                                    print("ERROR: command %s not recognized"%(decision))
+                                    sys.exit()
+                                rem = input("Would you like to remember this answer for the entire molecule?")
+                                if rem == 'y' or 'yes':
+                                    remember[atj.molecule_id[0]] = decision
+                        if decision:
+
+                            print("WARNING: the atom %i is mis-labeled as %s. "%(
                             atom.index, atom.force_field_type) +
                             "Renaming to H__HB for hydrogen bonding possibilities.")
-                        atom.force_field_type = "H__HB"
-                        atj.h_bond_donor = True
+                            atom.force_field_type = "H__HB"
+                            atj.h_bond_donor = True
 
         for atom in self.structure.atoms:
             if atom.force_field_type is None:
@@ -1218,7 +1240,6 @@ class Dreiding(ForceField):
             phi0 = 180.0
 
         # d)
-        # bypasses e) for the moment..
         elif((b_hyb in sp2) and (c_hyb in sp2) and (order >= 1.5)):
             V = 25.0
             n = 2
@@ -1226,8 +1247,8 @@ class Dreiding(ForceField):
 
         # e)
         elif((b_hyb in sp2) and (c_hyb in sp2) and (order == 1.0)):
-            #V = 5.0
-            V = 25.0 # temp fix aromatic...
+            V = 5.0
+            #V = 25.0 # temp fix aromatic...
             n = 2
             phi0 = 180.0
             # f) just check if neighbours are aromatic, then apply the exception
@@ -1235,20 +1256,27 @@ class Dreiding(ForceField):
             # labelled as "R" (i.e. will fail if they are O_2 or O_3)
             if(b_hyb == "R" and c_hyb == "R"):
                 b_arom = True
-                for id in b_atom.neighbours:
+                for cycle in b_atom.rings:
                     # Need to make sure this isn't part of the same ring.
-                    n_atom = self.structure.atoms[id]
-                    hyb = self.get_hybridization(n_atom.force_field_type)
-                    if (hyb != "R"): 
+                    if c_atom.index in cycle:
                         b_arom = False
+                        print("Warning: two resonant atoms "+
+                              "%s and %s"%(b_atom.ciflabel, c_atom.ciflabel)+
+                              "in the same ring have a bond order of 1.0! "
+                              "This will likely yield unphysical characteristics"+
+                              " of your system.")
+
 
                 c_arom = True
-                for id in c_atom.neighbours:
+                for cycle in c_atom.rings:
                     # Need to make sure this isn't part of the same ring.
-                    n_atom = self.structure.atoms[id]
-                    hyb = self.get_hybridization(n_atom.force_field_type)
-                    if (hyb != "R"):
+                    if b_atom.index in cycle:
                         c_arom = False
+                        print("Warning: two resonant atoms "+
+                              "%s and %s"%(b_atom.ciflabel, c_atom.ciflabel)+
+                              "in the same ring have a bond order of 1.0! "
+                              "This will likely yield unphysical characteristics"+
+                              " of your system.")
                 if (b_arom and c_arom):
                     V *= 2.0
         # g)

@@ -10,6 +10,8 @@ import sys
 import os
 import math
 import ForceFields
+import itertools
+import operator
 from structure_data import CIF, Structure
 from datetime import datetime
 from InputHandler import Options
@@ -268,6 +270,33 @@ def construct_input_file(ff):
         
         inp_str += "#### END Pair Coefficients ####\n\n"
 
+    if(ff.structure.molecules):
+        inp_str += "#### Atom Groupings ####\n"
+        for idx, molecule in enumerate(ff.structure.molecules.keys()):
+            mols = [item for sublist in ff.structure.molecules[molecule] for item in sublist]
+            inp_str += "%-15s %i"%("group", idx)
+            for x in groups(mols):
+                x = list(x)
+                if(len(x)>1):
+                    inp_str += " %i:%i"%(x[0], x[-1])
+                else:
+                    inp_str += " %i"%(x[0])
+            inp_str += "\n"
+
+            for idy, mol in enumerate(ff.structure.molecules[molecule]):
+                inp_str += "%-15s %i-%i"%("group", idx, idy)
+                for g in groups(mol):
+                    g = list(g)
+                    if(len(g)>1):
+                        inp_str += " %i:%i"%(g[0], g[-1])
+                    else:
+                        inp_str += " %i"%(g[0])
+                inp_str += "\n"
+
+        inp_str += "#### END Atom Groupings ####\n"
+
+
+
     inp_str += "%-15s %s\n"%("dump","%s_mov all xyz 1 %s_mov.xyz"%
                         (ff.structure.name, ff.structure.name))
     inp_str += "%-15s %s\n"%("dump_modify", "%s_mov element %s"%(
@@ -288,6 +317,11 @@ def clean(name):
     if name.endswith('.cif'):
         name = name[:-4]
     return name
+
+def groups(ints):
+    ints = sorted(ints)
+    for k, g in itertools.groupby(enumerate(ints), lambda ix : ix[0]-ix[1]):
+        yield list(map(operator.itemgetter(1), g))
 
 def main():
 
@@ -310,7 +344,8 @@ def main():
         sys.exit()
     ff.detect_ff_terms() 
     ff.cutoff = options.cutoff
-    struct.minimum_cell(cutoff=options.cutoff)
+    ff.structure.minimum_cell(cutoff=options.cutoff)
+    ff.structure.compute_molecules()
     if options.output_cif:
         print("output of .cif file requested. Exiting.")
         struct.write_cif()

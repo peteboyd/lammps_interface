@@ -10,7 +10,7 @@ import itertools
 try:
     import networkx as nx
 except ImportError:
-    print("Warning: could not load networkx module, interpreting bonds will be difficult")
+    print("Warning: could not load networkx module, the program will have difficulties interpreting bond and atom types.")
 from atomic import MASS, ATOMIC_NUMBER, COVALENT_RADII
 from ccdc import CCDC_BOND_ORDERS
 DEG2RAD=np.pi/180.
@@ -28,6 +28,7 @@ class Structure(object):
         self.impropers = []
         self.pairs = []
         self.charge = 0.0
+        self.molecules = {}
         try:
             self.graph = nx.Graph()
         except NameError:
@@ -190,8 +191,10 @@ class Structure(object):
                         self.bonds.append(bond)
                 except AttributeError:
                     print("Warning, bonding seems to be misspecified in .cif file")
+
             if '_geom_bond_site_symmetry_2' not in data.keys():
                 self.compute_bond_image_flag()
+            self.obtain_graph()
             #TODO unwrap symmetry elements if they exist
         else:
             print("No bonding found in file, attempting to populate bonding..")
@@ -381,6 +384,22 @@ class Structure(object):
                     if (bond.length <= covrad*.95):
                         bond.order = 3.0
 
+    def compute_molecules(self):
+        """Ascertain if there are molecules within the porous structure"""
+        # networkx
+        # a threshold for the acceptable size of molecules (fraction of total number of atoms)
+        size_cutoff = 0.5
+        totatomlen = len(self.atoms) 
+        if self.graph is not None:
+            for j in nx.connected_components(self.graph):
+                if(len(j) <= totatomlen*size_cutoff):
+                    ats = [self.get_atom_from_label(k) for k in j]
+                    elems = tuple(sorted([a.element for a in ats]))
+                    self.molecules.setdefault(elems, []).append([i.index for i in ats])
+                    molecule_id = len(self.molecules[elems]) - 1
+                    for at in ats:
+                        at.molecule_id = (elems, molecule_id)
+
     def obtain_graph(self):
         """Attempt to assign bond and atom types based on graph analysis."""
         if self.graph is None:
@@ -399,6 +418,7 @@ class Structure(object):
         coords = np.array([a.coordinates for a in self.atoms])
         elems = [a.element for a in self.atoms]
         distmat = np.empty((coords.shape[0], coords.shape[0]))
+        organics = set(["H", "C", "N", "O", "F", "Cl", "S", "B"])
         for (i,j) in zip(*np.triu_indices(coords.shape[0], k=1)):
             e1 = elems[i]
             e2 = elems[j]
@@ -406,12 +426,16 @@ class Structure(object):
             distmat[j,i] = dist
             covrad = COVALENT_RADII[e1] + COVALENT_RADII[e2]
             if(dist*scale_factor < covrad):
-                # figure out bond orders when typing.
-                bond = Bond(atm1=self.atoms[i], atm2=self.atoms[j], order=1)
-                bond.length = dist
-                self.bonds.append(bond)
-                self.atoms[i].neighbours.append(self.atoms[j].index)
-                self.atoms[j].neighbours.append(self.atoms[i].index)
+                # make sure hydrogens don't bond to metals (specific case..)
+                if "H" in [e1, e2] and not set([e1, e2])<=organics:
+                    pass
+                else:
+                    # figure out bond orders when typing.
+                    bond = Bond(atm1=self.atoms[i], atm2=self.atoms[j], order=1)
+                    bond.length = dist
+                    self.bonds.append(bond)
+                    self.atoms[i].neighbours.append(self.atoms[j].index)
+                    self.atoms[j].neighbours.append(self.atoms[i].index)
         self.compute_bond_image_flag()
 
     def get_atom_from_label(self, label):
@@ -542,10 +566,11 @@ class Structure(object):
                         imgcell = ocell % maxcell
                         imgoffset = cells.index(tuple([tuple([i]) for i in imgcell]))*unitatomlen
                         newatom2 = self.atoms[atom2.index%unitatomlen + imgoffset]
-
                         # new symflag
                         if(np.all(newcell == np.zeros(3))):
                             delbonds.append(bidx)
+                            if self.graph is not None:
+                                self.graph.remove_edge(atom1.ciflabel, atom2.ciflabel)
 
                         newbond = Bond(newatom1, newatom2, order=bond.order)
                         newbond.length = bond.length
@@ -558,7 +583,6 @@ class Structure(object):
                         else:
                             newbond.symflag = '.'
                         repbonds.append(newbond)
-                        
                         oldind2 = atom2.index + offset
                         try:
                             del(newatom1.neighbours[newatom1.neighbours.index(oldind2)])
@@ -580,6 +604,12 @@ class Structure(object):
                             #new images, shouldn't have to delete existing neighbours
                             newatom1.neighbours.append(newatom2.index)
                             newatom2.neighbours.append(newatom1.index)
+                    if self.graph is not None:
+                        if newatom1.ciflabel not in self.graph.nodes():
+                            self.graph.add_node(newatom1.ciflabel)
+                        if newatom2.ciflabel not in self.graph.nodes():
+                            self.graph.add_node(newatom2.ciflabel)
+                        self.graph.add_edge(newatom1.ciflabel, newatom2.ciflabel)
 
             self.bonds += repbonds
             # update lattice boxsize to supercell
@@ -1042,6 +1072,7 @@ class Atom(object):
         self.ciflabel = None
         self.images = []
         self.rings = []
+        self.molecule_id = (None, 0)
         self.is_cycle = False
         self.hybridization = ''
         self.force_field_type = None
@@ -1072,12 +1103,17 @@ class Atom(object):
     def __copy__(self):
         a = Atom()
         a.element = self.element[:]
-        a.force_field_type = self.force_field_type[:]
+        # index determined automatically
+        # neighbours re-calculated
+        a.ciflabel = "%s%i"%(a.element, a.index)
+        a.hybridization = self.hybridization[:]
         a.coordinates = self.coordinates.copy()
         a.charge = float(self.charge)
         a.ff_type_index = int(self.ff_type_index)
+        a.force_field_type = self.force_field_type[:]
         a.image_index = self.index
-        self.images.append(a.index) # keep track of all images of this atom
+        a.h_bond_donor = self.h_bond_donor
+        
         return a
 
 class Cell(object):
