@@ -273,8 +273,8 @@ def construct_input_file(ff):
     if(ff.structure.molecules):
         inp_str += "#### Atom Groupings ####\n"
         for idx, molecule in enumerate(ff.structure.molecules.keys()):
-            mols = [item for sublist in ff.structure.molecules[molecule] for item in sublist]
-            inp_str += "%-15s %i"%("group", idx)
+            mols = [item for sublist in sorted(ff.structure.molecules[molecule]) for item in sublist]
+            inp_str += "%-15s %-8s %s  "%("group", "%i"%(idx+1), "id")
             for x in groups(mols):
                 x = list(x)
                 if(len(x)>1):
@@ -284,8 +284,8 @@ def construct_input_file(ff):
             inp_str += "\n"
 
             for idy, mol in enumerate(ff.structure.molecules[molecule]):
-                inp_str += "%-15s %i-%i"%("group", idx, idy)
-                for g in groups(mol):
+                inp_str += "%-15s %-8s %s"%("group", "%i-%i"%(idx+1, idy+1), "id")
+                for g in sorted(groups(mol)):
                     g = list(g)
                     if(len(g)>1):
                         inp_str += " %i:%i"%(g[0], g[-1])
