@@ -750,28 +750,6 @@ class UFF(ForceField):
         else:
             print("ERROR: Cannot find coordination type for %s"%name)
             sys.exit()
-        #bent_types = ['O_3', 'S_3', 'O_R', 'N_2']
-        #if len(c.neighbours) == 2:
-        #    if name[:3] in bent_types:
-        #        return 'bent'
-        #    return 'linear'
-
-        #trig_types = ['C_R', 'C_2', 'O_3_z', 'O_3', 'N_R']
-        #if len(c.neighbours) == 3:
-        #    if name in trig_types:
-        #        return 'trigonal-planar'
-        #    return 'trigonal-pyramidal'
-
-        ## Need flag for Zn4O type MOFs where Zn is tetrahedral.
-        ## vs. Zn paddlewheel where Zn is square planar.
-        #sqpl_types = ['Fe6+2', 'Cu3+1']
-        #if len(c.neighbours) == 4:
-        #    if name in sqpl_types:
-        #        return 'square-planar'
-        #    return 'tetrahedral'
-
-        #if len(c.neighbours) == 6:
-        #    return 'octahedral'
 
     def uff_type(self, ufftype):
         if ufftype[2] == '3':
@@ -804,7 +782,9 @@ class UFF(ForceField):
         V = 0
         n = 0
         #FIXME(pboyd): coord = (4, x) in cases probably copper paddlewheel
-
+        #TODO(pboyd): all of the hybridization and bond order info 
+        # is determined automatically by the program now.
+        # this must be updated for the UFF ForceField data
         mixed_case = (self.uff_type(bc[0]) == 'sp2' and
                       self.uff_type(bc[1]) == 'sp3') or \
                 (self.uff_type(bc[0]) == 'sp3' and 
@@ -979,6 +959,11 @@ class UFF(ForceField):
                 if atom.element in organics:
                     if atom.hybridization == "sp3":
                         atom.force_field_type = "%s_3"%atom.element
+                        if atom.element == "O" and len(atom.neighbours) >= 2:
+                            neigh_elem = set([self.atoms[i].element for i in atom.neighbours])
+                            if not neigh_elem <= set(organics) | set(halides):
+                                atom.force_field_type = "O_3_z"
+
                     elif atom.hybridization == "aromatic":
                         atom.force_field_type = "%s_R"%atom.element
                     elif atom.hybridization == "sp2":
@@ -998,7 +983,7 @@ class UFF(ForceField):
                             atom.force_field_type = j
             if atom.force_field_type is None:
                 print("ERROR: could not find the proper force field type for atom %i"%(atom.index)+
-                        " with element: %s"%(atom.element))
+                        " with element: '%s'"%(atom.element))
                 sys.exit()
 
 
@@ -1588,6 +1573,7 @@ class Dreiding(ForceField):
         organics = ["C", "N", "O", "S"]
         halides = ["F", "Cl", "Br", "I"]
         for atom in self.structure.atoms:
+
             if atom.force_field_type is None:
                 if atom.element in organics:
                     if atom.hybridization == "sp3":
@@ -1599,18 +1585,19 @@ class Dreiding(ForceField):
                     elif atom.hybridization == "sp":
                         atom.force_field_type = "%s_1"%atom.element
                 elif atom.element == "H":
-                    atom.force_field_type == "H_"
+                    atom.force_field_type = "H_"
                 elif atom.element in halides:
-                    atom.force_field_type == atom.element
+                    atom.force_field_type = atom.element
                     if atom.element == "F":
                         atom.force_field_type += "_"
                 else:
                     ffs = list(DREIDING_DATA.keys())
                     for j in ffs:
                         if atom.element == j[:2].strip("_"):
-                            atom.force_field_type == j
+                            atom.force_field_type = j
             if atom.force_field_type is None:
+
                 print("ERROR: could not find the proper force field type for atom %i"%(atom.index)+
-                        " with element: %s"%(atom.element))
+                        " with element: '%s'"%(atom.element))
                 sys.exit()
 

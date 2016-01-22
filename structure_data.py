@@ -238,7 +238,7 @@ class Structure(object):
                 elif len(atom.neighbours) == 1:
                     atom.hybridization = 'sp'
             elif atom.element == "O":
-                if len(atom.neighbours) == 2:
+                if len(atom.neighbours) >= 2:
                     atom.hybridization = 'sp3'
                 elif len(atom.neighbours) == 1:
                     atom.hybridization = 'sp2'
@@ -436,6 +436,20 @@ class Structure(object):
                     self.bonds.append(bond)
                     self.atoms[i].neighbours.append(self.atoms[j].index)
                     self.atoms[j].neighbours.append(self.atoms[i].index)
+        # make sure hydrogens don't bond to other hydrogens.. umm. except for H2
+        delbonds = []
+        for idx, bond in enumerate(self.bonds):
+            a1, a2 = bond.atoms
+            if a1.element == "H" and a2.element == "H":
+                if len(a1.neighbours) > 1 or len(a2.neighbours) > 1:
+                    delbonds.append(idx)
+                    del(a1.neighbours[a1.neighbours.index(a2.index)])
+                    del(a2.neighbours[a2.neighbours.index(a1.index)])
+        for j in reversed(sorted(delbonds)):
+            del(self.bonds[j])
+        # re-index bonds after modification
+        for idx, bond in enumerate(self.bonds):
+            bond.index = idx
         self.compute_bond_image_flag()
 
     def get_atom_from_label(self, label):
