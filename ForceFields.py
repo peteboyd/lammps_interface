@@ -586,6 +586,179 @@ class UserFF(ForceField):
         self.parse_user_input("blah")
         self.van_der_waals_pairs()
 
+class OverwriteFF(ForceField):
+    """
+    Prepare a nanoprous material FF from a given structure for a known 
+    FF type.
+    
+    Then overwrite any parameters that are supplied by user_input.txt
+
+    Methods are duplicated from UserFF, can reduce redundancy of code
+    later if desired
+    """
+
+    def __init__(self, struct, base_FF):
+        # Assign the base ForceField
+        if(baseFF == "UFF"):
+            self = UFF(struct)
+        elif(baseFF == "DREIDING"):
+            self = Dreiding(struct)
+        elif(baseFF == "CVFF"):
+            print("CVFF not implemented yet...")
+            sys.exit()
+            pass
+        elif(baseFF == "CHARMM"):
+            print("CHARMM not implemented yet...")
+            sys.exit()
+            pass
+        else:
+            # etc. TODO worth adding in these additional FF types
+            print("Invalid base FF requested\nExiting...")
+            sys.exit()
+
+        # Overwrite any parameters specified by user_input.txt
+        parse_user_input("user_input.txt")
+        
+    def parse_user_input(self, filename):
+        infile = open("user_input.txt","r")
+        lines = infile.readlines()
+       
+        # type of interaction found: 1= bonds, 2 = angles, 3 = dihedrals, 4 = torsions 
+        parse_type = 0
+
+        for line in lines:
+            match = line.lower().strip()
+            if match == "bonds":
+                print("parsing bond")
+                parse_type = 1
+                continue
+            elif match == "angles":
+                print("parsing angle")
+                parse_type = 2
+                continue
+            elif match == "dihedrals":
+                print("parsing dihedral")
+                parse_type = 3
+                continue
+            elif match == "impropers":
+                print("parsing impropers")
+                parse_type = 4
+                continue
+
+            data = line.split()
+            print(data)
+            if parse_type == 1:
+                atms = [data[0], data[1]]
+                bond_pair = [self.map_user_to_unique_atom(atms[0]), 
+                              self.map_user_to_unique_atom(atms[1])]
+                bond_id = self.map_pair_unique_bond(bond_pair, atms)
+                self.unique_bond_types[bond_id].function = data[2]
+                self.unique_bond_types[bond_id].parameters = data[3:]
+
+            elif parse_type == 2:
+                atms = [data[0], data[1], data[2]]
+                angle_triplet = [self.map_user_to_unique_atom(atms[0]), 
+                                 self.map_user_to_unique_atom(atms[1]), 
+                                 self.map_user_to_unique_atom(atms[2])]
+                angle_id = self.map_triplet_unique_angle(angle_triplet, atms)
+                self.unique_angle_types[angle_id].function = data[3]
+                self.unique_angle_types[angle_id].parameters = data[4:]
+
+            elif parse_type == 3:
+                atms = [data[0], data[1], data[2], data[3]]
+                dihedral_quadruplet = [self.map_user_to_unique_atom(atms[0]), 
+                                       self.map_user_to_unique_atom(atms[1]), 
+                                       self.map_user_to_unique_atom(atms[2]), 
+                                       self.map_user_to_unique_atom(atms[3])]
+                dihedral_id = self.map_quadruplet_unique_dihedral(dihedral_quadruplet, atms)
+                self.unique_dihedral_types[dihedral_id].function = data[4]
+                self.unique_dihedral_types[dihedral_id].parameters = data[5:]
+
+            elif parse_type == 4:
+                atms = [data[0], data[1], data[2], data[3]]
+                improper_quadruplet = [self.map_user_to_unique_atom(atms[0]), 
+                                       self.map_user_to_unique_atom(atms[1]), 
+                                       self.map_user_to_unique_atom(atms[2]), 
+                                       self.map_user_to_unique_atom(atms[3])]
+                improper_id = self.map_quadruplet_unique_improper(improper_quadruplet, atms)
+                self.unique_improper_types[improper_id].function = data[4]
+                self.unique_improper_types[improper_id].parameters = data[5:]
+            
+            
+ 
+    def write_missing_uniques(self, description):
+        # Warn user about any unique bond, angle, etc. found that have not 
+        # been specified in user_input.txt
+        pass
+
+
+
+    def map_user_to_unique_atom(self, descriptor):
+        for key, atom in list(self.unique_atom_types.items()):
+            if descriptor == atom.force_field_type:
+                return atom.ff_type_index
+        
+        raise ValueError('Error! An atom identifier ' + str(description) + 
+                ' in user_input.txt did not match any atom_site_description in your cif')
+
+    def map_pair_unique_bond(self, pair, descriptor):
+        for key, bond in list(self.unique_bond_types.items()):
+            if (pair == [bond.atoms[0].ff_type_index, bond.atoms[1].ff_type_index] 
+                or pair == [bond.atoms[1].ff_type_index, bond.atoms[0].ff_type_index]):
+                return key
+            
+        raise ValueError('Error! An bond identifier ' + str(descriptor) + 
+                ' in user_input.txt did not match any bonds in your cif')
+
+    def map_triplet_unique_angle(self, triplet, descriptor):
+        #print(triplet)
+        #print(descriptor)
+        for key, angle in list(self.unique_angle_types.items()):
+            #print(str(key) + " : " + str([angle.atoms[2].ff_type_index, angle.atoms[1].ff_type_index, angle.atoms[0].ff_type_index]))
+            if (triplet == [angle.atoms[0].ff_type_index, 
+                            angle.atoms[1].ff_type_index, 
+                            angle.atoms[2].ff_type_index] or 
+                triplet == [angle.atoms[2].ff_type_index, 
+                            angle.atoms[1].ff_type_index, 
+                            angle.atoms[0].ff_type_index]):
+                return key
+            
+        raise ValueError('Error! An angle identifier ' + str(descriptor) + 
+                ' in user_input.txt did not match any angles in your cif')
+
+    def map_quadruplet_unique_dihedral(self, quadruplet, descriptor):
+        for key, dihedral in list(self.unique_dihedral_types.items()):
+            if (quadruplet == [dihedral.atoms[0].ff_type_index, 
+                               dihedral.atoms[1].ff_type_index, 
+                               dihedral.atoms[2].ff_type_index, 
+                               dihedral.atoms[3].ff_type_index] or 
+                quadruplet == [dihedral.atoms[3].ff_type_index, 
+                               dihedral.atoms[2].ff_type_index, 
+                               dihedral.atoms[1].ff_type_index, 
+                               dihedral.atoms[0].ff_type_index]):
+                return key
+            
+        raise ValueError('Error! A dihdral identifier ' + str(descriptor) + 
+                ' in user_input.txt did not match any dihedrals in your cif')
+
+    def map_quadruplet_unique_improper(self, quadruplet, descriptor):
+        for key, improper in list(self.unique_improper_types.items()):
+            if (quadruplet == [improper.atoms[0].ff_type_index, 
+                               improper.atoms[1].ff_type_index, 
+                               improper.atoms[2].ff_type_index, 
+                               improper.atoms[3].ff_type_index] or 
+                quadruplet == [improper.atoms[3].ff_type_index, 
+                               improper.atoms[2].ff_type_index,
+                               improper.atoms[1].ff_type_index, 
+                               improper.atoms[0].ff_type_index]):
+                return key
+            
+        raise ValueError('Error! An improper identifier ' + str(descriptor) + 
+                ' in user_input.txt did not match any improper in your cif')
+
+
+
+
 class UFF(ForceField):
     """Parameterize the periodic material with the UFF parameters.
     NB: I have recently come across important information regarding the
