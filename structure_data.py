@@ -392,13 +392,16 @@ class Structure(object):
         totatomlen = len(self.atoms) 
         if self.graph is not None:
             for j in nx.connected_components(self.graph):
+                ats = [self.get_atom_from_label(k) for k in j]
                 if(len(j) <= totatomlen*size_cutoff):
-                    ats = [self.get_atom_from_label(k) for k in j]
                     elems = tuple(sorted([a.element for a in ats]))
                     self.molecules.setdefault(elems, []).append([i.index for i in ats])
                     molecule_id = len(self.molecules[elems]) - 1
                     for at in ats:
                         at.molecule_id = (elems, molecule_id)
+                # assume the rest is the framework
+                else:
+                    self.molecules.setdefault("framework", []).append([i.index for i in ats]) 
 
     def obtain_graph(self):
         """Attempt to assign bond and atom types based on graph analysis."""
