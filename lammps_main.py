@@ -263,7 +263,7 @@ def construct_input_file(ff):
     if(not ff.pair_in_data):
         inp_str += "#### Pair Coefficients ####\n"
         for k, pair in ff.unique_pair_types.items():
-            inp_str += "%-15s %i %i %s # %s %s\n"%("pair_coeff", 
+            inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
                     pair.atoms[0].ff_type_index, pair.atoms[1].ff_type_index,
                     pair.potential, pair.atoms[0].force_field_type,
                     pair.atoms[1].force_field_type)
@@ -272,27 +272,34 @@ def construct_input_file(ff):
 
     if(ff.structure.molecules):
         inp_str += "#### Atom Groupings ####\n"
-        for idx, molecule in enumerate(ff.structure.molecules.keys()):
+        idx = 1
+        for molecule in ff.structure.molecules.keys():
             mols = [item for sublist in sorted(ff.structure.molecules[molecule]) for item in sublist]
-            inp_str += "%-15s %-8s %s  "%("group", "%i"%(idx+1), "id")
+            inc_idx=False
+            if (molecule == "framework"):
+                inp_str += "%-15s %-8s %s  "%("group", "fram", "id")
+            else:
+                inp_str += "%-15s %-8s %s  "%("group", "%i"%(idx), "id")
+                inc_idx = True
             for x in groups(mols):
                 x = list(x)
                 if(len(x)>1):
-                    inp_str += " %i:%i"%(x[0], x[-1])
+                    inp_str += " %i:%i"%(x[0]+1, x[-1]+1)
                 else:
-                    inp_str += " %i"%(x[0])
+                    inp_str += " %i"%(x[0]+1)
             inp_str += "\n"
 
             for idy, mol in enumerate(ff.structure.molecules[molecule]):
-                inp_str += "%-15s %-8s %s"%("group", "%i-%i"%(idx+1, idy+1), "id")
+                inp_str += "%-15s %-8s %s  "%("group", "%i-%i"%(idx, idy+1), "id")
                 for g in sorted(groups(mol)):
                     g = list(g)
                     if(len(g)>1):
-                        inp_str += " %i:%i"%(g[0], g[-1])
+                        inp_str += " %i:%i"%(g[0]+1, g[-1]+1)
                     else:
-                        inp_str += " %i"%(g[0])
+                        inp_str += " %i"%(g[0]+1)
                 inp_str += "\n"
-
+            if inc_idx:
+                idx += 1
         inp_str += "#### END Atom Groupings ####\n"
 
 
