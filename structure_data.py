@@ -217,7 +217,10 @@ class Structure(object):
                     except nx.exception.NetworkXNoPath:
                         pass
                     self.graph.add_edge(label, nlabel)
-                    cycles += cycle
+                    #FIXME MW edit to only store cycles < len(10)
+                    # should be a harmless edit but maybe need to test
+                    if(len(cycle) <= 10):
+                        cycles += cycle
         except NameError:
             pass
         for atom in self.atoms:
