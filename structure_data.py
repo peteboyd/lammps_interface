@@ -200,7 +200,7 @@ class Structure(object):
             print("No bonding found in file, attempting to populate bonding..")
             self.compute_bonding()
             self.obtain_graph()
-            self.compute_atom_bond_typing()
+        self.compute_atom_bond_typing()
     
     def compute_atom_bond_typing(self):
         cycles = []

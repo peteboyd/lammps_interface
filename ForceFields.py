@@ -1194,14 +1194,14 @@ class Dreiding(ForceField):
                                                  ','.join(atj.molecule_id[0]), atj.molecule_id[1]) + 
                                                  " at atom %i, %s to form hydrogen bonds? [y/n]"%(
                                                      atj.index, atj.element)).lower()
-                                if decision == 'n' or 'no':
+                                if (decision == 'n') or (decision == 'no'):
                                     decision = False
-                                elif decision == 'y' or 'yes':
+                                elif (decision == 'y') or (decision == 'yes'):
                                     decision = True
                                 else:
                                     print("ERROR: command %s not recognized"%(decision))
                                     sys.exit()
-                                rem = input("Would you like to remember this answer for the entire molecule?")
+                                rem = input("Would you like to remember this answer for this molecule?")
                                 if rem == 'y' or 'yes':
                                     remember[atj.molecule_id[0]] = decision
                         if decision:
