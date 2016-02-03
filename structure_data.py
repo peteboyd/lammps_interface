@@ -1339,7 +1339,7 @@ class CIF(object):
         self.non_loops = ["data", "cell", "sym", "end"]
         self.block_order = ["data", "sym", "sym_loop", "cell", "atoms", "bonds"]
         if file is not None:
-            self._readfile(file)
+            self.read(file)
 
     def read(self, filename):
         filestream = open(filename, 'r')
