@@ -376,7 +376,7 @@ def main():
     inpfile = open("in.%s"%struct.name, 'w')
     inpfile.writelines(inp_str)
     inpfile.close()
-    
+    print("Mohamad tutorial")
     print("files created!")
 
 if __name__ == "__main__": 
