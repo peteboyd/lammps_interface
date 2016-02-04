@@ -1757,6 +1757,9 @@ class Dreiding(ForceField):
                         atom.force_field_type = "%s_2"%atom.element
                     elif atom.hybridization == "sp":
                         atom.force_field_type = "%s_1"%atom.element
+                    # default to sp3
+                    else:
+                        atom.force_field_type = "%s_3"%atom.element
                 elif atom.element == "H":
                     atom.force_field_type = "H_"
                 elif atom.element in halides:
@@ -1769,7 +1772,7 @@ class Dreiding(ForceField):
                         if atom.element == j[:2].strip("_"):
                             atom.force_field_type = j
             if atom.force_field_type is None:
-
+                print(atom.hybridization)
                 print("ERROR: could not find the proper force field type for atom %i"%(atom.index)+
                         " with element: '%s'"%(atom.element))
                 sys.exit()

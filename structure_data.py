@@ -226,7 +226,7 @@ class Structure(object):
         for atom in self.atoms:
             # N O C S
             if atom.element == "C":
-                if len(atom.neighbours) == 4:
+                if len(atom.neighbours) >= 4:
                     atom.hybridization = 'sp3'
                 elif len(atom.neighbours) == 3:
                     atom.hybridization = 'sp2'
