@@ -758,6 +758,207 @@ class OverwriteFF(ForceField):
 
 
 
+class BTW_FF(ForceField):
+    
+    def __init__(self, struct):
+        self.pair_in_data = True
+        self.structure = struct
+        self.unique_atom_types = {}
+        self.unique_bond_types = {}
+        self.unique_angle_types = {}
+        self.unique_dihedral_types = {}
+        self.unique_improper_types = {}
+        self.unique_pair_types = {}
+
+
+    def detect_ff_terms(self):
+        # for each atom determine the ff type if it is None
+        BTW_organics = [ "O", "C","H" ]
+        BTW_metals = ["Zr","Cu","Zn"]
+	for atom in self.structure.atoms:
+            if atom.force_field_type is None:				
+                type_assigned=False
+		neighbours = [self.atoms[i] for i in atom.neighbours]
+		neighbour_elements = [atom.element for atom in neighbours]
+                if atom.element in BTW_organics:
+                    if (atom.element == "O"):
+		        if (set(neighbour_elements) <= set(BTW_metals + ["H"])):
+			    if("H" in neighbour_elements): #O-H
+			        atom.force_field_type="75"
+                            else:     # O-inorganic
+			        atom.force_field_type="171"
+	                elif ("C" in neighbour_elements): # Carboxylate
+			    atom.force_field_type="170"
+                        else:
+			    print("Oxygen number : %i could not be recognized!"%atom.index)
+			    sys.exit()
+	
+		    elif (atom.element == "H"):
+	                if ("O" in neighbour_elements):
+			    atom.force_field_type="21"
+			elif("C" in neighbour_elements):
+			    atom.force_field_type="915"
+                        else:
+                            print("Hydrogen number : %i could not be recognized!"%atom.index)            
+	            else (atom.element=="C"):
+			if ("O" in neighbour_elements):
+			    atom.force_field_type="913" # C-acid
+			elif ("H" in neighbour_element):
+			    atom.force_field_type="912" # C- benzene we should be careful that in this case C in ligand has also bond with H, but not in the FF
+   		    	elif (set(neighbour_element)<=set(["C"]))
+			    for i in atom.neighbours:
+			        neighboursofneighbour=[self.atoms[j] for j in self.atoms[i].neighbours]
+				neighboursofneighbour_elements=[atom.element for atom in neighbourofneighbour]
+				if ("O" in neighboursofneighbour_elements):
+				    atom.force_field_type="902"
+				    type_assigned=True
+
+			    if (type_assigned=False) and atom.hybridization="aromatic":
+				atom.force_field_type="903"
+                            else:
+			        print("Carbon number : %i could not be recognized! erorr1"%atom.index)
+			
+                        else:
+			    print("Carbon number : %i could not be recognized! error2"%atom.index)
+
+                elif atom.element in BTW_metals:
+		    if (atom.element == "Zr"):
+			atom.force_field_type="192"
+		    elif (atom.element == "Cu"):
+			atom.force_field_type="185"
+		    else: # atom type = Zn
+			atom.force_field_type="172"
+		else:
+			print('Error!! Cannot detect atom types. Atom type does not exist in BTW-FF!')
+	    else:
+		print('FFtype already assigned!')
+
+    def bond_term(self, bond):
+        """Harmonic assumed"""
+        atom1, atom2 = bond.atoms
+        fflabel1, fflabel2 = atom1.force_field_type, atom2.force_field_type
+        r_1 = UFF_DATA[fflabel1][0]
+        r_2 = UFF_DATA[fflabel2][0]
+        chi_1 = UFF_DATA[fflabel1][8]
+        chi_2 = UFF_DATA[fflabel2][8]
+
+        rbo = -0.1332*(r_1 + r_2)*math.log(bond.order)
+        ren = r_1*r_2*(((math.sqrt(chi_1) - math.sqrt(chi_2))**2))/(chi_1*r_1 + chi_2*r_2)
+        r0 = (r_1 + r_2 + rbo - ren)
+        # The values for K in the UFF paper were set such that in the final
+        # harmonic function, they would be divided by '2' to satisfy the
+        # form K/2(R-Req)**2
+        # in Lammps, the value for K is already assumed to be divided by '2'
+        K = 664.12*(UFF_DATA[fflabel1][5]*UFF_DATA[fflabel2][5])/(r0**3) / 2.
+
+        bond.potential = BondPotential.Harmonic()
+        bond.potential.K = K
+        bond.potential.R0 = r0
+"""	
+						for j in atom.neighbours:
+							if (j=="Zr"):
+								atom.force_field_type="75"
+								type_assinged=True
+				
+				if type_assigned == False:
+					for i in atom.neighbours:
+                           			if (i=="Zn"):
+							atom.force_field_type="171"
+							type_assigned=True
+			
+			elif (atom.hybridization == "sp2"):
+				for i  in atom.neighbours:
+					if (i=="Zr"):
+						atom.force_field_type="171"
+						type_assigned=True
+			elif (atom.hybridization == "aromatic"):
+				for i in atom.neighbours:
+					if (i in BTW_metals):
+						for j in atom.neighbours:
+							if (j=="C"):
+								atom.force_field_type = "170"
+								type_assigned=True
+
+		    if (atom.element=="H"):
+			for i in atom.neighbours
+				if (i=="O"):
+					atom.force_field_type ="21"
+					type_assigned=True
+				elif (i=="C")and type_assinged==False:
+					atom.force_field_type="915"
+				else:
+					print("Could not recognize this \"H\" atom index = %f"%atom.) ## add the needed property!
+		    else:# Carbon detection
+			if atom.hybridization=="aromatic":
+				for i in atom.neighbours:
+					if i == "O":
+						atom.force_field_type="913"
+						type_assigned=True
+				
+				for i in atom.neighbours: #checking any misassignment
+					if i == "H" and type_assigned=True:
+						print("Carbon number %f has bond to H and O in the same time!"%atom.)## add the needed property
+						sys.exit()
+				
+				for i in atom.neighbours:
+					if i=="H" 
+						atom.force_field_type="912"
+						type_assigned=True
+						
+				
+
+			else:
+				print("Could not recognize this \"C\", atom index=%f"%atom.)## add the needed property
+				
+"""			
+			
+			
+		
+
+
+
+
+
+"""
+
+
+
+
+
+
+
+
+
+    if atom.hybridization == "sp3":
+                        atom.force_field_type = "%s_3"%atom.element
+                        if atom.element == "O" and len(atom.neighbours) >= 2:
+                            neigh_elem = set([self.atoms[i].element for i in atom.neighbours])
+                            if not neigh_elem <= set(organics) | set(halides):
+                                atom.force_field_type = "O_3_z"
+
+                    elif atom.hybridization == "aromatic":
+                        atom.force_field_type = "%s_R"%atom.element
+                    elif atom.hybridization == "sp2":
+                        atom.force_field_type = "%s_2"%atom.element
+                    elif atom.hybridization == "sp":
+                        atom.force_field_type = "%s_1"%atom.element
+                elif atom.element == "H":
+                    atom.force_field_type = "H_"
+                elif atom.element in halides:
+                    atom.force_field_type = atom.element
+                    if atom.element == "F":
+                        atom.force_field_type += "_"
+                else:
+                    ffs = list(UFF_DATA.keys())
+                    for j in ffs:
+                        if atom.element == j[:2].strip("_"):
+                            atom.force_field_type = j
+            if atom.force_field_type is None:
+                print("ERROR: could not find the proper force field type for atom %i"%(atom.index)+
+                        " with element: '%s'"%(atom.element))
+                sys.exit()
+"""
+
 
 class UFF(ForceField):
     """Parameterize the periodic material with the UFF parameters.

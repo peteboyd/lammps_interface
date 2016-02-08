@@ -21,7 +21,9 @@ class BondPotential(object):
             self.K4 = 0.
 
         def __str__(self):
-            return ""
+            if self.reduced:
+                return "%15.6f %15.6f %15.6f"%(self.D, self.alpha, self.R0)
+            return "%28s %15.6f %15.6f %15.6f"%(self.name, self.D, self.alpha, self.R0)
 
     class Fene(object):
         """Potential defined as
