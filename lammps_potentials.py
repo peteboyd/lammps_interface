@@ -22,8 +22,8 @@ class BondPotential(object):
 
         def __str__(self):
             if self.reduced:
-                return "%15.6f %15.6f %15.6f"%(self.D, self.alpha, self.R0)
-            return "%28s %15.6f %15.6f %15.6f"%(self.name, self.D, self.alpha, self.R0)
+                return "%15.6f %15.6f %15.6f %15.6f"%(self.R0, self.K2, self.K3,self.K4)
+            return "%28s %15.6f %15.6f %15.6f %15.6f"%(self.name, self.R0, self.K2, self.K3, K4)
 
     class Fene(object):
         """Potential defined as
@@ -195,8 +195,45 @@ class AnglePotential(object):
             return ""
 
     class Class2(object):
+        """Potential defined as
+
+        E = Ea + Ebb + Eba (a=angle, bb=bondbond and ba=bondangle)
+	Ea = K2 * (theta -theta0)^2 +  K3 * (theta -theta0)^3 + K4 * (theta -theta0)^4
+	Ebb = M * (rij-r1)(rjk-r2)
+	Eba = N1(rij-r1)(theta - theta0) + N2(rjk-r2)(theta-theta0)
+
+
+        Input parameters for each potential:
+        Angle: theta0 (degrees), K2(energy/rad^2), K3(energy/rad^3),K4(energy/rad^4)
+	BondBond: bb, M(energy/distance^2), r1(distance), r2(distance)
+	BondAngle: ba, N1(energy/distance^2), N2(energy/distance^2),r1(distance), r2(distance)
+        """
+ 	# Ebb and Eba are discarded for now
+	
         def __init__(self):
-            raise NotImplementedError ("Will get on this..")
+            self.name = "class2"  
+            self.theta0 = 0.
+            self.K2 = 0.
+            self.K3 = 0.
+	    self.K4 = 0.
+	#   self.bb = 0.
+	#   self.M = 0.
+	#   self.r1 = 0.
+	#   self.r2 = 0.
+	#   self.ba = 0.
+	#   self.N1 = 0.
+	#   self.N2 = 0.
+	#   self.r1 = 0.
+	#   self.r2 = 0.
+
+        def __str__(self):
+            if self.reduced:
+                return "%15.6f %15.6f %15.6f %15.6f"%(self.theta0, self.K2, self.K3, self.K4)
+            return "%28s %15.6f %15.6f %15.6f %15.6f"%(self.name,self.theta0, self.K2, self.K3, self.K4)
+
+
+
+
 
     class Cosine(object):
         """Potential defined as
@@ -450,8 +487,32 @@ class DihedralPotential(object):
             return "%28s %15.6f %15i %15i %15.6f"%(self.name, self.K, self.n, self.d, self.w) 
 
     class Class2(object):
-        def __init__(self):
-            raise NotImplementedError ("Will get on this..")
+        """
+	Potential deined as
+	E= Ed + Embt + Eebt + Eat + Eaat + Ebb13
+	dihedral: Ed = sum_{n=1}^{3} Kn [1-cos(n*phi-phi_n]
+	middle-bond-torsion:   Embt = (rjk-r2)[A1*cos(phi)+A2*cos(2phi)+A3*cos(3phi)]
+	end-bonb-torsion:      Eebt = (rij-r1)[B1*cos(phi)+B2*cos(2phi)+B3*cos(3phi)] + (rkl - r3)[C1*cos(phi)+C2*cos(2phi)+C3*cos(3phi)]
+	angle-torsion:	       Eat  = (theta_ijk-theta1)[D1*cos(phi)+D2*cos(2phi)+D3*cos(3phi)]+ (theta_jkl-theta2)[E1*cos(phi)+E2*cos(2phi)+E3*cos(3phi)]
+	angle-angle-torsion:   Eaa  = M (theta_ijk-theta1)(theta_jkl-theta2)cos(phi) 
+	bond-bond-13:	       Ebb13= N (rij-r1)(rkl-r3)
+	
+
+	Only the first term is taken into account for now!!!
+	"""
+	def __init__(self):
+            self.name = "class2"
+	    self.K1  = 0.
+    	    self.phi1= 0.
+	    self.K2  = 0.
+    	    self.phi2= 0.
+	    self.K3  = 0.
+    	    self.phi3= 0.
+
+	def __str__(self):
+	    if self.reduced:
+	        return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.K1,self.phi1,self.K2,self.phi2,self.K3,self.phi3)
+	    return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name,self.K1,self.phi1,self.K2,self.phi2,self.K3,self.phi3)
 
     class Harmonic(object):
         """Potential defined as
