@@ -838,58 +838,79 @@ class BTW_FF(ForceField):
         atom1, atom2 = bond.atoms
         fflabel1, fflabel2 = atom1.force_field_type, atom2.force_field_type
         bond_fflabel=fflabel1+"_"+fflabel2
-        K1 = BTW_bonds[bond_fflabel][1]
-        K2 =0.
-        K3 =0.
-	R0 = BTW_bonds[bond_fflabel][2]
+        Ks = BTW_bonds[bond_fflabel][1] # the value should be in kcal/mol
+	l0 = BTW_bonds[bond_fflabel][2] # the value should be in Angstrom
 	
+	"""
+	Es=71.94*Ks*(l-l0)^2[1-2.55(l-l0)+(7/12)*2.55*(l-l0)^2]
+	(Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
+	"""
+
+	K2=71.94*Ks
+	K3=-2.55*71.94*Ks
+	K4=7.0/12.0*2.55*71.94
         bond.potential = BondPotential.Class2()
-        bond.potential.K1 = K1
         bond.potential.K2 = K2
         bond.potential.K3 = K3
-        bond.potential.R0 = r0
+        bond.potential.K4 = K4
+        bond.potential.R0 = l0
 
 
 
 
     def angle_term(self, angle):
-        a_atom, b_atom, c_atom = angle.atoms
+        """
+	Be careful that the 5and6 order terms are vanished here since they are not implemented in LAMMPS!!
+
+
+	Etheta = 0.021914*Ktheta*(theta-theta0)^2[1-0.014(theta-theta0)+5.6(10^-5)*(theta-theta0)^2-7.0*(10^-7)*(theta-theta0)^3+9.0*(10^-10)*(theta-theta0)^4]	
+	(Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
+	"""
+	a_atom, b_atom, c_atom = angle.atoms
 
         atom_a_fflabel, atom_b_fflabel, atom_c_fflabel = a_atom.force_field_type, b_atom.force_field_type, c_atom.force_field_type
 	angle_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
         theta0 = BTW_angles[angle_fflabel][2]
-        K2 = BTW_angles[angle_fflabel][1]
+        Ktheta = BTW_angles[angle_fflabel][1]
+	
+	K2 = 0.021914*Ktheta
+	K3 = -0.014*K2
+	K4 = 5.6e-5*K2
 
         angle.potential = AnglePotential.Class2()
         angle.potential.theta0 = theta0 
         angle.potential.K2 = K2
-        angle.potential.K3 = 0. 
-        angle.potential.K4 = 0.
+        angle.potential.K3 = K3 
+        angle.potential.K4 = K4
 
 
     def dihedral_term(self, dihedral):
-        atom_a = dihedral.a_atom
+	"""
+	Ew = (V1/2)(1 + cos w) + (V2/2)(1 - cos 2*w) (V3/2)(1 + cos 3*w)
+	(Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
+	"""        
+	atom_a = dihedral.a_atom
         atom_b = dihedral.b_atom
         atom_c = dihedral.c_atom
         atom_d = dihedral.d_atom
         
         atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
 	dihedral_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
-	k1 = BTW_dihedrals[dihedral_fflabel][1]	
-	k2 = BTW_dihedrals[dihedral_fflabel][4]	
-	k3 = BTW_dihedrals[dihedral_fflabel][7]	
-	phi1 = BTW_dihedrals[dihedral_fflabel][2]	
-	phi2 = BTW_dihedrals[dihedral_fflabel][5]	
-	phi3 = BTW_dihedrals[dihedral_fflabel][8]	
+	kt1 = 0.5 * BTW_dihedrals[dihedral_fflabel][1]	
+	kt2 = 0.5 * BTW_dihedrals[dihedral_fflabel][4]	
+	kt3 = 0.5 * BTW_dihedrals[dihedral_fflabel][7]	
+	phi1 = BTW_dihedrals[dihedral_fflabel][2] + 180	#ask Davide to be sure, TODO (Mohamad)
+	phi2 = BTW_dihedrals[dihedral_fflabel][5] + 180	
+	phi3 = BTW_dihedrals[dihedral_fflabel][8] + 180	
 
 
 
 	dihedral.potential = DihedralPotential.Class2()
-        dihedral.potential.K1=k1
+        dihedral.potential.K1=kt1
         dihedral.potential.phi1=phi1
-        dihedral.potential.K2=k2
+        dihedral.potential.K2=kt2
         dihedral.potential.phi2=phi2
-        dihedral.potential.K3=k3
+        dihedral.potential.K3=kt3
         dihedral.potential.phi3=phi3
 
     def improper_term(self, improper):
@@ -900,44 +921,16 @@ class BTW_FF(ForceField):
 
         """
         atom_a, atom_b, atom_c, atom_d = improper.atoms
-        if not atom_b.atomic_number in (6, 7, 8, 15, 33, 51, 83):
-            return
-        if atom_b.force_field_type in ('N_3', 'N_2', 'N_R', 'O_2', 'O_R'):
-            c0 = 1.0
-            c1 = -1.0
-            c2 = 0.0
-            koop = 6.0 
-        elif atom_b.force_field_type in ('P_3+3', 'As3+3', 'Sb3+3', 'Bi3+3'):
-            if atom_b.force_field_type == 'P_3+3':
-                phi = 84.4339 * DEG2RAD
-            elif atom_b.force_field_type == 'As3+3':
-                phi = 86.9735 * DEG2RAD
-            elif atom_b.force_field_type == 'Sb3+3':
-                phi = 87.7047 * DEG2RAD
-            else:
-                phi = 90.0 * DEG2RAD
-            c1 = -4.0 * math.cos(phi)
-            c2 = 1.0
-            c0 = -1.0*c1*math.cos(phi) + c2*math.cos(2.0*phi)
-            koop = 22.0 
-        elif atom_b.force_field_type in ('C_2', 'C_R'):
-            c0 = 1.0
-            c1 = -1.0
-            c2 = 0.0
-            koop = 6.0 
-            if 'O_2' in (atom_a.force_field_type, atom_c.force_field_type, atom_d.force_field_type):
-                koop = 50.0 
-        else:
-            return 
-        
-        #NB: TOWHEE divides by 3.
-        koop /= 3. # Not clear in UFF paper, but division by the number of bonds is probably not appropriate. Should test on real systems..
-
-        improper.potential = ImproperPotential.Fourier()
-        improper.potential.K = koop
-        improper.potential.C0 = c0
-        improper.potential.C1 = c1
-        improper.potential.C2 = c2
+        atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
+	improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+	
+        Kopb = BTW_opbend[improper_fflabel][1]
+	c0=  BTW_opbend[improper_fflabel][2]
+	 
+		
+	improper.potential = ImproperPotential.Harmonic()
+        improper.potential.K = 
+        improper.potential.chi0 = c0
 
 
 
