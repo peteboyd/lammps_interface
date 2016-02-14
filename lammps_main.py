@@ -362,6 +362,10 @@ def main():
     struct.compute_dihedrals()
     struct.compute_improper_dihedrals()
 
+    
+#    if (options.force_field == "BTW_FF"):
+#        struct.assign_ff_charges() # if the force field assings charges for different atoms
+
     # doesn't really follow the logic of the program, but can only be done 
     # when the atoms have been assigned to a force field.
 
