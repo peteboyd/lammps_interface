@@ -2,11 +2,12 @@ from uff import UFF_DATA
 from dreiding import DREIDING_DATA
 from uff_nonbonded import UFF_DATA_nonbonded
 
-from BTW_atoms import BTW_atoms
-from BTW_angles import BTW_angles
-from BTW_dihedrals import BTW_dihedrals
-from BTW_opbends import BTW_opbends
-from BTW_bonds import BTW_bonds
+from BTW import BTW_angles
+from BTW import BTW_dihedrals
+from BTW import BTW_opbends
+from BTW import BTW_atoms
+from BTW import BTW_bonds
+
 from structure_data import Structure, Atom, Bond, Angle, Dihedral, PairTerm
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
 import math

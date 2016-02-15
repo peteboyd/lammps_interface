@@ -15,7 +15,9 @@ import operator
 from structure_data import CIF, Structure
 from datetime import datetime
 from InputHandler import Options
-
+from BTW import BTW_angles
+from BTW import BTW_dihedrals
+from BTW import BTW_opbends
 
 def construct_data_file(ff):
 
@@ -362,10 +364,50 @@ def main():
     struct.compute_dihedrals()
     struct.compute_improper_dihedrals()
 
-    
-#    if (options.force_field == "BTW_FF"):
-#        struct.assign_ff_charges() # if the force field assings charges for different atoms
+    if (options.force_field == "BTW_FF"):
+        nonexisting=[]
+        for angle in struct.angles:
+            a_atom, b_atom, c_atom = angle.atoms
+            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel = a_atom.force_field_type, b_atom.force_field_type, c_atom.force_field_type
+            angle_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
+            if not angle_fflabel in BTW_angles: 
+                print ("%s does not exist in FF angles! %i"%(angle_fflabel ,angle.index) )
+                nonexisting.append(angle.index)
+   
+        for ii , NE_angle in enumerate(nonexisting):
+            del struct.angles[NE_angle-ii]
+            print (ii)
 
+        nonexisting=[]
+        for dihedral in struct.dihedrals:
+            atom_a = dihedral.a_atom
+            atom_b = dihedral.b_atom
+            atom_c = dihedral.c_atom
+            atom_d = dihedral.d_atom
+            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
+            dihedral_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+
+            if not dihedral_fflabel in BTW_dihedrals: 
+                print ("%s does not exist in FF dihedrals! %i"%(dihedral_fflabel ,dihedral.index) )
+                nonexisting.append(dihedral.index)
+   
+        for ii , NE_angle in enumerate(nonexisting):
+            del struct.dihedrals[NE_angle-ii]
+            print (ii)
+            
+        nonexisting=[]
+        for improper in struct.impropers:
+            atom_a, atom_b, atom_c, atom_d = improper.atoms
+            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
+            improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+
+            if not improper_fflabel in BTW_opbends: 
+                print ("%s does not exist in FF opbends! %i"%(improper_fflabel ,improper.index) )
+                nonexisting.append(improper.index)
+   
+        for ii , NE_angle in enumerate(nonexisting):
+            del struct.impropers[NE_angle-ii]
+            print (ii)
     # doesn't really follow the logic of the program, but can only be done 
     # when the atoms have been assigned to a force field.
 
