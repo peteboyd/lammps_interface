@@ -223,7 +223,7 @@ def construct_data_file(ff):
                     atom_c.force_field_type, 
                     atom_d.force_field_type))
             else:
-                if(improper.potential.name = "class2"):
+                if(improper.potential.name == "class2"):
                     class2improper = True
                 string += "%5i %s "%(key, improper.potential)
                 string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
