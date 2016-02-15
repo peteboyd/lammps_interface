@@ -712,9 +712,12 @@ class ImproperPotential(object):
             self.name = "harmonic" # harmonic/kk and harmonic/omp exist
             self.K = 0.
             self.chi0 = 0.
+            self.reduced=False
 
         def __str__(self):
-            return ""
+            if self.reduced:
+                return "%15.6f %15.6f "%(self.K, self.chi0)
+            return "%28s %15.6f %15.6f"%(self.name,self.K, self.chi0)
     
     class Umbrella(object):
         """Potential defined as
@@ -729,7 +732,7 @@ class ImproperPotential(object):
             self.name = "umbrella" # umbrella/omp exists
             self.K = 0.
             self.omega0 = 0.
-            self.reduced = True
+            self.reduced = True   # Is this correct ??
         def __str__(self):
             if self.reduced:
                 return "%15.6f %15.6f "%(self.K,

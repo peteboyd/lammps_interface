@@ -961,7 +961,7 @@ class BTW_FF(ForceField):
         improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
         
         Kopb = BTW_opbends[improper_fflabel][0]
-        c0=  BTW_opbends[improper_fflabel][1]
+        c0 =  BTW_opbends[improper_fflabel][1]
          
                 
         improper.potential = ImproperPotential.Harmonic()
