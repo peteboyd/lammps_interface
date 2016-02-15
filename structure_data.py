@@ -1434,6 +1434,8 @@ class CIF(object):
                     self._data[key] = val
                 else:
                     self._data[key] = [val]
+            except:
+                print(self._data.keys())
 
     def get_element_label(self, el):
         self._element_labels.setdefault(el, 0)

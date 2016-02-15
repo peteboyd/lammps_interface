@@ -198,18 +198,17 @@ class AnglePotential(object):
     class Class2(object):
         """Potential defined as
 
-        E = Ea + Ebb + Eba (a=angle, bb=bondbond and ba=bondangle)
-        Ea = K2 * (theta -theta0)^2 +  K3 * (theta -theta0)^3 + K4 * (theta -theta0)^4
-        Ebb = M * (rij-r1)(rjk-r2)
-        Eba = N1(rij-r1)(theta - theta0) + N2(rjk-r2)(theta-theta0)
-
+        E = Ea + Ebb + Eba 
+        Ea = K2*(theta - theta0)^2 + K3*(theta - theta0)^3 + K4*(theta - theta0)^4
+        Ebb = M*(r_ij - r1)*(r_jk - r2)
+        Eba = N1*(r_ij - r1)*(theta - theta0) + N2*(rjk - r2)*(theta - theta0)
 
         Input parameters for each potential:
         Angle: theta0 (degrees), K2(energy/rad^2), K3(energy/rad^3),K4(energy/rad^4)
         BondBond: bb, M(energy/distance^2), r1(distance), r2(distance)
         BondAngle: ba, N1(energy/distance^2), N2(energy/distance^2),r1(distance), r2(distance)
         """
-         # Ebb and Eba are discarded for now
+         # Ebb and Eba are in BondBond and BondAngle classes respectively
         
         def __init__(self):
             self.name = "class2"  
@@ -217,25 +216,66 @@ class AnglePotential(object):
             self.K2 = 0.
             self.K3 = 0.
             self.K4 = 0.
+            self.bb = BondBond()
+            self.ba = BondAngle()
             self.reduced=False
-        #   self.bb = 0.
-        #   self.M = 0.
-        #   self.r1 = 0.
-        #   self.r2 = 0.
-        #   self.ba = 0.
-        #   self.N1 = 0.
-        #   self.N2 = 0.
-        #   self.r1 = 0.
-        #   self.r2 = 0.
+    
+        class BondBond(object):
+            """Potential defined as
+            ----> Ebb = M*(r_ij - r1)*(r_jk - r2) <---- 
+            """
+            def __init__(self):
+                self.name = "bb"
+                self.M = 0.
+                self.r1 = 0.
+                self.r2 = 0.
+
+            def __str__(self):
+                if self.reduced:
+                    return "%15.6f %15.6f %15.6f"%(self.M,
+                                                   self.r1,
+                                                   self.r2)
+                return "%s %15.6f %15.6f %15.6f"%(self.name,
+                                                  self.M,
+                                                  self.r1, 
+                                                  self.r2)
+
+        class BondAngle(object):
+            """Potential defined as
+            ----> Eba = N1*(r_ij - r1)*(theta - theta0) + N2*(r_jk - r2)*(theta - theta0) <---- 
+            """
+            def __init__(self):
+                self.name = "ba"
+                self.N1 = 0.
+                self.N2 = 0.
+                self.r1 = 0.
+                self.r2 = 0.
+
+            def __str__(self):
+                if self.reduced:
+                    return "%15.6f %15.6f %15.6f %15.6f"%(self.N1,
+                                                          self.N2,
+                                                          self.r1,
+                                                          self.r2)
+                return "%s %15.6f %15.6f %15.6f %15.6f"%(self.name, 
+                                                         self.N1, 
+                                                         self.N2,
+                                                         self.r1, 
+                                                         self.r2)
 
         def __str__(self):
             if self.reduced:
-                return "%15.6f %15.6f %15.6f %15.6f"%(self.theta0, self.K2, self.K3, self.K4)
-            return "%28s %15.6f %15.6f %15.6f %15.6f"%(self.name,self.theta0, self.K2, self.K3, self.K4)
-
-
-
-
+                self.bb.reduced = True
+                self.ba.reduced = True
+                return "%15.6f %15.6f %15.6f %15.6f"%(self.theta0, 
+                                                      self.K2, 
+                                                      self.K3, 
+                                                      self.K4)
+            return "%28s %15.6f %15.6f %15.6f %15.6f"%(self.name,
+                                                       self.theta0, 
+                                                       self.K2, 
+                                                       self.K3, 
+                                                       self.K4)
 
     class Cosine(object):
         """Potential defined as
@@ -462,6 +502,7 @@ class AnglePotential(object):
         def __str__(self):
             return ""
 
+
 class DihedralPotential(object): 
     """
     Class to hold dihedral styles that are implemented in lammps
@@ -489,17 +530,147 @@ class DihedralPotential(object):
     class Class2(object):
         """
         Potential deined as
-        E= Ed + Embt + Eebt + Eat + Eaat + Ebb13
-        dihedral: Ed = sum_{n=1}^{3} Kn [1-cos(n*phi-phi_n]
-        middle-bond-torsion:   Embt = (rjk-r2)[A1*cos(phi)+A2*cos(2phi)+A3*cos(3phi)]
-        end-bonb-torsion:      Eebt = (rij-r1)[B1*cos(phi)+B2*cos(2phi)+B3*cos(3phi)] + (rkl - r3)[C1*cos(phi)+C2*cos(2phi)+C3*cos(3phi)]
-        angle-torsion:               Eat  = (theta_ijk-theta1)[D1*cos(phi)+D2*cos(2phi)+D3*cos(3phi)]+ (theta_jkl-theta2)[E1*cos(phi)+E2*cos(2phi)+E3*cos(3phi)]
-        angle-angle-torsion:   Eaa  = M (theta_ijk-theta1)(theta_jkl-theta2)cos(phi) 
-        bond-bond-13:               Ebb13= N (rij-r1)(rkl-r3)
-        
-
-        Only the first term is taken into account for now!!!
+        E     = Ed + Embt + Eebt + Eat + Eaat + Ebb13
+        Ed    = K1*[1 - cos(phi - phi1)] + K2*[1 - cos(2*phi - phi2)] + K3*[1 - cos(3*phi - phi3)]
+        Embt  = (r_jk - r2)*[A1*cos(phi) + A2*cos(2phi) + A3*cos(3phi)]
+        Eebt  = (r_ij - r1)*[B1*cos(phi) + B2*cos(2phi) + B3*cos(3phi)] + (r_kl - r3)*[C1*cos(phi) + C2*cos(2phi) + C3*cos(3phi)]
+        Eat   = (theta_ijk - theta1)*[D1*cos(phi) + D2*cos(2*phi) + D3*cos(3*phi)] + (theta_jkl - theta2)*[E1*cos(phi) + E2*cos(2*phi) + E3*cos(3phi)]
+        Eaa   = M*(theta_ijk - theta1)*(theta_jkl - theta2)*cos(phi) 
+        Ebb13 = N*(r_ij-r1)*(r_kl-r3)
         """
+
+        class MiddleBondTorsion(object):
+            """
+            Embt  = (r_jk - r2)*[A1*cos(phi) + A2*cos(2phi) + A3*cos(3phi)]
+            """
+            def __init__(self):
+                self.name = "mbt"
+                self.A1 = 0.
+                self.A2 = 0.
+                self.A3 = 0.
+                self.r2 = 0.
+                self.reduced=False
+
+            def __str__(self):
+                if self.reduced:
+                    return "%15.6f %15.6f %15.6f %15.6f"%(self.A1, self.A2, self.A3, self.r2)
+                return "%s %15.6f %15.6f %15.6f %15.6f"%(self.name, self.A1, self.A2, self.A3, self.r2)
+
+        class EndBondTorsion(object):
+            """
+            Eebt  = (r_ij - r1)*[B1*cos(phi) + B2*cos(2phi) + B3*cos(3phi)] + (r_kl - r3)*[C1*cos(phi) + C2*cos(2phi) + C3*cos(3phi)]
+            """
+            def __init__(self):
+                self.name = "ebt"
+                self.B1 = 0.
+                self.B2 = 0.
+                self.B3 = 0.
+                self.C1 = 0.
+                self.C2 = 0.
+                self.C3 = 0.
+                self.r1 = 0.
+                self.r3 = 0.
+                self.reduced=False
+
+            def __str__(self):
+                if self.reduced:
+                    return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.B1, 
+                                                                                      self.B2, 
+                                                                                      self.B3, 
+                                                                                      self.C1, 
+                                                                                      self.C2, 
+                                                                                      self.C3, 
+                                                                                      self.r1, 
+                                                                                      self.r3)
+                return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name, 
+                                                                                     self.B1, 
+                                                                                     self.B2, 
+                                                                                     self.B3,
+                                                                                     self.C1, 
+                                                                                     self.C2, 
+                                                                                     self.C3, 
+                                                                                     self.r1, 
+                                                                                     self.r3)
+                
+        class AngleTorsion(object):
+            """
+            Eat   = (theta_ijk - theta1)*[D1*cos(phi) + D2*cos(2*phi) + D3*cos(3*phi)] + (theta_jkl - theta2)*[E1*cos(phi) + E2*cos(2*phi) + E3*cos(3phi)]
+            """
+            def __init__(self):
+                self.name = "at"
+                self.D1 = 0.
+                self.D2 = 0.
+                self.D3 = 0.
+                self.E1 = 0.
+                self.E2 = 0.
+                self.E3 = 0.
+                self.theta1 = 0.
+                self.theta2 = 0.
+                self.reduced=False
+
+            def __str__(self):
+                if self.reduced:
+                    return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.D1, 
+                                                                                      self.D2, 
+                                                                                      self.D3, 
+                                                                                      self.E1, 
+                                                                                      self.E2, 
+                                                                                      self.E3, 
+                                                                                      self.theta1, 
+                                                                                      self.theta2)
+                return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name, 
+                                                                                     self.D1, 
+                                                                                     self.D2, 
+                                                                                     self.D3,
+                                                                                     self.E1, 
+                                                                                     self.E2, 
+                                                                                     self.E3, 
+                                                                                     self.theta1, 
+                                                                                     self.theta2)
+
+
+        class AngleAngleTorsion(object):
+            """
+            Eaa   = M*(theta_ijk - theta1)*(theta_jkl - theta2)*cos(phi) 
+            """
+            def __init__(self):
+                self.name = "aa"
+                self.M = 0.
+                self.theta1 = 0.
+                self.theta2 = 0.
+                self.reduced=False
+
+            def __str__(self):
+                if self.reduced:
+                    return "%15.6f %15.6f %15.6f"%(self.M, 
+                                                   self.theta1, 
+                                                   self.theta2) 
+                return "%s %15.6f %15.6f %15.6f"%(self.name, 
+                                                  self.M, 
+                                                  self.theta1, 
+                                                  self.theta2)
+
+        class BondBond13(object):
+            """
+            Ebb13 = N*(r_ij-r1)*(r_kl-r3)
+            """
+            def __init__(self):
+                self.name = "bb13"
+                self.N = 0.
+                self.r1 = 0.
+                self.r2 = 0.
+                self.reduced=False
+
+            def __str__(self):
+                if self.reduced:
+                    return "%15.6f %15.6f %15.6f"%(self.N, 
+                                                   self.r1, 
+                                                   self.r3) 
+                return "%s %15.6f %15.6f %15.6f"%(self.name, 
+                                                  self.N, 
+                                                  self.r1, 
+                                                  self.r3)
+
         def __init__(self):
             self.name = "class2"
             self.K1  = 0.
@@ -508,12 +679,29 @@ class DihedralPotential(object):
             self.phi2= 0.
             self.K3  = 0.
             self.phi3= 0.
+            self.mbt = MiddleBondTorsion()
+            self.ebt = EndBondTorsion()
+            self.at = AngleTorsion()
+            self.aa = AngleAngleTorsion()
+            self.bb13 = MiddleBondTorsion()
             self.reduced=False
 
         def __str__(self):
             if self.reduced:
-                return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.K1,self.phi1,self.K2,self.phi2,self.K3,self.phi3)
-            return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name,self.K1,self.phi1,self.K2,self.phi2,self.K3,self.phi3)
+                return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.K1,
+                                                                    self.phi1,
+                                                                    self.K2,
+                                                                    self.phi2,
+                                                                    self.K3,
+                                                                    self.phi3)
+                
+            return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name,
+                                                                   self.K1,
+                                                                   self.phi1,
+                                                                   self.K2,
+                                                                   self.phi2,
+                                                                   self.K3,
+                                                                   self.phi3)
 
     class Harmonic(object):
         """Potential defined as
@@ -656,7 +844,8 @@ class DihedralPotential(object):
             self.name = "quadratic" # quadratic/omp exists
             self.K = 0.
             self.phi0 = 0.
-
+            self.redueced = False
+            
         def __str__(self):
             return ""
     
@@ -666,14 +855,71 @@ class DihedralPotential(object):
             raise NotImplementedError ("Have not implemented the table funtion for lammps yet.")
 
 
+
 class ImproperPotential(object): 
     """
     Class to hold improper styles that are implemented in lammps
     """
     
     class Class2(object):
+        """Potential defined as
+
+        E = Ei + Eaa
+
+        Ei = K*[(chi_ijkl + chi_kjli + chi_ljik)/3 - chi0]^2
+        Eaa = M1*(theta_ijk - theta1)*(theta_kjl - theta3) + 
+              M2*(theta_ijk - theta1)*(theta_ijl - theta2) +
+              M3*(theta_ijl - theta2)*(theta_kjl - theta3)
+
+        Input parameters: K, chi0
+
+        """
+        class AngleAngle(object):
+            """Potential defined as
+            Eaa = M1*(theta_ijk - theta1)*(theta_kjl - theta3) + 
+                  M2*(theta_ijk - theta1)*(theta_ijl - theta2) +
+                  M3*(theta_ijl - theta2)*(theta_kjl - theta3)   
+
+            Input parameters: M1 M2 M3 theta1 theta2 theta3 
+            """
+            def __init__(self):
+                self.name = "class2"
+                self.M1 = 0.
+                self.M2 = 0.
+                self.M3 = 0.
+                self.theta1 = 0.
+                self.theta2 = 0.
+                self.theta3 = 0.
+                self.reduced=False
+
+            def __str__(self):
+                if self.reduced:
+                    return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.M1,
+                                                                        self.M2,
+                                                                        self.M3,
+                                                                        self.theta1,
+                                                                        self.theta2,
+                                                                        self.theta3)
+                return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name, 
+                                                                       self.M1,
+                                                                       self.M2,
+                                                                       self.M3,
+                                                                       self.theta1,
+                                                                       self.theta2,
+                                                                       self.theta3)
         def __init__(self):
-            raise NotImplementedError ("Will get on this..")
+            self.name = "class2"
+            self.K = 0.
+            self.chi0 = 0.
+            self.reduced=False
+            self.aa = AngleAngle()
+        def __str__(self):
+            if self.reduced:
+                return "%15.6f %15.6f"%(self.K, 
+                                        self.chi0) 
+            return "%s %15.6f %15.6f"%(self.name, 
+                                       self.K, 
+                                       self.chi0) 
 
     class Cvff(object):
         """Potential defined as
@@ -808,6 +1054,7 @@ class ImproperPotential(object):
 
         def __str__(self):
             return ""
+
 
 class PairPotential(object): 
     """
