@@ -217,13 +217,16 @@ class Structure(object):
                     except nx.exception.NetworkXNoPath:
                         pass
                     self.graph.add_edge(label, nlabel)
-                    cycles += cycle
+                    #FIXME MW edit to only store cycles < len(10)
+                    # should be a harmless edit but maybe need to test
+                    if(len(cycle) <= 10):
+                        cycles += cycle
         except NameError:
             pass
         for atom in self.atoms:
             # N O C S
             if atom.element == "C":
-                if len(atom.neighbours) == 4:
+                if len(atom.neighbours) >= 4:
                     atom.hybridization = 'sp3'
                 elif len(atom.neighbours) == 3:
                     atom.hybridization = 'sp2'
@@ -1339,7 +1342,7 @@ class CIF(object):
         self.non_loops = ["data", "cell", "sym", "end"]
         self.block_order = ["data", "sym", "sym_loop", "cell", "atoms", "bonds"]
         if file is not None:
-            self._readfile(file)
+            self.read(file)
 
     def read(self, filename):
         filestream = open(filename, 'r')
