@@ -683,7 +683,7 @@ class DihedralPotential(object):
             self.ebt = EndBondTorsion()
             self.at = AngleTorsion()
             self.aa = AngleAngleTorsion()
-            self.bb13 = MiddleBondTorsion()
+            self.bb13 = BondBond13()
             self.reduced=False
 
         def __str__(self):

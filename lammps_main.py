@@ -80,6 +80,8 @@ def construct_data_file(ff):
                 string += "%5i %s "%(key, bond.potential)
                 string += "# %s %s\n"%(ff1, ff2)
 
+    # flag for additional terms for class2.
+    class2angle = False
     if(len(ff.unique_angle_types.keys()) > 0):
         string += "\nAngle Coeffs\n\n"
         for key in sorted(ff.unique_angle_types.keys()):
@@ -92,11 +94,39 @@ def construct_data_file(ff):
                                       atom_b.force_field_type, 
                                       atom_c.force_field_type))
             else:
+                if (angle.potential.name == "class2"):
+                    class2angle = True
                 string += "%5i %s "%(key, angle.potential)
                 string += "# %s %s %s\n"%(atom_a.force_field_type, 
                                           atom_b.force_field_type, 
                                           atom_c.force_field_type)
     
+    if(class2angle):
+        string += "\nBondBond Coeffs\n\n"
+        for key in sorted(ff.unique_angle_types.keys()):
+            angle = ff.unique_angle_types[key]
+            atom_a, atom_b, atom_c = angle.atoms
+            try:
+                string += "%5i %s "%(key, angle.potential.bb)
+                string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                                          atom_b.force_field_type, 
+                                          atom_c.force_field_type)
+            except AttributeError:
+                pass
+
+        string += "\nBondAngle Coeffs\n\n"
+        for key in sorted(ff.unique_angle_types.keys()):
+            angle = ff.unique_angle_types[key]
+            atom_a, atom_b, atom_c = angle.atoms
+            try:
+                string += "%5i %s "%(key, angle.potential.ba)
+                string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                                          atom_b.force_field_type, 
+                                          atom_c.force_field_type)
+            except AttributeError:
+                pass
+
+    class2dihed = False
     if(len(ff.unique_dihedral_types.keys()) > 0):
         string +=  "\nDihedral Coeffs\n\n"
         for key in sorted(ff.unique_dihedral_types.keys()):
@@ -109,12 +139,78 @@ def construct_data_file(ff):
                                    atom_c.force_field_type, 
                                    atom_d.force_field_type))
             else:
+                if(dihedral.potential.name == "class2"):
+                    class2dihed = True
                 string += "%5i %s "%(key, dihedral.potential)
                 string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
                                              atom_b.force_field_type, 
                                              atom_c.force_field_type, 
                                              atom_d.force_field_type)
 
+    if (class2dihed):
+        string += "\nMiddleBondTorsion Coeffs\n\n"
+        for key in sorted(ff.unique_dihedral_types.keys()):
+            dihedral = ff.unique_dihedral_types[key]
+            atom_a, atom_b, atom_c, atom_d = dihedral.atoms
+            try:
+                string += "%5i %s "%(key, dihedral.potential.mbt) 
+                string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                                          atom_b.force_field_type, 
+                                          atom_c.force_field_type,
+                                          atom_d.force_field_type)
+            except AttributeError:
+                pass
+        string += "\nEndBondTorsion Coeffs\n\n"
+        for key in sorted(ff.unique_dihedral_types.keys()):
+            dihedral = ff.unique_dihedral_types[key]
+            atom_a, atom_b, atom_c, atom_d = dihedral.atoms
+            try:
+                string += "%5i %s "%(key, dihedral.potential.ebt) 
+                string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                                          atom_b.force_field_type, 
+                                          atom_c.force_field_type,
+                                          atom_d.force_field_type)
+            except AttributeError:
+                pass
+        string += "\nAngleTorsion Coeffs\n\n"
+        for key in sorted(ff.unique_dihedral_types.keys()):
+            dihedral = ff.unique_dihedral_types[key]
+            atom_a, atom_b, atom_c, atom_d = dihedral.atoms
+            try:
+                string += "%5i %s "%(key, dihedral.potential.at) 
+                string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                                          atom_b.force_field_type, 
+                                          atom_c.force_field_type,
+                                          atom_d.force_field_type)
+            except AttributeError:
+                pass
+        string += "\nAngleAngleTorsion Coeffs\n\n"
+        for key in sorted(ff.unique_dihedral_types.keys()):
+            dihedral = ff.unique_dihedral_types[key]
+            atom_a, atom_b, atom_c, atom_d = dihedral.atoms
+            try:
+                string += "%5i %s "%(key, dihedral.potential.aat) 
+                string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                                          atom_b.force_field_type, 
+                                          atom_c.force_field_type,
+                                          atom_d.force_field_type)
+            except AttributeError:
+                pass
+        string += "\nBondBond13 Coeffs\n\n"
+        for key in sorted(ff.unique_dihedral_types.keys()):
+            dihedral = ff.unique_dihedral_types[key]
+            atom_a, atom_b, atom_c, atom_d = dihedral.atoms
+            try:
+                string += "%5i %s "%(key, dihedral.potential.bbt13) 
+                string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                                          atom_b.force_field_type, 
+                                          atom_c.force_field_type,
+                                          atom_d.force_field_type)
+            except AttributeError:
+                pass
+
+
+    class2improper = False
     if (len(ff.unique_improper_types.keys()) > 0):
         string += "\nImproper Coeffs\n\n"
         for key in sorted(ff.unique_improper_types.keys()):
@@ -127,11 +223,27 @@ def construct_data_file(ff):
                     atom_c.force_field_type, 
                     atom_d.force_field_type))
             else:
+                if(improper.potential.name = "class2"):
+                    class2improper = True
                 string += "%5i %s "%(key, improper.potential)
                 string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
                                              atom_b.force_field_type, 
                                              atom_c.force_field_type, 
                                              atom_d.force_field_type)
+
+    if (class2improper):
+        string += "\nAngleAngle Coeffs\n\n"
+        for key in sorted(ff.unique_improper_types.keys()):
+            improper = ff.unique_improper_types[key]
+            atom_a, atom_b, atom_c, atom_d = improper.atoms 
+            try:
+                string += "%5i %s "%(key, improper.potential.aa)
+                string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
+                                             atom_b.force_field_type, 
+                                             atom_c.force_field_type, 
+                                             atom_d.force_field_type)
+            except AttributeError:
+                pass
 
     if((len(ff.unique_pair_types.keys()) > 0) and (ff.pair_in_data)):
         string += "\nPair Coeffs\n\n"
