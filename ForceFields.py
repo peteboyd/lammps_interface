@@ -1,13 +1,7 @@
 from uff import UFF_DATA
 from dreiding import DREIDING_DATA
 from uff_nonbonded import UFF_DATA_nonbonded
-
-from BTW import BTW_angles
-from BTW import BTW_dihedrals
-from BTW import BTW_opbends
-from BTW import BTW_atoms
-from BTW import BTW_bonds
-
+from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds
 from structure_data import Structure, Atom, Bond, Angle, Dihedral, PairTerm
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
 import math
@@ -24,6 +18,10 @@ class ForceField(object):
     __metaclass__ = abc.ABCMeta
 
     cutoff = 12.5
+
+    @abc.abstractmethod
+    def detect_ff_exist(self):
+        """detects if all of the interactions are defined in the FF; for BTW_FF now!"""
 
     @abc.abstractmethod
     def bond_term(self):
@@ -853,6 +851,69 @@ class BTW_FF(ForceField):
             else:
                 print('FFtype already assigned!')
 
+    def detect_ff_exist(self):
+        """
+           checking angles
+        """
+        nonexisting_angles=[]
+        missing_labels=[]
+        for angle in self.structure.angles:
+            a_atom, b_atom, c_atom = angle.atoms
+            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel = a_atom.force_field_type, b_atom.force_field_type, c_atom.force_field_type
+            angle_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
+            if not angle_fflabel in BTW_angles:
+                nonexisting_angles.append(angle.index)
+                missing_labels.append(angle_fflabel)
+
+        for ii , NE_angle in enumerate(nonexisting_angles):
+            del struct.angles[NE_angle-ii]
+
+        for ff_label in set(missing_labels):
+                print ("%s angle does not exist in FF!"%(ff_label))
+        """
+           checking dihedrals 
+        """
+        missing_labels=[]
+        nonexisting_dihedral=[]
+        for dihedral in self.structure.dihedrals:
+            atom_a = dihedral.a_atom
+            atom_b = dihedral.b_atom
+            atom_c = dihedral.c_atom
+            atom_d = dihedral.d_atom
+            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
+            dihedral_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+
+            if not dihedral_fflabel in BTW_dihedrals:
+                nonexisting_dihedral.append(dihedral.index)
+                missing_labels.append(dihedral_fflabel)
+
+        for ii , NE_dihedral in enumerate(nonexisting_dihedral):
+            del struct.dihedrals[NE_dihedral-ii]
+
+        for ff_label in set(missing_labels):
+                print ("%s dihedral does not exist in FF!"%(ff_label))
+
+        missing_labels=[]
+        nonexisting_improper=[]
+        for improper in self.structure.impropers:
+            atom_a, atom_b, atom_c, atom_d = improper.atoms
+            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
+            improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+
+            if not improper_fflabel in BTW_opbends:
+                nonexisting_improper.append(improper.index)
+
+        for ii , NE_improper in enumerate(nonexisting_improper):
+            del struct.impropers[NE_improper-ii]
+       
+        for ff_label in set(missing_labels):
+                print ("%s improper does not exist in FF!"%(ff_label))
+         
+
+ 
+        return None
+
+
         
     def bond_term(self, bond):
         """class2 assumed"""
@@ -1159,6 +1220,10 @@ class UFF(ForceField):
         self.unique_dihedral_types = {}
         self.unique_improper_types = {}
         self.unique_pair_types = {}
+
+
+    def detect_ff_exist(self):
+        return None
 
     def bond_term(self, bond):
         """Harmonic assumed"""
@@ -1552,6 +1617,10 @@ class Dreiding(ForceField):
         self.unique_dihedral_types = {}
         self.unique_improper_types = {}
         self.unique_pair_types = {}
+
+
+    def detect_ff_exist(self):
+        return None
    
     def unique_atoms(self):
         """Computes the number of unique atoms in the structure"""
