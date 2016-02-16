@@ -209,16 +209,6 @@ class AnglePotential(object):
         BondAngle: ba, N1(energy/distance^2), N2(energy/distance^2),r1(distance), r2(distance)
         """
          # Ebb and Eba are in BondBond and BondAngle classes respectively
-        
-        def __init__(self):
-            self.name = "class2"  
-            self.theta0 = 0.
-            self.K2 = 0.
-            self.K3 = 0.
-            self.K4 = 0.
-            self.bb = BondBond()
-            self.ba = BondAngle()
-            self.reduced=False
     
         class BondBond(object):
             """Potential defined as
@@ -262,6 +252,16 @@ class AnglePotential(object):
                                                          self.N2,
                                                          self.r1, 
                                                          self.r2)
+        
+        def __init__(self):
+            self.name = "class2"  
+            self.theta0 = 0.
+            self.K2 = 0.
+            self.K3 = 0.
+            self.K4 = 0.
+            self.bb = self.BondBond()
+            self.ba = self.BondAngle()
+            self.reduced=False
 
         def __str__(self):
             if self.reduced:
@@ -679,11 +679,11 @@ class DihedralPotential(object):
             self.phi2= 0.
             self.K3  = 0.
             self.phi3= 0.
-            self.mbt = MiddleBondTorsion()
-            self.ebt = EndBondTorsion()
-            self.at = AngleTorsion()
-            self.aa = AngleAngleTorsion()
-            self.bb13 = BondBond13()
+            self.mbt = self.MiddleBondTorsion()
+            self.ebt = self.EndBondTorsion()
+            self.at = self.AngleTorsion()
+            self.aa = self.AngleAngleTorsion()
+            self.bb13 = self.BondBond13()
             self.reduced=False
 
         def __str__(self):
@@ -912,7 +912,7 @@ class ImproperPotential(object):
             self.K = 0.
             self.chi0 = 0.
             self.reduced=False
-            self.aa = AngleAngle()
+            self.aa = self.AngleAngle()
         def __str__(self):
             if self.reduced:
                 return "%15.6f %15.6f"%(self.K, 
