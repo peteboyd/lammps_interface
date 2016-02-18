@@ -838,7 +838,7 @@ class BTW_FF(ForceField):
 
                 elif atom.element in BTW_metals:
                     if (atom.element == "Zr"):
-                        atom.forice_field_type="192"
+                        atom.force_field_type="192"
                         atom.charge=BTW_atoms[atom.force_field_type][6]
                     elif (atom.element == "Cu"):
                         atom.force_field_type="185"
@@ -866,7 +866,7 @@ class BTW_FF(ForceField):
                 missing_labels.append(angle_fflabel)
 
         for ii , NE_angle in enumerate(nonexisting_angles):
-            del struct.angles[NE_angle-ii]
+            del self.structure.angles[NE_angle-ii]
 
         for ff_label in set(missing_labels):
                 print ("%s angle does not exist in FF!"%(ff_label))
@@ -888,7 +888,7 @@ class BTW_FF(ForceField):
                 missing_labels.append(dihedral_fflabel)
 
         for ii , NE_dihedral in enumerate(nonexisting_dihedral):
-            del struct.dihedrals[NE_dihedral-ii]
+            del self.structure.dihedrals[NE_dihedral-ii]
 
         for ff_label in set(missing_labels):
                 print ("%s dihedral does not exist in FF!"%(ff_label))
@@ -904,7 +904,7 @@ class BTW_FF(ForceField):
                 nonexisting_improper.append(improper.index)
 
         for ii , NE_improper in enumerate(nonexisting_improper):
-            del struct.impropers[NE_improper-ii]
+            del self.structure.impropers[NE_improper-ii]
        
         for ff_label in set(missing_labels):
                 print ("%s improper does not exist in FF!"%(ff_label))
@@ -955,9 +955,9 @@ class BTW_FF(ForceField):
         theta0 = BTW_angles[angle_fflabel][1]
         Ktheta = BTW_angles[angle_fflabel][0]
         
-        K2 = 0.021914*Ktheta
-        K3 = -0.014*K2
-        K4 = 5.6e-5*K2
+        K2 = 0.021914*Ktheta/(DEG2RAD**2)
+        K3 = -0.014*K2/(DEG2RAD**1)
+        K4 = 5.6e-5*K2/(DEG2RAD**2)
         
        # angle.potential = AnglePotential.FourierSimple()
        # angle.potential.K = K2 
@@ -1022,7 +1022,7 @@ class BTW_FF(ForceField):
         atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
         improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
         
-        Kopb = BTW_opbends[improper_fflabel][0]
+        Kopb = BTW_opbends[improper_fflabel][0]*(DEG2RAD**2)
         c0 =  BTW_opbends[improper_fflabel][1]
          
                 

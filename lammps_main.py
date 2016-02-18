@@ -153,7 +153,7 @@ def construct_data_file(ff):
             atom_a, atom_b, atom_c, atom_d = dihedral.atoms
             try:
                 string += "%5i %s "%(key, dihedral.potential.mbt) 
-                string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
                                           atom_b.force_field_type, 
                                           atom_c.force_field_type,
                                           atom_d.force_field_type)
@@ -165,7 +165,7 @@ def construct_data_file(ff):
             atom_a, atom_b, atom_c, atom_d = dihedral.atoms
             try:
                 string += "%5i %s "%(key, dihedral.potential.ebt) 
-                string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
                                           atom_b.force_field_type, 
                                           atom_c.force_field_type,
                                           atom_d.force_field_type)
@@ -177,7 +177,7 @@ def construct_data_file(ff):
             atom_a, atom_b, atom_c, atom_d = dihedral.atoms
             try:
                 string += "%5i %s "%(key, dihedral.potential.at) 
-                string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
                                           atom_b.force_field_type, 
                                           atom_c.force_field_type,
                                           atom_d.force_field_type)
@@ -189,7 +189,7 @@ def construct_data_file(ff):
             atom_a, atom_b, atom_c, atom_d = dihedral.atoms
             try:
                 string += "%5i %s "%(key, dihedral.potential.aat) 
-                string += "# %s %s %s\n"%(atom_a.force_field_type, 
+                string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
                                           atom_b.force_field_type, 
                                           atom_c.force_field_type,
                                           atom_d.force_field_type)
@@ -200,11 +200,11 @@ def construct_data_file(ff):
             dihedral = ff.unique_dihedral_types[key]
             atom_a, atom_b, atom_c, atom_d = dihedral.atoms
             try:
-                string += "%5i %s "%(key, dihedral.potential.bbt13) 
-                string += "# %s %s %s\n"%(atom_a.force_field_type, 
-                                          atom_b.force_field_type, 
-                                          atom_c.force_field_type,
-                                          atom_d.force_field_type)
+                string += "%5i %s "%(key, dihedral.potential.bb13) 
+                string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
+                                             atom_b.force_field_type, 
+                                             atom_c.force_field_type,
+                                             atom_d.force_field_type)
             except AttributeError:
                 pass
     

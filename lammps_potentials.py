@@ -634,7 +634,7 @@ class DihedralPotential(object):
             Eaa   = M*(theta_ijk - theta1)*(theta_jkl - theta2)*cos(phi) 
             """
             def __init__(self):
-                self.name = "aa"
+                self.name = "aat"
                 self.M = 0.
                 self.theta1 = 0.
                 self.theta2 = 0.
@@ -646,9 +646,15 @@ class DihedralPotential(object):
                                                    self.theta1, 
                                                    self.theta2) 
                 return "%s %15.6f %15.6f %15.6f"%(self.name, 
-                                                  self.M, 
-                                                  self.theta1, 
-                                                  self.theta2)
+                                                  self.M,       
+                                                  self.theta1,  
+                                                  self.theta2) 
+                                                                                     
+                                                                                     
+                                                                                     
+                                                                                     
+                                                                                     
+
 
         class BondBond13(object):
             """
@@ -658,7 +664,7 @@ class DihedralPotential(object):
                 self.name = "bb13"
                 self.N = 0.
                 self.r1 = 0.
-                self.r2 = 0.
+                self.r3 = 0.
                 self.reduced=False
 
             def __str__(self):
@@ -682,12 +688,17 @@ class DihedralPotential(object):
             self.mbt = self.MiddleBondTorsion()
             self.ebt = self.EndBondTorsion()
             self.at = self.AngleTorsion()
-            self.aa = self.AngleAngleTorsion()
+            self.aat = self.AngleAngleTorsion()
             self.bb13 = self.BondBond13()
             self.reduced=False
 
         def __str__(self):
             if self.reduced:
+                self.mbt.reduced=True
+                self.ebt.reduced=True
+                self.at.reduced=True
+                self.aat.reduced=True
+                self.bb13.reduced=True
                 return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.K1,
                                                                     self.phi1,
                                                                     self.K2,
