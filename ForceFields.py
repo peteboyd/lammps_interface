@@ -712,7 +712,7 @@ class OverwriteFF(ForceField):
                 or pair == [bond.atoms[1].ff_type_index, bond.atoms[0].ff_type_index]):
                 return key
             
-        raise ValueError('Error! An bond identifier ' + str(descriptor) + 
+        raise ValueError('Error! A bond identifier ' + str(descriptor) + 
                 ' in user_input.txt did not match any bonds in your cif')
 
     def map_triplet_unique_angle(self, triplet, descriptor):
@@ -1198,7 +1198,6 @@ class BTW_FF(ForceField):
                 print("ERROR: could not find the proper force field type for atom %i"%(atom.index)+
                         " with element: '%s'"%(atom.element))
                 sys.exit()
-"""
 
 
 class UFF(ForceField):
@@ -1370,14 +1369,6 @@ class UFF(ForceField):
             print("ERROR: Cannot find coordination type for %s"%name)
             sys.exit()
 
-    def uff_type(self, ufftype):
-        if ufftype[2] == '3':
-            return 'sp3'
-        elif ufftype[2] == '2' or ufftype[2] == 'R':
-            return 'sp2'
-        elif ufftype[2] == '1':
-            return 'sp'
-
     def dihedral_term(self, dihedral):
         """Use a small cosine Fourier expansion
 
@@ -1404,14 +1395,14 @@ class UFF(ForceField):
         #TODO(pboyd): all of the hybridization and bond order info 
         # is determined automatically by the program now.
         # this must be updated for the UFF ForceField data
-        mixed_case = (self.uff_type(bc[0]) == 'sp2' and
-                      self.uff_type(bc[1]) == 'sp3') or \
-                (self.uff_type(bc[0]) == 'sp3' and 
-                 self.uff_type(bc[1]) == 'sp2') 
-        all_sp2 = (self.uff_type(bc[0]) == 'sp2' and
-                   self.uff_type(bc[1]) == 'sp2')
-        all_sp3 = (self.uff_type(bc[0]) == 'sp3' and 
-                   self.uff_type(bc[1]) == 'sp3')
+        mixed_case = (atom_b.hybridization == 'sp2' and
+                      atom_c.hybridization == 'sp3') or \
+                (atom_b.hybridization == 'sp3' and 
+                 atom_c.hybridization == 'sp2') 
+        all_sp2 = (atom_b.hybridization == 'sp2' and
+                   atom_c.hybridization == 'sp2')
+        all_sp3 = (atom_b.hybridization == 'sp3' and 
+                   atom_c.hybridization == 'sp3')
 
         phi0 = 0
         if all_sp3:
@@ -1452,11 +1443,11 @@ class UFF(ForceField):
             n = 3
             V = 2.  # CHECK UNITS!!!!
             
-            if self.uff_type(bc[1]) == 'sp3':
+            if atom_c.hybridization == 'sp3':
                 if atom_c.atomic_number in (8, 16, 34, 52):
                     n = 2
                     phi0 = 90.
-            elif self.uff_type(bc[0]) == 'sp3': 
+            elif atom_b.hybridization == 'sp3': 
                 if atom_b.atomic_number in (8, 16, 34, 52):
                     n = 2
                     phi0 = 90.0
