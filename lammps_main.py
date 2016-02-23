@@ -427,6 +427,7 @@ def construct_input_file(ff):
     inp_str += "%-15s %s\n"%("unfix", "1")
     inp_str += "%-15s %s\n"%("minimize","1.0e-4 1.0e-6 10000 100000")
 
+#    inp_str += "thermo_style custom step temp etotal ebond eangle edihed eimp\n thermo 1 \n timestep 0.5 \n fix   2 all nvt temp 300.0 300  100\n run  50000"
     return inp_str
 
 def clean(name):
