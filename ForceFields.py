@@ -1926,12 +1926,10 @@ class Dreiding(ForceField):
         
         a_atom, b_atom, c_atom, d_atom = improper.atoms
         btype = b_atom.force_field_type
-        hyb = self.get_hybridization(btype)
-        sp2 = ["R", "2"]
         # special case: ignore N column 
         sp3_N = ["N_3", "P_3", "As3", "Sb3"]
         K = 40.0
-        if hyb in sp2:
+        if b_atom.hybridization == "sp2" or b_atom.hybridizaton == "aromatic":
             K /= 3.
         if btype in sp3_N:
             return
@@ -1991,9 +1989,9 @@ class Dreiding(ForceField):
 
         the morse potential is apparently better, so it
         will be default here
-        
-        Generic HBOND is used, but DREIDING III
-        specified in 10.1021/ja8100227 should probably be used.
+       
+        DREIDING III h-bonding terms
+        specified in 10.1021/ja8100227. 
         """
         if (nbpot == 'morse'):
             pair.potential = PairPotential.HbondDreidingMorse()
