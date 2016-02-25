@@ -827,7 +827,7 @@ class BTW_FF(ForceField):
                                     atom.charge=BTW_atoms[atom.force_field_type][6]
                                     type_assigned=True
 
-                            if (type_assigned==False) and (atom.hybridization=="sp2"):
+                            if (type_assigned==False) and (atom.hybridization=="aromatic"):
                                 atom.force_field_type="903"
                                 atom.charge=BTW_atoms[atom.force_field_type][6]
                             elif (type_assigned==False):
@@ -927,14 +927,404 @@ class BTW_FF(ForceField):
         Es=71.94*Ks*(l-l0)^2[1-2.55(l-l0)+(7/12)*2.55*(l-l0)^2]
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """
-
+        """ 
         K2=71.94*Ks
-        K3=-2.55*71.94*Ks
-        K4=7.0/12.0*2.55*71.94*Ks
+        bond.potential = BondPotential.Harmonic()
+        bond.potential.K = K2
+        bond.potential.R0 = l0
+        """
+        """ 
+        ### MM3
+        K2=71.94*Ks
+        K3=-2.55*K2
+        K4=7.0/12.0*2.55*K2
         bond.potential = BondPotential.Class2()
         bond.potential.K2 = K2
         bond.potential.K3 = K3
         bond.potential.K4 = K4
+        bond.potential.R0 = l0
+        
+        """ 
+        
+        ### SM1
+        K2=66.64*Ks
+        K3=-141.1*Ks
+        K4=127.9*Ks
+        bond.potential = BondPotential.Class2()
+        bond.potential.K2 = K2
+        bond.potential.K3 = K3
+        bond.potential.K4 = K4
+        bond.potential.R0 = l0
+        
+        
+
+
+    def angle_term(self, angle):
+        """
+        Be careful that the 5and6 order terms are vanished here since they are not implemented in LAMMPS!!
+
+
+        Etheta = 0.021914*Ktheta*(theta-theta0)^2[1-0.014(theta-theta0)+5.6(10^-5)*(theta-theta0)^2-7.0*(10^-7)*(theta-theta0)^3+9.0*(10^-10)*(theta-theta0)^4]        
+        (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
+        """
+        a_atom, b_atom, c_atom = angle.atoms
+
+        atom_a_fflabel, atom_b_fflabel, atom_c_fflabel = a_atom.force_field_type, b_atom.force_field_type, c_atom.force_field_type
+        angle_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
+        theta0 = BTW_angles[angle_fflabel][1]
+        Ktheta = BTW_angles[angle_fflabel][0]
+        
+        K2 = 0.021914*Ktheta/(DEG2RAD**2)
+        K3 = -0.014*K2/(DEG2RAD**1)
+        K4 = 5.6e-5*K2/(DEG2RAD**2)
+        
+       # angle.potential = AnglePotential.FourierSimple()
+       # angle.potential.K = K2 
+       # angle.potential.c = K3
+       # angle.potential.n = K4
+
+        angle.potential = AnglePotential.Class2()
+        angle.potential.theta0 = theta0 
+        angle.potential.K2 = K2
+        angle.potential.K3 = K3 
+        angle.potential.K4 = K4
+
+
+    def dihedral_term(self, dihedral):
+        """
+        Ew = (V1/2)(1 + cos w) + (V2/2)(1 - cos 2*w) (V3/2)(1 + cos 3*w)
+        (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
+        """        
+        atom_a = dihedral.a_atom
+        atom_b = dihedral.b_atom
+        atom_c = dihedral.c_atom
+        atom_d = dihedral.d_atom
+        
+        atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
+        dihedral_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+        kt1 = 0.5 * BTW_dihedrals[dihedral_fflabel][0]        
+        kt2 = 0.5 * BTW_dihedrals[dihedral_fflabel][3]        
+        kt3 = 0.5 * BTW_dihedrals[dihedral_fflabel][6]        
+        phi1 = BTW_dihedrals[dihedral_fflabel][1] + 180        #ask Davide to be sure, TODO (Mohamad)
+        phi2 = BTW_dihedrals[dihedral_fflabel][4] + 180        
+        phi3 = BTW_dihedrals[dihedral_fflabel][7] + 180        
+
+
+
+        dihedral.potential = DihedralPotential.Class2()
+        dihedral.potential.K1=kt1
+        dihedral.potential.phi1=phi1
+        dihedral.potential.K2=kt2
+        dihedral.potential.phi2=phi2
+        dihedral.potential.K3=kt3
+        dihedral.potential.phi3=phi3
+        dihedral.K = kt2
+        dihedral.d = phi2
+        dihedral.n = phi1
+    #    dihedral.potential = DihedralPotential.Harmonic()
+    #    dihedral.potential.K = kt1
+    #    dihedral.potential.d = phi1
+    #    dihedral.potential.n = 1
+ 
+
+
+
+
+    def improper_term(self, improper):
+        """
+        The improper function can be described with a fourier function
+
+        E = K*[C_0 + C_1*cos(w) + C_2*cos(2*w)
+
+        """
+        atom_a, atom_b, atom_c, atom_d = improper.atoms
+        atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
+        improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+        
+        Kopb = BTW_opbends[improper_fflabel][0]/(DEG2RAD**2)
+        c0 =  BTW_opbends[improper_fflabel][1]
+         
+                
+        improper.potential = ImproperPotential.Harmonic()
+        improper.potential.K = Kopb 
+        improper.potential.chi0 = c0
+
+    def unique_pair_terms(self):  
+        """This is force field dependent."""
+        count = 0 
+        pair_type = {}
+        atom_types = list(self.unique_atom_types.keys())
+        for at1 in sorted(atom_types):
+            for at2 in sorted(atom_types[at1-1:]):
+                atom1=self.unique_atom_types[at1]
+                atom2=self.unique_atom_types[at2]
+                
+                p1 = (atom1.ff_type_index , atom2.ff_type_index)
+                pair=PairTerm(atom1,atom2)
+
+                if p1 in pair_type.keys():  # why we have this here?
+                    type = pair_type[p1]
+                else:
+                    count += 1
+                    type = count
+                    pair_type[p1] = type
+                    self.pair_term(pair)
+                    self.unique_pair_types[type] = pair
+                pair.ff_type_index = type
+       
+        return
+
+
+
+    def pair_term(self, pair):
+        """
+        Buckingham equation in MM3 type is used!
+        (TODO) check the units!
+
+        """
+        atom1 = pair.atoms[0]
+        atom2 = pair.atoms[1]
+        eps1 = BTW_atoms[atom1.force_field_type][4]
+        sig1 = BTW_atoms[atom1.force_field_type][3]
+        eps2 = BTW_atoms[atom2.force_field_type][4]
+        sig2 = BTW_atoms[atom2.force_field_type][3]
+        # MM3 mixing rules: Arithmetic mean for radii
+        #                   Geometric mean for epsilon 
+        eps = np.sqrt(eps1*eps2)
+        Rv = sig1 + sig2 
+        Rho = Rv/12.0
+        A = 1.84e5 * eps
+        C=2.25*(Rv)**6*eps
+        
+        pot = PairPotential.BuckCoulLong()
+        pot.A = A
+        pot.cutoff = self.cutoff
+        pot.rho = Rho
+        pot.C = C
+        pair.potential = pot
+
+
+    def special_commands(self):  # TODO (MOHAMAD) check if it is correct
+        st = ""
+        st += "%-15s %s\n"%("pair_modify", "tail yes")
+        return st
+
+
+
+
+
+
+class MOF_FF(ForceField):
+    
+    def __init__(self, struct):
+        self.pair_in_data = False
+        self.structure = struct
+        self.unique_atom_types = {}
+        self.unique_bond_types = {}
+        self.unique_angle_types = {}
+        self.unique_dihedral_types = {}
+        self.unique_improper_types = {}
+        self.unique_pair_types = {}
+
+
+    def detect_ff_terms(self):
+        # for each atom determine the ff type if it is None
+        MOF_FF_organics = [ "O", "C","H"  ]
+        MOF_FF_metals = ["Zr","Cu","Zn"]
+        
+        """
+        Detecting the SBU type:
+        Cu-paddle-wheel
+        Zn cluster --> IRMOF series
+        Zr cluster --> UiO series
+        """
+        for atom in self.structure.atoms:
+            if atom.element=="Cu":
+                SBU="Cu_paddle_wheel"
+                break
+            elif atom.element=="Zr":
+                SBU="IRMOF"
+                break
+            elif atom.element=="Zn":
+                SBU="UiO"
+                break
+            else:
+                continue
+        
+        print("Cluster type detected as: %10s"%SBU)
+ 
+        for atom in self.structure.atoms:
+            if atom.force_field_type is None:                                
+                type_assigned=False
+                neighbours = [self.structure.atoms[i] for i in atom.neighbours]
+                neighbour_elements = [atom.element for atom in neighbours]
+                if atom.element in MOF_FF_organics:
+                    if(SBU=="Cu_paddle_wheel"):       
+                        if (atom.element == "O"):
+                            if (set(neighbour_elements)<=set(["Cu","C"]) and len(atom.neighbours)==2):
+                                atom.force_field_type="170"
+                                atom.charge=BTW_atoms[atom.force_field_type][6]
+                            else:
+                                print("Oxygen number %i type cannot be detected in Cu-paddle-wheel MOF!"%atom.index)
+                                sys.exit() 
+#                            if (set(neighbour_elements) <= set(BTW_metals + ["H"])):
+#                                if("H" in neighbour_elements): #O-H
+#                                    atom.force_field_type="75"
+#                                    atom.charge=BTW_atoms[atom.force_field_type][6]
+#                                else:     # O-inorganic
+#                                    atom.force_field_type="171"
+#                                    atom.charge=MOF_FF_atoms[atom.force_field_type][6]
+#                            elif ("C" in neighbour_elements): # Carboxylate
+#                                atom.force_field_type="170"
+#                                atom.charge=MOF_FF_atoms[atom.force_field_type][6]
+#                            else:
+#                                print("Oxygen number : %i could not be recognized!"%atom.index)
+#                                sys.exit()
+            
+                        elif (atom.element == "H"):
+                            if set(neighbour_elements)<=set(["C"]):
+                                atom.force_field_type="915"
+                                atom.charge=BTW_atoms[atom.force_field_type][6]
+                            else:
+                                print("Hydrogen number %i type cannot be detected in Cu-paddle-wheel MOF!"%atom.index)
+                                sys.exit() 
+
+
+
+
+
+#                            if ("O" in neighbour_elements):
+#                                atom.force_field_type="21"
+#                                atom.charge=BTW_atoms[atom.force_field_type][6]
+#                            elif("C" in neighbour_elements):
+#                                atom.force_field_type="915"
+#                                atom.charge=BTW_atoms[atom.force_field_type][6]
+#                            else:
+#                                print("Hydrogen number : %i could not be recognized!"%atom.index)            
+                        else:# atom.element=="C"
+                            if ("O" in neighbour_elements):
+                                atom.force_field_type="913" # C-acid
+                                atom.charge=BTW_atoms[atom.force_field_type][6]
+                            elif ("H" in neighbour_elements):
+                                atom.force_field_type="912" # C- benzene we should be careful that in this case C in ligand has also bond with H, but not in the FF
+                                atom.charge=BTW_atoms[atom.force_field_type][6]
+                            elif (set(neighbour_elements)<=set(["C"])):
+                                for i in atom.neighbours:
+                                    neighboursofneighbour=[self.structure.atoms[j] for j in self.structure.atoms[i].neighbours]
+                                    neighboursofneighbour_elements=[at.element for at in neighboursofneighbour]
+                                    if ("O" in neighboursofneighbour_elements):
+                                        atom.force_field_type="902"
+                                        atom.charge=BTW_atoms[atom.force_field_type][6]
+                                        type_assigned=True
+    
+                                if (type_assigned==False) and (atom.hybridization=="aromatic"):
+                                    atom.force_field_type="912" # only C_ph exists in MOF-FF
+                                    atom.charge=BTW_atoms[atom.force_field_type][6]
+                                elif (type_assigned==False):
+                                    print("Carbon number : %i could not be recognized! erorr1 %s "%(atom.index, atom.hybridization))
+                            
+                            else:
+                                print("Carbon number : %i could not be recognized! error2"%atom.index)
+    
+                elif atom.element in MOF_FF_metals:
+                    if (atom.element == "Zr"):
+                        atom.force_field_type="192"
+                        atom.charge=BTW_atoms[atom.force_field_type][6]
+                    elif (atom.element == "Cu"):
+                        atom.force_field_type="185"
+                        atom.charge=BTW_atoms[atom.force_field_type][6]
+                    else: # atom type = Zn
+                        atom.force_field_type="172"
+                        atom.charge=BTW_atoms[atom.force_field_type][6]
+                else:
+                        print('Error!! Cannot detect atom types. Atom type does not exist in BTW-FF!')
+            else:
+                print('FFtype already assigned!')
+
+    def detect_ff_exist(self):
+        """
+           checking angles
+        """
+        nonexisting_angles=[]
+        missing_labels=[]
+        for angle in self.structure.angles:
+            a_atom, b_atom, c_atom = angle.atoms
+            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel = a_atom.force_field_type, b_atom.force_field_type, c_atom.force_field_type
+            angle_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
+            if not angle_fflabel in BTW_angles:
+                nonexisting_angles.append(angle.index)
+                missing_labels.append(angle_fflabel)
+
+        for ii , NE_angle in enumerate(nonexisting_angles):
+            del self.structure.angles[NE_angle-ii]
+
+        for ff_label in set(missing_labels):
+                print ("%s angle does not exist in FF!"%(ff_label))
+        """
+           checking dihedrals 
+        """
+        missing_labels=[]
+        nonexisting_dihedral=[]
+        for dihedral in self.structure.dihedrals:
+            atom_a = dihedral.a_atom
+            atom_b = dihedral.b_atom
+            atom_c = dihedral.c_atom
+            atom_d = dihedral.d_atom
+            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
+            dihedral_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+
+            if not dihedral_fflabel in BTW_dihedrals:
+                nonexisting_dihedral.append(dihedral.index)
+                missing_labels.append(dihedral_fflabel)
+
+        for ii , NE_dihedral in enumerate(nonexisting_dihedral):
+            del self.structure.dihedrals[NE_dihedral-ii]
+
+        for ff_label in set(missing_labels):
+                print ("%s dihedral does not exist in FF!"%(ff_label))
+
+        missing_labels=[]
+        nonexisting_improper=[]
+        for improper in self.structure.impropers:
+            atom_a, atom_b, atom_c, atom_d = improper.atoms
+            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
+            improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+
+            if not improper_fflabel in BTW_opbends:
+                nonexisting_improper.append(improper.index)
+
+        for ii , NE_improper in enumerate(nonexisting_improper):
+            del self.structure.impropers[NE_improper-ii]
+       
+        for ff_label in set(missing_labels):
+                print ("%s improper does not exist in FF!"%(ff_label))
+         
+
+ 
+        return None
+
+
+        
+    def bond_term(self, bond):
+        """class2 assumed"""
+        atom1, atom2 = bond.atoms
+        fflabel1, fflabel2 = atom1.force_field_type, atom2.force_field_type
+        bond_fflabel=fflabel1+"_"+fflabel2
+        Ks = BTW_bonds[bond_fflabel][0] # the value should be in kcal/mol
+        l0 = BTW_bonds[bond_fflabel][1] # the value should be in Angstrom
+        
+        """
+        Es=71.94*Ks*(l-l0)^2[1-2.55(l-l0)+(7/12)*2.55*(l-l0)^2]
+        (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
+        """
+
+        K2=71.94*Ks
+        K3=-2.55*71.94*Ks
+        K4=7.0/12.0*2.55*71.94*Ks
+        bond.potential = BondPotential.Harmonic()
+        bond.potential.K = K2
+   #     bond.potential.K3 = K3
+   #     bond.potential.K4 = K4
         bond.potential.R0 = l0
 
 
@@ -1089,115 +1479,6 @@ class BTW_FF(ForceField):
         st = ""
         st += "%-15s %s\n"%("pair_modify", "tail yes")
         return st
-
-
-
-"""    
-
-
-
-                        for j in atom.neighbours:
-                            if (j=="Zr"):
-                                atom.force_field_type="75"
-                                type_assinged=True
-                
-                if type_assigned == False:
-                    for i in atom.neighbours:
-                                       if (i=="Zn"):
-                            atom.force_field_type="171"
-                            type_assigned=True
-            
-            elif (atom.hybridization == "sp2"):
-                for i  in atom.neighbours:
-                    if (i=="Zr"):
-                        atom.force_field_type="171"
-                        type_assigned=True
-            elif (atom.hybridization == "aromatic"):
-                for i in atom.neighbours:
-                    if (i in BTW_metals):
-                        for j in atom.neighbours:
-                            if (j=="C"):
-                                atom.force_field_type = "170"
-                                type_assigned=True
-
-            if (atom.element=="H"):
-            for i in atom.neighbours
-                if (i=="O"):
-                    atom.force_field_type ="21"
-                    type_assigned=True
-                elif (i=="C")and type_assinged==False:
-                    atom.force_field_type="915"
-                else:
-                    print("Could not recognize this \"H\" atom index = %f"%atom.) ## add the needed property!
-            else:# Carbon detection
-            if atom.hybridization=="aromatic":
-                for i in atom.neighbours:
-                    if i == "O":
-                        atom.force_field_type="913"
-                        type_assigned=True
-                
-                for i in atom.neighbours: #checking any misassignment
-                    if i == "H" and type_assigned=True:
-                        print("Carbon number %f has bond to H and O in the same time!"%atom.)## add the needed property
-                        sys.exit()
-                
-                for i in atom.neighbours:
-                    if i=="H" 
-                        atom.force_field_type="912"
-                        type_assigned=True
-                        
-                
-
-            else:
-                print("Could not recognize this \"C\", atom index=%f"%atom.)## add the needed property
-                
-"""            
-            
-            
-        
-
-
-
-
-
-"""
-
-
-
-
-
-
-
-
-
-    if atom.hybridization == "sp3":
-                        atom.force_field_type = "%s_3"%atom.element
-                        if atom.element == "O" and len(atom.neighbours) >= 2:
-                            neigh_elem = set([self.atoms[i].element for i in atom.neighbours])
-                            if not neigh_elem <= set(organics) | set(halides):
-                                atom.force_field_type = "O_3_z"
-
-                    elif atom.hybridization == "aromatic":
-                        atom.force_field_type = "%s_R"%atom.element
-                    elif atom.hybridization == "sp2":
-                        atom.force_field_type = "%s_2"%atom.element
-                    elif atom.hybridization == "sp":
-                        atom.force_field_type = "%s_1"%atom.element
-                elif atom.element == "H":
-                    atom.force_field_type = "H_"
-                elif atom.element in halides:
-                    atom.force_field_type = atom.element
-                    if atom.element == "F":
-                        atom.force_field_type += "_"
-                else:
-                    ffs = list(UFF_DATA.keys())
-                    for j in ffs:
-                        if atom.element == j[:2].strip("_"):
-                            atom.force_field_type = j
-            if atom.force_field_type is None:
-                print("ERROR: could not find the proper force field type for atom %i"%(atom.index)+
-                        " with element: '%s'"%(atom.element))
-                sys.exit()
 
 
 class UFF(ForceField):
