@@ -927,13 +927,13 @@ class BTW_FF(ForceField):
         Es=71.94*Ks*(l-l0)^2[1-2.55(l-l0)+(7/12)*2.55*(l-l0)^2]
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """
-        """
+        """ 
         K2=71.94*Ks
         bond.potential = BondPotential.Harmonic()
         bond.potential.K = K2
         bond.potential.R0 = l0
-        
         """
+        """ 
         ### MM3
         K2=71.94*Ks
         K3=-2.55*K2
@@ -944,8 +944,8 @@ class BTW_FF(ForceField):
         bond.potential.K4 = K4
         bond.potential.R0 = l0
         
+        """ 
         
-        """
         ### SM1
         K2=66.64*Ks
         K3=-141.1*Ks
@@ -955,7 +955,7 @@ class BTW_FF(ForceField):
         bond.potential.K3 = K3
         bond.potential.K4 = K4
         bond.potential.R0 = l0
-        """
+        
         
 
 
@@ -1041,7 +1041,7 @@ class BTW_FF(ForceField):
         atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
         improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
         
-        Kopb = BTW_opbends[improper_fflabel][0]*(DEG2RAD**2)
+        Kopb = BTW_opbends[improper_fflabel][0]/(DEG2RAD**2)
         c0 =  BTW_opbends[improper_fflabel][1]
          
                 
