@@ -70,6 +70,29 @@ class MolecularGraph(nx.Graph):
             rad = (COVALENT_RADII[e1] + COVALENT_RADII[e2])
             if self.distance_matrix[i1,i2]*scale_factor < rad:
                 self.add_edge(n1, n2, key=self.number_of_edges() + 1, order='S')
+            # add image flag if necessary (and missing..)
+    
+    #TODO(pboyd) update this
+    def compute_bond_image_flag(self):
+        """Update bonds to contain bond type, distances, and min img
+        shift."""
+        supercells = np.array(list(itertools.product((-1, 0, 1), repeat=3)))
+        unit_repr = np.array([5,5,5], dtype=int)
+        for bond in self.bonds:
+            atom1,atom2 = bond.atoms
+            fcoords = atom2.scaled_pos(self.cell.inverse) + supercells
+            coords = []
+            for j in fcoords:
+                coords.append(np.dot(j, self.cell.cell))
+            coords = np.array(coords)
+            dists = distance.cdist([atom1.coordinates[:3]], coords)
+            dists = dists[0].tolist()
+            image = dists.index(min(dists))
+            dist = min(dists)
+            sym = '.' if all([i==0 for i in supercells[image]]) else \
+                    "1_%i%i%i"%(tuple(np.array(supercells[image],dtype=int) +
+                                      unit_repr))
+            bond.symflag = sym
 
     def add_bond_edge(self, **kwargs):
         """Add bond edges (weight factor = 1)"""
@@ -113,6 +136,195 @@ class MolecularGraph(nx.Graph):
         four = np.dot(one - two - three, cell.cell)
         return np.linalg.norm(four)
 
+    def compute_atom_typing(self):
+        #TODO(pboyd) return if atoms already 'typed' in the .cif file
+        # compute and store cycles
+        cycles = []
+        for node in self.atoms:
+            label = atom.ciflabel
+            for n in atom.neighbours:
+                nlabel = self.atoms[n].ciflabel
+                # fastest way I could think of..
+                self.remove_edge(label, nlabel)
+                cycle = []
+                try:
+                    cycle = list(nx.all_shortest_paths(self, label, nlabel))
+                except nx.exception.NetworkXNoPath:
+                    pass
+                self.add_edge(label, nlabel)
+                #FIXME MW edit to only store cycles < len(10)
+                # should be a harmless edit but maybe need to test
+                if(len(cycle) <= 10):
+                    cycles += cycle
+
+        for label, data in self.nodes_iter(data=True):
+            # N O C S
+            neighbours = self.neighbors(label)
+            element = data['_atom_site_type_symbol']
+            if element == "C":
+                if len(neighbours) >= 4:
+                    data.update({'hybridization':'sp3'})
+                elif len(neighbours) == 3:
+                    data.update({'hybridization':'sp2'})
+                elif len(neighbours) <= 2:
+                    data.update({'hybridization':'sp'})
+            elif element == "N":
+                if len(atom.neighbours) >= 3:
+                    data.update({'hybridization':'sp3'})
+                elif len(atom.neighbours) == 2:
+                    data.update({'hybridization':'sp2'})
+                elif len(atom.neighbours) == 1:
+                    data.update({'hybridization':'sp'})
+            elif element == "O":
+                if len(atom.neighbours) >= 2:
+                    data.update({'hybridization':'sp3'})
+                elif len(atom.neighbours) == 1:
+                    data.update({'hybridization':'sp2'})
+            elif element == "S":
+                if len(atom.neighbours) == 2:
+                    data.update({'hybridization':'sp3'})
+                elif len(atom.neighbours) == 1:
+                    data.update({'hybridization':'sp2'})
+
+        # convert to aromatic
+        # probably not a good test for aromaticity..
+        arom = set(["C", "N", "O", "S"])
+        for cycle in cycles:
+            elements = [self.nodes[k]['_atom_site_type_symbol'] for k in cycle]
+            neigh = [self.neighbors[k] for k in cycle]
+            if np.all(np.array(neigh) <= 3) and set(elements) <= arom:
+                for a in cycle:
+                    self.nodes[a]['hybridization'] = 'aromatic'
+                    self.nodes[a]['cycle'] = True
+                    self.nodes[a].setdefault('rings', []).append(cycle)
+
+    #TODO(pboyd) update this
+    def compute_bond_typing(self):
+        #TODO(pboyd) return if bonds already 'typed' in the .cif file
+        organic = set(["H", "C", "N", "O", "S"])
+        for bond in self.bonds:
+            atoms = bond.atoms
+            elements = [a.element for a in atoms]
+            samering = False
+            if atoms[0].hybridization == "aromatic" and atoms[1].hybridization == "aromatic":
+                for r in atoms[0].rings:
+                    if atoms[1].ciflabel in r:
+                        samering = True
+                if(samering):
+                    bond.order = 1.5
+
+            if set(elements) == set(["C", "O"]):
+                car = atoms[elements.index("C")]
+                oxy = atoms[elements.index("O")]
+                carnn = [self.atoms[j] for j in car.neighbours if j != oxy.index]
+                try:
+                    carnelem = [j.element for j in carnn]
+                except:
+                    carnelem = []
+
+                oxynn = [self.atoms[j] for j in oxy.neighbours if j != car.index]
+                try:
+                    oxynelem = [j.element for j in oxynn]
+                except:
+                    oxynelem = []
+                if "O" in carnelem:
+                    at = carnn[carnelem.index("O")]
+                    if len(at.neighbours) == 1:
+                        if len(oxy.neighbours) == 1:
+                            #CO2
+                            car.hybridization = 'sp'
+                            oxy.hybridization = 'sp2'
+                            bond.order = 2.
+                        else:
+                            # ester
+                            if set(oxynelem) <= organic:
+                                car.hybridization = 'sp2'
+                                oxy.hybridization = 'sp2'
+                                bond.order = 1 # this is the ether part of an ester... 
+                            #carboxylate?
+                            else:
+                                car.hybridization = 'aromatic'
+                                oxy.hybridization = 'aromatic'
+                                bond.order = 1.5
+
+                    else:
+                        atnelem = [self.atoms[k].element for k in at.neighbours]
+                        if (set(atnelem) <= organic):
+                            # ester
+                            if len(oxy.neighbours) == 1:
+                                car.hybridization = 'sp2'
+                                oxy.hybridization = 'sp2'
+                                bond.order = 2. # carbonyl part of ester
+                            # some kind of resonance structure?
+                            else:
+                                car.hybridization = 'aromatic'
+                                oxy.hybridization = 'aromatic'
+                                bond.order = 1.5
+                        else:
+                            car.hybridization = 'aromatic'
+                            oxy.hybridization = 'aromatic'
+                            bond.order = 1.5
+                if "N" in carnelem:
+                    at = carnn[carnelem.index("N")]
+                    # C=O of amide group
+                    if len(oxy.neighbours) == 1:
+                        bond.order = 1.5
+                        car.hybridization = 'aromatic'
+                        oxy.hybridization = 'aromatic'
+                # only one carbon oxygen connection.. could be C=O, R-C-O-R, R-C=O-R
+                if (not "O" in carnelem) and (not "N" in carnelem):
+                    if len(oxynn) > 0:
+                        # ether
+                        oxy.hybridization = 'sp3'
+                        bond.order = 1.0
+                    else:
+                        if car.is_cycle and car.hybridization == 'aromatic':
+                            oxy.hybridization = 'aromatic'
+                            bond.order = 1.5
+                        # carbonyl
+                        else:
+                            oxy.hybridization = 'sp2'
+                            bond.order = 2.0
+            if set(elements) == set(["C", "N"]) and not samering:
+                car = atoms[elements.index("C")]
+                nit = atoms[elements.index("N")]
+                nitnn = [self.atoms[j] for j in nit.neighbours if j != car.index]
+                nitnelem = [k.element for k in nitnn]
+                # aromatic amine connected -- assume part of delocalized system
+                if car.hybridization == 'aromatic' and set(['H']) == set(nitnelem):
+                    bond.order = 1.5
+                    nit.hybridization = 'aromatic'
+                # amide?
+                elif len(car.neighbours) == 3 and len(nitnn) >=2:
+                    if "O" in carnelem:
+                        bond.order = 1.5 # (amide)
+                        nit.hybridization = 'aromatic'
+            if (not atoms[0].is_cycle) and (not atoms[1].is_cycle) and (set(elements) <= organic):
+                if set([a.hybridization for a in atoms]) == set(['sp2']):
+                    # check bond length.. probably not a good indicator..
+                    try:
+                        cr1 = COVALENT_RADII['%s_2'%atoms[0].element]
+                    except KeyError:
+                        cr1 = COVALENT_RADII[atoms[0].element]
+                    try:
+                        cr2 = COVALENT_RADII['%s_2'%(atoms[1].element)]
+                    except KeyError:
+                        cr2 = COVALENT_RADII[atoms[1].element]
+                    covrad = cr1 + cr2
+                    if (bond.length <= covrad*.95):
+                        bond.order = 2.0
+                elif set([a.hybridization for a in atoms]) == set(['sp']):
+                    try:
+                        cr1 = COVALENT_RADII['%s_1'%atoms[0].element]
+                    except KeyError:
+                        cr1 = COVALENT_RADII[atoms[0].element]
+                    try:
+                        cr2 = COVALENT_RADII['%s_1'%(atoms[1].element)]
+                    except KeyError:
+                        cr2 = COVALENT_RADII[atoms[1].element]
+                    covrad = cr1 + cr2 
+                    if (bond.length <= covrad*.95):
+                        bond.order = 3.0
     def atomic_node_sanity_check(self):
         """Check for specific keyword/value pairs. Exit if non-existent"""
 
@@ -328,190 +540,6 @@ class Structure(object):
             self.graph = None
 
     
-    def compute_atom_bond_typing(self):
-        cycles = []
-        try:
-            for atom in self.atoms:
-                label = atom.ciflabel
-                for n in atom.neighbours:
-                    nlabel = self.atoms[n].ciflabel
-                    # fastest way I could think of..
-                    self.graph.remove_edge(label, nlabel)
-                    cycle = []
-                    try:
-                        cycle = list(nx.all_shortest_paths(self.graph, label, nlabel))
-                    except nx.exception.NetworkXNoPath:
-                        pass
-                    self.graph.add_edge(label, nlabel)
-                    #FIXME MW edit to only store cycles < len(10)
-                    # should be a harmless edit but maybe need to test
-                    if(len(cycle) <= 10):
-                        cycles += cycle
-        except NameError:
-            pass
-        for atom in self.atoms:
-            # N O C S
-            if atom.element == "C":
-                if len(atom.neighbours) >= 4:
-                    atom.hybridization = 'sp3'
-                elif len(atom.neighbours) == 3:
-                    atom.hybridization = 'sp2'
-                elif len(atom.neighbours) <= 2:
-                    atom.hybridization = 'sp'
-
-            elif atom.element == "N":
-                if len(atom.neighbours) >= 3:
-                    atom.hybridization = 'sp3'
-                elif len(atom.neighbours) == 2:
-                    atom.hybridization = 'sp2'
-                elif len(atom.neighbours) == 1:
-                    atom.hybridization = 'sp'
-            elif atom.element == "O":
-                if len(atom.neighbours) >= 2:
-                    atom.hybridization = 'sp3'
-                elif len(atom.neighbours) == 1:
-                    atom.hybridization = 'sp2'
-            elif atom.element == "S":
-                if len(atom.neighbours) == 2:
-                    atom.hybridization = 'sp3'
-                elif len(atom.neighbours) == 1:
-                    atom.hybridization = 'sp2'
-        # probably not a good test for aromaticity..
-        organic = set(["H", "C", "N", "O", "S"])
-
-        arom = set(["C", "N", "O", "S"])
-        for j in cycles:
-            atoms = [self.get_atom_from_label(k) for k in j]
-            elements = [k.element for k in atoms]
-            neigh = [len(k.neighbours) for k in atoms]
-            if len(j) <= 8 and np.all(np.array(neigh) <= 3) and set(elements) <= arom:
-                for a in atoms:
-                    a.hybridization = "aromatic"
-                    a.is_cycle = True
-                    a.rings.append(j)
-        for bond in self.bonds:
-            atoms = bond.atoms
-            elements = [a.element for a in atoms]
-            samering = False
-            if atoms[0].hybridization == "aromatic" and atoms[1].hybridization == "aromatic":
-                for r in atoms[0].rings:
-                    if atoms[1].ciflabel in r:
-                        samering = True
-                if(samering):
-                    bond.order = 1.5
-
-            if set(elements) == set(["C", "O"]):
-                car = atoms[elements.index("C")]
-                oxy = atoms[elements.index("O")]
-                carnn = [self.atoms[j] for j in car.neighbours if j != oxy.index]
-                try:
-                    carnelem = [j.element for j in carnn]
-                except:
-                    carnelem = []
-
-                oxynn = [self.atoms[j] for j in oxy.neighbours if j != car.index]
-                try:
-                    oxynelem = [j.element for j in oxynn]
-                except:
-                    oxynelem = []
-                if "O" in carnelem:
-                    at = carnn[carnelem.index("O")]
-                    if len(at.neighbours) == 1:
-                        if len(oxy.neighbours) == 1:
-                            #CO2
-                            car.hybridization = 'sp'
-                            oxy.hybridization = 'sp2'
-                            bond.order = 2.
-                        else:
-                            # ester
-                            if set(oxynelem) <= organic:
-                                car.hybridization = 'sp2'
-                                oxy.hybridization = 'sp2'
-                                bond.order = 1 # this is the ether part of an ester... 
-                            #carboxylate?
-                            else:
-                                car.hybridization = 'aromatic'
-                                oxy.hybridization = 'aromatic'
-                                bond.order = 1.5
-
-                    else:
-                        atnelem = [self.atoms[k].element for k in at.neighbours]
-                        if (set(atnelem) <= organic):
-                            # ester
-                            if len(oxy.neighbours) == 1:
-                                car.hybridization = 'sp2'
-                                oxy.hybridization = 'sp2'
-                                bond.order = 2. # carbonyl part of ester
-                            # some kind of resonance structure?
-                            else:
-                                car.hybridization = 'aromatic'
-                                oxy.hybridization = 'aromatic'
-                                bond.order = 1.5
-                        else:
-                            car.hybridization = 'aromatic'
-                            oxy.hybridization = 'aromatic'
-                            bond.order = 1.5
-                if "N" in carnelem:
-                    at = carnn[carnelem.index("N")]
-                    # C=O of amide group
-                    if len(oxy.neighbours) == 1:
-                        bond.order = 1.5
-                        car.hybridization = 'aromatic'
-                        oxy.hybridization = 'aromatic'
-                # only one carbon oxygen connection.. could be C=O, R-C-O-R, R-C=O-R
-                if (not "O" in carnelem) and (not "N" in carnelem):
-                    if len(oxynn) > 0:
-                        # ether
-                        oxy.hybridization = 'sp3'
-                        bond.order = 1.0
-                    else:
-                        if car.is_cycle and car.hybridization == 'aromatic':
-                            oxy.hybridization = 'aromatic'
-                            bond.order = 1.5
-                        # carbonyl
-                        else:
-                            oxy.hybridization = 'sp2'
-                            bond.order = 2.0
-            if set(elements) == set(["C", "N"]) and not samering:
-                car = atoms[elements.index("C")]
-                nit = atoms[elements.index("N")]
-                nitnn = [self.atoms[j] for j in nit.neighbours if j != car.index]
-                nitnelem = [k.element for k in nitnn]
-                # aromatic amine connected -- assume part of delocalized system
-                if car.hybridization == 'aromatic' and set(['H']) == set(nitnelem):
-                    bond.order = 1.5
-                    nit.hybridization = 'aromatic'
-                # amide?
-                elif len(car.neighbours) == 3 and len(nitnn) >=2:
-                    if "O" in carnelem:
-                        bond.order = 1.5 # (amide)
-                        nit.hybridization = 'aromatic'
-            if (not atoms[0].is_cycle) and (not atoms[1].is_cycle) and (set(elements) <= organic):
-                if set([a.hybridization for a in atoms]) == set(['sp2']):
-                    # check bond length.. probably not a good indicator..
-                    try:
-                        cr1 = COVALENT_RADII['%s_2'%atoms[0].element]
-                    except KeyError:
-                        cr1 = COVALENT_RADII[atoms[0].element]
-                    try:
-                        cr2 = COVALENT_RADII['%s_2'%(atoms[1].element)]
-                    except KeyError:
-                        cr2 = COVALENT_RADII[atoms[1].element]
-                    covrad = cr1 + cr2
-                    if (bond.length <= covrad*.95):
-                        bond.order = 2.0
-                elif set([a.hybridization for a in atoms]) == set(['sp']):
-                    try:
-                        cr1 = COVALENT_RADII['%s_1'%atoms[0].element]
-                    except KeyError:
-                        cr1 = COVALENT_RADII[atoms[0].element]
-                    try:
-                        cr2 = COVALENT_RADII['%s_1'%(atoms[1].element)]
-                    except KeyError:
-                        cr2 = COVALENT_RADII[atoms[1].element]
-                    covrad = cr1 + cr2 
-                    if (bond.length <= covrad*.95):
-                        bond.order = 3.0
 
     def obtain_graph(self):
         """Attempt to assign bond and atom types based on graph analysis."""
@@ -766,26 +794,6 @@ class Structure(object):
         four = np.dot(one - two - three, self.cell.cell)
         return np.linalg.norm(four)
 
-    def compute_bond_image_flag(self):
-        """Update bonds to contain bond type, distances, and min img
-        shift."""
-        supercells = np.array(list(itertools.product((-1, 0, 1), repeat=3)))
-        unit_repr = np.array([5,5,5], dtype=int)
-        for bond in self.bonds:
-            atom1,atom2 = bond.atoms
-            fcoords = atom2.scaled_pos(self.cell.inverse) + supercells
-            coords = []
-            for j in fcoords:
-                coords.append(np.dot(j, self.cell.cell))
-            coords = np.array(coords)
-            dists = distance.cdist([atom1.coordinates[:3]], coords)
-            dists = dists[0].tolist()
-            image = dists.index(min(dists))
-            dist = min(dists)
-            sym = '.' if all([i==0 for i in supercells[image]]) else \
-                    "1_%i%i%i"%(tuple(np.array(supercells[image],dtype=int) +
-                                      unit_repr))
-            bond.symflag = sym
 
     def write_cif(self):
         """Currently used for debugging purposes"""
