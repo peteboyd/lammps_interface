@@ -1,3 +1,5 @@
+import shlex
+
 class CIF(object):
 
     def __init__(self, name="structure", file=None):
@@ -30,7 +32,14 @@ class CIF(object):
                 self.add_data("data", data_=self.name)
 
             if loopread and line.startswith("_"):
+                # change block names, easier for adding data to structure graph
+                if ('_atom_' in line and '_bond_' not in line):
+                    self.insert_block_order('atoms', loopcount, _REPLACE=True)
+                elif ('_geom_bond' in line):
+                    self.insert_block_order('bonds', loopcount, _REPLACE=True)
                 loopentries[loopcount].append(line)
+        
+
 
             elif loopread and not line.startswith("_"):
                 loopread = False
@@ -72,16 +81,20 @@ class CIF(object):
         t = date.today()
         return t.strftime("%A %d %B %Y")
 
-    def insert_block_order(self, name, index=None):
+    def insert_block_order(self, name, index=None, _REPLACE=False):
         """Adds a block to the cif file in a specified order, unless index is specified,
         will not override existing order"""
         if index is None and name in self.block_order:
             return
+        elif index is not None and (self.block_order[index] == name):
+            return
         elif index is None and name not in self.block_order:
             index = len(self.block_order)
-        elif index is not None and name in self.block_order and index < len(self.block_order):
+        elif index is not None and name in self.block_order and index < len(self.block_order) and not _REPLACE:
             old = self.block_order.index(name)
             self.block_order.pop(old)
+        elif index is not None and name not in self.block_order and index < len(self.block_order) and _REPLACE:
+            self.block_order.pop(index)
         elif index is not None and name in self.block_order and index >= len(self.block_order):
             old = self.block_order.index(name)
             self.block_order.pop(old)

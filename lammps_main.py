@@ -12,7 +12,7 @@ import math
 import ForceFields
 import itertools
 import operator
-from structure_data import CIF, Structure
+from structure_data import from_CIF, Structure
 from datetime import datetime
 from InputHandler import Options
 
@@ -467,7 +467,9 @@ def main():
 
     mofname = clean(options.cif_file)
     struct = Structure(name=mofname)
-    struct.from_CIF(options.cif_file)
+    cell, graph = from_CIF(options.cif_file)
+    graph.show()
+    sys.exit()
     # compute minimum supercell
     # NB: half box width should be a user-defined command,
     # or default to 2.5*sigma_max of the requested force field
