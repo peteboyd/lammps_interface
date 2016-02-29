@@ -956,9 +956,6 @@ class BTW_FF(ForceField):
         bond.potential.K4 = K4
         bond.potential.R0 = l0
         
-        
-
-
     def angle_term(self, angle):
         """
         Be careful that the 5and6 order terms are vanished here since they are not implemented in LAMMPS!!

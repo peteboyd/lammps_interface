@@ -15,20 +15,28 @@ from atomic import MASS, ATOMIC_NUMBER, COVALENT_RADII
 from ccdc import CCDC_BOND_ORDERS
 DEG2RAD=np.pi/180.
 
+class MolecularGraph(nx.Graph)
+    def __init__(self, name="Default"):
+        self.name=name
+
+    def atomic_nodes(self, **kwargs):
+        """Insert nodes into the graph from the cif file"""
+        self.add_node(self.number_of_nodes()+1, **kwargs)
+
+
+
 class Structure(object):
 
     def __init__(self, name):
         self.name = name
         self.cell = Cell()
         self.atoms = []
-        self.guests = []
         self.bonds = []
         self.angles = []
         self.dihedrals = []
         self.impropers = []
         self.pairs = []
         self.charge = 0.0
-        self.molecules = {}
         try:
             self.graph = nx.Graph()
         except NameError:
@@ -386,25 +394,6 @@ class Structure(object):
                     covrad = cr1 + cr2 
                     if (bond.length <= covrad*.95):
                         bond.order = 3.0
-
-    def compute_molecules(self):
-        """Ascertain if there are molecules within the porous structure"""
-        # networkx
-        # a threshold for the acceptable size of molecules (fraction of total number of atoms)
-        size_cutoff = 0.5
-        totatomlen = len(self.atoms) 
-        if self.graph is not None:
-            for j in nx.connected_components(self.graph):
-                ats = [self.get_atom_from_label(k) for k in j]
-                if(len(j) <= totatomlen*size_cutoff):
-                    elems = tuple(sorted([a.element for a in ats]))
-                    self.molecules.setdefault(elems, []).append([i.index for i in ats])
-                    molecule_id = len(self.molecules[elems]) - 1
-                    for at in ats:
-                        at.molecule_id = (elems, molecule_id)
-                # assume the rest is the framework
-                else:
-                    self.molecules.setdefault("framework", []).append([i.index for i in ats]) 
 
     def obtain_graph(self):
         """Attempt to assign bond and atom types based on graph analysis."""

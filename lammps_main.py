@@ -441,6 +441,25 @@ def groups(ints):
     for k, g in itertools.groupby(enumerate(ints), lambda ix : ix[0]-ix[1]):
         yield list(map(operator.itemgetter(1), g))
 
+# this needs to be somewhere else.
+def compute_molecules(structure):
+    """Ascertain if there are molecules within the porous structure"""
+    # networkx
+    # a threshold for the acceptable size of molecules (fraction of total number of atoms)
+    size_cutoff = 0.5
+    totatomlen = len(self.atoms) 
+    if self.graph is not None:
+        for j in nx.connected_components(self.graph):
+            ats = [self.get_atom_from_label(k) for k in j]
+            if(len(j) <= totatomlen*size_cutoff):
+                elems = tuple(sorted([a.element for a in ats]))
+                self.molecules.setdefault(elems, []).append([i.index for i in ats])
+                molecule_id = len(self.molecules[elems]) - 1
+                for at in ats:
+                    at.molecule_id = (elems, molecule_id)
+            # assume the rest is the framework
+            else:
+                self.molecules.setdefault("framework", []).append([i.index for i in ats]) 
 def main():
 
     # command line parsing
@@ -463,7 +482,7 @@ def main():
     ff.detect_ff_terms() 
     ff.cutoff = options.cutoff
     ff.structure.minimum_cell(cutoff=options.cutoff)
-    ff.structure.compute_molecules()
+    compute_molecules(struct)
     if options.output_cif:
         print("output of .cif file requested. Exiting.")
         struct.write_cif()
