@@ -22,9 +22,180 @@ class MolecularGraph(nx.Graph)
     def atomic_nodes(self, **kwargs):
         """Insert nodes into the graph from the cif file"""
         self.add_node(self.number_of_nodes()+1, **kwargs)
+    
+    def atomic_node_sanity_check(self):
+        """Check for specific keyword/value pairs. Exit if non-existent"""
 
 
 
+def from_CIF(cifname):
+    """Reads the structure data from the CIF
+    - currently does not read the symmetry of the cell
+    - does not unpack the assymetric unit (assumes P1)
+    - assumes that the appropriate keys are in the cifobj (no error checking)
+    """
+
+    cifobj = CIF()
+    cifobj.read(cifname)
+
+    data = cifobj._data
+    # obtain atoms and cell
+    cell = Cell()
+    cellparams = [float(i) for i in [data['_cell_length_a'], 
+                                     data['_cell_length_b'], 
+                                     data['_cell_length_c'],
+                                     data['_cell_angle_alpha'], 
+                                     data['_cell_angle_beta'], 
+                                     data['_cell_angle_gamma']]]
+    cell.set_params(cellparams)
+
+    x, y, z = [], [], []
+    if '_atom_site_fract_x' in data:
+        fx = np.array([float(j) for j in data['_atom_site_fract_x']])
+    elif (('_atom_site_x' in data) or 
+          ('_atom_site_cartn_x' in data) or 
+          ('_atom_site_Cartn_x' in data)):
+        try:
+            x = np.array([float(j) for j in data['_atom_site_x']])
+        except Keyerror:
+            pass
+        try:
+            x = np.array([float(j) for j in data['_atom_site_cartn_x']])
+        except KeyError:
+            pass
+        try:
+            x = np.array([float(j) for j in data['_atom_site_Cartn_x']])
+        except KeyError:
+            pass
+    
+    if '_atom_site_fract_y' in data:
+        fy = np.array([float(j) for j in data['_atom_site_fract_y']])
+    elif (('_atom_site_y' in data) or 
+          ('_atom_site_cartn_y' in data) or 
+          ('_atom_site_Cartn_y' in data)):
+        try:
+            y = np.array([float(j) for j in data['_atom_site_y']])
+        except Keyerror:
+            pass
+        try:
+            y = np.array([float(j) for j in data['_atom_site_cartn_y']])
+        except KeyError:
+            pass
+        try:
+            y = np.array([float(j) for j in data['_atom_site_Cartn_y']])
+        except KeyError:
+            pass
+
+    if '_atom_site_fract_z' in data:
+        fz = np.array([float(j) for j in data['_atom_site_fract_z']])
+    elif (('_atom_site_z' in data) or 
+          ('_atom_site_cartn_z' in data) or 
+          ('_atom_site_Cartn_z' in data)):
+        try:
+            z = np.array([float(j) for j in data['_atom_site_z']])
+        except Keyerror:
+            pass
+        try:
+            z = np.array([float(j) for j in data['_atom_site_cartn_z']])
+        except KeyError:
+            pass
+        try:
+            z = np.array([float(j) for j in data['_atom_site_Cartn_z']])
+        except KeyError:
+            pass
+    try:
+        for xx, yy, zz in zip(fx, fy, fz):
+            cx,cy,cz = np.dot(np.array([xx,yy,zz]), self.cell.cell)
+            x.append(cx)
+            y.append(cy)
+            z.append(cz)
+        x = np.array(x)
+        y = np.array(y)
+        z = np.array(z)
+    except:
+        pass
+    # Charge assignment may have to be a bit more inclusive than just setting _atom_site_charge
+    # in the .cif file.. will have to think of a user-friendly way to introduce charges..
+    if '_atom_type_partial_charge' in data:
+        charges = [float(j.strip()) for j in data['_atom_type_partial_charge']]
+    else:
+
+        charges = [0. for i in range(0, len(x))]
+
+    self.charge = np.sum(charges)
+
+    # bunch of try excepts for different important labels in the cif file.
+    try:
+        label = data['_atom_site_label']
+    except KeyError:
+        label = ['X%i'%(i) for i in range(0, len(x))]
+        print("Warning, no atom labels specified in cif file")
+
+    try:
+        element = data['_atom_site_type_symbol']
+    except KeyError:
+        element = ['X' for i in range(0, len(x))]
+        print("Warning, no elements specified in cif file. "+
+                "This will make generating ff files very difficult!")
+    guess_atom_types = False
+    try:
+        ff_param = [i.strip() for i in data['_atom_site_description']]
+    except:
+        guess_atom_types = True
+        ff_param = [None for i in range(0, len(x))]
+        print("Warning, force field atom types not specified in the cif file."+
+                " Attempting to guess atom types.")
+    
+    index = 0
+    for l,e,ff,fx,fy,fz,c in zip(label,element,ff_param,x,y,z,charges):
+        atom = Atom(element=e.strip(), coordinates = np.array([fx,fy,fz]))
+        atom.force_field_type = ff
+        atom.ciflabel = l.strip()
+        atom.charge = c 
+        self.atoms.append(atom)
+    # obtain bonds
+    if '_geom_bond_atom_site_label_1' in data:
+        a, b, type = (data['_geom_bond_atom_site_label_1'], 
+                      data['_geom_bond_atom_site_label_2'], 
+                      data['_ccdc_geom_bond_type'])
+
+        try:
+            symms = data['_geom_bond_site_symmetry_2']
+        except KeyError:
+            symms = ['.' for i in range(len(a))]
+
+        try:
+            dists = data['_geom_bond_distance']
+        except KeyError:
+            dists = [0.0 for i in range(len(a))]
+
+
+        for (label1, label2, t, dist, sym)in zip(a,b,type,dists,symms):
+            atm1 = self.get_atom_from_label(label1.strip())
+            atm2 = self.get_atom_from_label(label2.strip())
+            #TODO(check if atm2 crosses a periodic boundary to bond with atm1)
+            #.cif file double counts bonds for some reason.. maybe symmetry related
+            try:
+                if (atm2.index not in atm1.neighbours) and (atm1.index not in atm2.neighbours):
+                    atm1.neighbours.append(atm2.index)
+                    atm2.neighbours.append(atm1.index)
+                    bond = Bond(atm1=atm1, atm2=atm2, 
+                                order=CCDC_BOND_ORDERS[t.strip()])
+                    bond.length = float(dist)
+                    bond.symflag = sym.strip()
+                    self.bonds.append(bond)
+            except AttributeError:
+                print("Warning, bonding seems to be misspecified in .cif file")
+
+        if '_geom_bond_site_symmetry_2' not in data.keys():
+            self.compute_bond_image_flag()
+        self.obtain_graph()
+        #TODO unwrap symmetry elements if they exist
+    else:
+        print("No bonding found in file, attempting to populate bonding..")
+        self.compute_bonding()
+        self.obtain_graph()
+    self.compute_atom_bond_typing()
 class Structure(object):
 
     def __init__(self, name):
@@ -42,173 +213,6 @@ class Structure(object):
         except NameError:
             self.graph = None
 
-    def from_CIF(self, cifname):
-        """Reads the structure data from the CIF
-        - currently does not read the symmetry of the cell
-        - does not unpack the assymetric unit (assumes P1)
-        - assumes that the appropriate keys are in the cifobj (no error checking)
-        """
-
-        cifobj = CIF()
-        cifobj.read(cifname)
-
-        data = cifobj._data
-        # obtain atoms and cell
-        cellparams = [float(i) for i in [data['_cell_length_a'], 
-                                         data['_cell_length_b'], 
-                                         data['_cell_length_c'],
-                                         data['_cell_angle_alpha'], 
-                                         data['_cell_angle_beta'], 
-                                         data['_cell_angle_gamma']]]
-        self.cell.set_params(cellparams)
-
-        x, y, z = [], [], []
-        if '_atom_site_fract_x' in data:
-            fx = np.array([float(j) for j in data['_atom_site_fract_x']])
-        elif (('_atom_site_x' in data) or 
-              ('_atom_site_cartn_x' in data) or 
-              ('_atom_site_Cartn_x' in data)):
-            try:
-                x = np.array([float(j) for j in data['_atom_site_x']])
-            except Keyerror:
-                pass
-            try:
-                x = np.array([float(j) for j in data['_atom_site_cartn_x']])
-            except KeyError:
-                pass
-            try:
-                x = np.array([float(j) for j in data['_atom_site_Cartn_x']])
-            except KeyError:
-                pass
-        
-        if '_atom_site_fract_y' in data:
-            fy = np.array([float(j) for j in data['_atom_site_fract_y']])
-        elif (('_atom_site_y' in data) or 
-              ('_atom_site_cartn_y' in data) or 
-              ('_atom_site_Cartn_y' in data)):
-            try:
-                y = np.array([float(j) for j in data['_atom_site_y']])
-            except Keyerror:
-                pass
-            try:
-                y = np.array([float(j) for j in data['_atom_site_cartn_y']])
-            except KeyError:
-                pass
-            try:
-                y = np.array([float(j) for j in data['_atom_site_Cartn_y']])
-            except KeyError:
-                pass
-
-        if '_atom_site_fract_z' in data:
-            fz = np.array([float(j) for j in data['_atom_site_fract_z']])
-        elif (('_atom_site_z' in data) or 
-              ('_atom_site_cartn_z' in data) or 
-              ('_atom_site_Cartn_z' in data)):
-            try:
-                z = np.array([float(j) for j in data['_atom_site_z']])
-            except Keyerror:
-                pass
-            try:
-                z = np.array([float(j) for j in data['_atom_site_cartn_z']])
-            except KeyError:
-                pass
-            try:
-                z = np.array([float(j) for j in data['_atom_site_Cartn_z']])
-            except KeyError:
-                pass
-        try:
-            for xx, yy, zz in zip(fx, fy, fz):
-                cx,cy,cz = np.dot(np.array([xx,yy,zz]), self.cell.cell)
-                x.append(cx)
-                y.append(cy)
-                z.append(cz)
-            x = np.array(x)
-            y = np.array(y)
-            z = np.array(z)
-        except:
-            pass
-        # Charge assignment may have to be a bit more inclusive than just setting _atom_site_charge
-        # in the .cif file.. will have to think of a user-friendly way to introduce charges..
-        if '_atom_type_partial_charge' in data:
-            charges = [float(j.strip()) for j in data['_atom_type_partial_charge']]
-        else:
-
-            charges = [0. for i in range(0, len(x))]
-
-        self.charge = np.sum(charges)
-
-        # bunch of try excepts for different important labels in the cif file.
-        try:
-            label = data['_atom_site_label']
-        except KeyError:
-            label = ['X%i'%(i) for i in range(0, len(x))]
-            print("Warning, no atom labels specified in cif file")
-
-        try:
-            element = data['_atom_site_type_symbol']
-        except KeyError:
-            element = ['X' for i in range(0, len(x))]
-            print("Warning, no elements specified in cif file. "+
-                    "This will make generating ff files very difficult!")
-        guess_atom_types = False
-        try:
-            ff_param = [i.strip() for i in data['_atom_site_description']]
-        except:
-            guess_atom_types = True
-            ff_param = [None for i in range(0, len(x))]
-            print("Warning, force field atom types not specified in the cif file."+
-                    " Attempting to guess atom types.")
-        
-        index = 0
-        for l,e,ff,fx,fy,fz,c in zip(label,element,ff_param,x,y,z,charges):
-            atom = Atom(element=e.strip(), coordinates = np.array([fx,fy,fz]))
-            atom.force_field_type = ff
-            atom.ciflabel = l.strip()
-            atom.charge = c 
-            self.atoms.append(atom)
-        # obtain bonds
-        if '_geom_bond_atom_site_label_1' in data:
-            a, b, type = (data['_geom_bond_atom_site_label_1'], 
-                          data['_geom_bond_atom_site_label_2'], 
-                          data['_ccdc_geom_bond_type'])
-
-            try:
-                symms = data['_geom_bond_site_symmetry_2']
-            except KeyError:
-                symms = ['.' for i in range(len(a))]
-
-            try:
-                dists = data['_geom_bond_distance']
-            except KeyError:
-                dists = [0.0 for i in range(len(a))]
-
-
-            for (label1, label2, t, dist, sym)in zip(a,b,type,dists,symms):
-                atm1 = self.get_atom_from_label(label1.strip())
-                atm2 = self.get_atom_from_label(label2.strip())
-                #TODO(check if atm2 crosses a periodic boundary to bond with atm1)
-                #.cif file double counts bonds for some reason.. maybe symmetry related
-                try:
-                    if (atm2.index not in atm1.neighbours) and (atm1.index not in atm2.neighbours):
-                        atm1.neighbours.append(atm2.index)
-                        atm2.neighbours.append(atm1.index)
-                        bond = Bond(atm1=atm1, atm2=atm2, 
-                                    order=CCDC_BOND_ORDERS[t.strip()])
-                        bond.length = float(dist)
-                        bond.symflag = sym.strip()
-                        self.bonds.append(bond)
-                except AttributeError:
-                    print("Warning, bonding seems to be misspecified in .cif file")
-
-            if '_geom_bond_site_symmetry_2' not in data.keys():
-                self.compute_bond_image_flag()
-            self.obtain_graph()
-            #TODO unwrap symmetry elements if they exist
-        else:
-            print("No bonding found in file, attempting to populate bonding..")
-            self.compute_bonding()
-            self.obtain_graph()
-        self.compute_atom_bond_typing()
     
     def compute_atom_bond_typing(self):
         cycles = []
