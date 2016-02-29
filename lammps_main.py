@@ -468,7 +468,6 @@ def main():
     mofname = clean(options.cif_file)
     struct = Structure(name=mofname)
     cell, graph = from_CIF(options.cif_file)
-    graph.show()
     sys.exit()
     # compute minimum supercell
     # NB: half box width should be a user-defined command,

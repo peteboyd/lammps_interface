@@ -38,14 +38,39 @@ class MolecularGraph(nx.Graph):
 
     def __init__(self, **kwargs):
         nx.Graph.__init__(self, **kwargs)
+        # coordinates and distances will be kept in a matrix because 
+        # networkx edge and node lookup is slow.
+        self.coordinates = None
+        self.distmatrix = None 
 
     def add_atomic_node(self, **kwargs):
         """Insert nodes into the graph from the cif file"""
+        #update keywords with more atom info
+        kwargs.update({'mass':MASS[kwargs['_atom_site_type_symbol']]})
+        try:
+            kwargs['charge'] = float(kwargs['_atom_type_partial_charge'])
+        except KeyError:
+            kwargs['charge'] = 0.0 
+
         kwargs.update({'index':self.number_of_nodes() + 1})
         #TODO(pboyd) should have some error checking here..
         n = kwargs.pop('_atom_site_label')
         self.add_node(n, **kwargs)
    
+    def compute_bonding(self, scale_factor = 0.9):
+        """Computes bonds between atoms based on covalent radii."""
+        if (self.number_of_edges() > 0):
+            # bonding found in cif file
+            return
+        for n1, n2 in itertools.combinations(self.nodes(), 2):
+            node1, node2 = self.node[n1], self.node[n2]
+            e1, e2 = node1['_atom_site_type_symbol'],\
+                    node2['_atom_site_type_symbol']
+            i1,i2 = node1['index']-1, node2['index']-1
+            rad = (COVALENT_RADII[e1] + COVALENT_RADII[e2])
+            if self.distance_matrix[i1,i2]*scale_factor < rad:
+                self.add_edge(n1, n2, key=self.number_of_edges() + 1, order='S')
+
     def add_bond_edge(self, **kwargs):
         """Add bond edges (weight factor = 1)"""
         #TODO(pboyd) should figure out if there are other cif keywords to identify
@@ -55,13 +80,11 @@ class MolecularGraph(nx.Graph):
         kwargs.update({'weight': 1})
         self.add_edge(n1, n2, key=self.number_of_edges()+1, **kwargs)
 
-    def add_dist_edge(self, n1, n2, dist):
-        self.add_edge(n1, n2, key=self.number_of_edges() + 1, weight=0, length=dist)
-
     def compute_cartesian_coordinates(self, cell):
         """Compute the cartesian coordinates for each atom node"""
         coord_keys = ['_atom_site_x', '_atom_site_y', '_atom_site_z']
         fcoord_keys = ['_atom_site_fract_x', '_atom_site_fract_y', '_atom_site_fract_z']
+        self.coordinates = np.empty((self.number_of_nodes(), 3))
         for node, data in self.nodes_iter(data=True):
             #TODO(pboyd) probably need more error checking..
             try:
@@ -71,12 +94,17 @@ class MolecularGraph(nx.Graph):
                 coordinates = np.dot(coordinates, cell.cell)
             data.update({'cartesian_coordinates':coordinates})
 
+            self.coordinates[data['index']-1] = coordinates
+
     def compute_min_img_distances(self, cell):
+        self.distance_matrix = np.empty((self.number_of_nodes(), self.number_of_nodes()))
         for n1, n2 in itertools.combinations(self.nodes(), 2):
-            coords1, coords2 = self.get_node_attributes(n1)['cartesian_coordinates'],\
-                                self.get_node_attributes(n2)['cartesian_coordinates']
+            id1, id2 = self.node[n1]['index']-1,\
+                                self.node[n2]['index']-1
+            coords1, coords2 = self.coordinates[id1], self.coordinates[id2]
             dist = self.min_img_distance(coords1, coords2, cell)
-            self.add_dist_edge(n1, n2, dist)
+            self.distance_matrix[id1][id2] = dist
+            self.distance_matrix[id2][id1] = dist
     
     def min_img_distance(self, coords1, coords2, cell):
         one = np.dot(cell.inverse, coords1) % 1
@@ -132,6 +160,8 @@ def from_CIF(cifname):
         # catch no bonds
         print("No bonds reported in cif file - computing bonding..")
     mg.compute_cartesian_coordinates(cell)
+    mg.compute_min_img_distances(cell)
+    mg.compute_bonding()
     return cell, mg
     #x, y, z = [], [], []
     #if '_atom_site_fract_x' in data:
