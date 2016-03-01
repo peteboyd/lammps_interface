@@ -46,7 +46,13 @@ class MolecularGraph(nx.Graph):
     def add_atomic_node(self, **kwargs):
         """Insert nodes into the graph from the cif file"""
         #update keywords with more atom info
-        kwargs.update({'mass':MASS[kwargs['_atom_site_type_symbol']]})
+        # rename this to something more intuitive
+        element = kwargs.pop('_atom_site_type_symbol')
+        # replacing Atom.__init__
+        kwargs.update({'mass':MASS[element]})
+        kwargs.update({'element':element})
+        kwargs.update({'cycle':False})
+        kwargs.update({'rings':[]}) 
         try:
             kwargs['charge'] = float(kwargs['_atom_type_partial_charge'])
         except KeyError:
@@ -61,15 +67,21 @@ class MolecularGraph(nx.Graph):
         """Computes bonds between atoms based on covalent radii."""
         if (self.number_of_edges() > 0):
             # bonding found in cif file
+            # TODO(pboyd) should check to see if lengths are computed..
             return
         for n1, n2 in itertools.combinations(self.nodes(), 2):
             node1, node2 = self.node[n1], self.node[n2]
-            e1, e2 = node1['_atom_site_type_symbol'],\
-                    node2['_atom_site_type_symbol']
+            e1, e2 = node1['element'],\
+                    node2['element']
             i1,i2 = node1['index']-1, node2['index']-1
             rad = (COVALENT_RADII[e1] + COVALENT_RADII[e2])
-            if self.distance_matrix[i1,i2]*scale_factor < rad:
-                self.add_edge(n1, n2, key=self.number_of_edges() + 1, order='S')
+            dist = self.distance_matrix[i1,i2]
+            if dist*scale_factor < rad:
+                self.add_edge(n1, n2, key=self.number_of_edges() + 1, 
+                              order=1.0, 
+                              weight=1,
+                              length=dist
+                              )
             # add image flag if necessary (and missing..)
     
     #TODO(pboyd) update this
@@ -98,9 +110,24 @@ class MolecularGraph(nx.Graph):
         """Add bond edges (weight factor = 1)"""
         #TODO(pboyd) should figure out if there are other cif keywords to identify
         # atom types
+        #TODO(pboyd) this is .cif specific and should be contained within the cif 
+        # file reading portion of the code. This is so that other file formats
+        # can eventually be adopted if need be.
+
         n1 = kwargs.pop('_geom_bond_atom_site_label_1')
         n2 = kwargs.pop('_geom_bond_atom_site_label_2')
+        try:
+            length = float(kwargs.pop('_geom_bond_distance'))
+        except KeyError:
+            length = 0.0
+
+        try:
+            order = CCDC_BOND_ORDERS[kwargs['_ccdc_geom_bond_type']]
+        except KeyError:
+            order = 1.0
+        kwargs.update({'length':length})
         kwargs.update({'weight': 1})
+        kwargs.update({'order': order})
         self.add_edge(n1, n2, key=self.number_of_edges()+1, **kwargs)
 
     def compute_cartesian_coordinates(self, cell):
@@ -136,22 +163,27 @@ class MolecularGraph(nx.Graph):
         four = np.dot(one - two - three, cell.cell)
         return np.linalg.norm(four)
 
-    def compute_atom_typing(self):
+    def compute_init_typing(self):
+        """Find possible rings in the structure and 
+        initialize the hybridization for each atom.
+        More refined determinations of atom and bond types
+        is computed below in compute_bond_typing
+
+        """
         #TODO(pboyd) return if atoms already 'typed' in the .cif file
         # compute and store cycles
         cycles = []
-        for node in self.atoms:
-            label = atom.ciflabel
-            for n in atom.neighbours:
-                nlabel = self.atoms[n].ciflabel
+        for node, data in self.nodes_iter(data=True):
+            for n in self.neighbors(node):
                 # fastest way I could think of..
-                self.remove_edge(label, nlabel)
+                edge = self[node][n].copy()
+                self.remove_edge(node, n)
                 cycle = []
                 try:
-                    cycle = list(nx.all_shortest_paths(self, label, nlabel))
+                    cycle = list(nx.all_shortest_paths(self, node, n))
                 except nx.exception.NetworkXNoPath:
                     pass
-                self.add_edge(label, nlabel)
+                self.add_edge(node, n, **edge)
                 #FIXME MW edit to only store cycles < len(10)
                 # should be a harmless edit but maybe need to test
                 if(len(cycle) <= 10):
@@ -160,7 +192,7 @@ class MolecularGraph(nx.Graph):
         for label, data in self.nodes_iter(data=True):
             # N O C S
             neighbours = self.neighbors(label)
-            element = data['_atom_site_type_symbol']
+            element = data['element']
             if element == "C":
                 if len(neighbours) >= 4:
                     data.update({'hybridization':'sp3'})
@@ -169,105 +201,117 @@ class MolecularGraph(nx.Graph):
                 elif len(neighbours) <= 2:
                     data.update({'hybridization':'sp'})
             elif element == "N":
-                if len(atom.neighbours) >= 3:
+                if len(neighbours) >= 3:
                     data.update({'hybridization':'sp3'})
-                elif len(atom.neighbours) == 2:
+                elif len(neighbours) == 2:
                     data.update({'hybridization':'sp2'})
-                elif len(atom.neighbours) == 1:
+                elif len(neighbours) == 1:
                     data.update({'hybridization':'sp'})
             elif element == "O":
-                if len(atom.neighbours) >= 2:
+                if len(neighbours) >= 2:
                     data.update({'hybridization':'sp3'})
-                elif len(atom.neighbours) == 1:
+                elif len(neighbours) == 1:
                     data.update({'hybridization':'sp2'})
             elif element == "S":
-                if len(atom.neighbours) == 2:
+                if len(neighbours) == 2:
                     data.update({'hybridization':'sp3'})
-                elif len(atom.neighbours) == 1:
+                elif len(neighbours) == 1:
                     data.update({'hybridization':'sp2'})
 
+            else:
+                #default sp3
+                data.update({'hybridization':'sp3'})
         # convert to aromatic
         # probably not a good test for aromaticity..
         arom = set(["C", "N", "O", "S"])
         for cycle in cycles:
-            elements = [self.nodes[k]['_atom_site_type_symbol'] for k in cycle]
-            neigh = [self.neighbors[k] for k in cycle]
+            elements = [self.node[k]['element'] for k in cycle]
+            neigh = [self.degree(k) for k in cycle]
             if np.all(np.array(neigh) <= 3) and set(elements) <= arom:
                 for a in cycle:
-                    self.nodes[a]['hybridization'] = 'aromatic'
-                    self.nodes[a]['cycle'] = True
-                    self.nodes[a].setdefault('rings', []).append(cycle)
+                    self.node[a]['hybridization'] = 'aromatic'
+                    self.node[a]['cycle'] = True
+                    self.node[a]['rings'].append(cycle)
 
-    #TODO(pboyd) update this
     def compute_bond_typing(self):
+        """ Compute bond types and atom types based on the local edge
+        environment.
+        Messy, loads of 'ifs'
+        is there a better way to catch chemical features?
+        """ 
         #TODO(pboyd) return if bonds already 'typed' in the .cif file
         organic = set(["H", "C", "N", "O", "S"])
-        for bond in self.bonds:
-            atoms = bond.atoms
-            elements = [a.element for a in atoms]
+        for n1, n2, data in self.edges_iter(data=True):
+            elements = [self.node[a]['element'] for a in (n1,n2)]
+            hybridization = [self.node[a]['hybridization'] for a in (n1, n2)]
+            rings = [self.node[a]['rings'] for a in (n1, n2)]
             samering = False
-            if atoms[0].hybridization == "aromatic" and atoms[1].hybridization == "aromatic":
-                for r in atoms[0].rings:
-                    if atoms[1].ciflabel in r:
+            if set(hybridization) == set(['aromatic']):
+                for r in rings[0]:
+                    if n2 in r:
                         samering = True
                 if(samering):
-                    bond.order = 1.5
+                    data.update({"order" : 1.5})
 
             if set(elements) == set(["C", "O"]):
-                car = atoms[elements.index("C")]
-                oxy = atoms[elements.index("O")]
-                carnn = [self.atoms[j] for j in car.neighbours if j != oxy.index]
+                car = n1 if self.node[n1]['element'] == "C" else n2
+                car_data = self.node[car]
+                oxy = n2 if self.node[n2]['element'] == "O" else n1
+                oxy_data = self.node[oxy]
+
+                carnn = [i for i in self.neighbors(car) if i != oxy]
                 try:
-                    carnelem = [j.element for j in carnn]
+                    carnelem = [self.node[j]['element'] for j in carnn]
                 except:
                     carnelem = []
 
-                oxynn = [self.atoms[j] for j in oxy.neighbours if j != car.index]
+                oxynn = [i for i in self.neighbors(oxy) if i != car]
                 try:
-                    oxynelem = [j.element for j in oxynn]
+                    oxynelem = [self.node[j]['element'] for j in oxynn]
                 except:
                     oxynelem = []
                 if "O" in carnelem:
                     at = carnn[carnelem.index("O")]
-                    if len(at.neighbours) == 1:
-                        if len(oxy.neighbours) == 1:
+                    at_data = self.node[at]
+                    if self.degree(at) == 1:
+                        if self.degree(oxy) == 1:
                             #CO2
-                            car.hybridization = 'sp'
-                            oxy.hybridization = 'sp2'
-                            bond.order = 2.
+                            car_data['hybridization'] = 'sp'
+                            oxy_data['hybridization'] = 'sp2'
+                            data['order'] = 2.
                         else:
                             # ester
                             if set(oxynelem) <= organic:
-                                car.hybridization = 'sp2'
-                                oxy.hybridization = 'sp2'
-                                bond.order = 1 # this is the ether part of an ester... 
+                                car_data['hybridization'] = 'sp2'
+                                oxy_data['hybridization'] = 'sp2'
+                                data['order'] = 1 # this is the ether part of an ester... 
                             #carboxylate?
                             else:
-                                car.hybridization = 'aromatic'
-                                oxy.hybridization = 'aromatic'
-                                bond.order = 1.5
+                                car_data['hybridization'] = 'aromatic'
+                                oxy_data['hybridization']= 'aromatic'
+                                data['order'] = 1.5
 
                     else:
-                        atnelem = [self.atoms[k].element for k in at.neighbours]
+                        atnelem = [self.node[k]['element'] for k in self.neighbors(at)]
                         if (set(atnelem) <= organic):
                             # ester
-                            if len(oxy.neighbours) == 1:
-                                car.hybridization = 'sp2'
-                                oxy.hybridization = 'sp2'
+                            if len(oxynn) == 0:
+                                car_data['hybridization'] = 'sp2'
+                                oxy_data['hybridization'] = 'sp2'
                                 bond.order = 2. # carbonyl part of ester
                             # some kind of resonance structure?
                             else:
-                                car.hybridization = 'aromatic'
-                                oxy.hybridization = 'aromatic'
-                                bond.order = 1.5
+                                car_data['hybridization'] = 'aromatic'
+                                oxy_data['hybridization'] = 'aromatic'
+                                data['order'] = 1.5
                         else:
-                            car.hybridization = 'aromatic'
-                            oxy.hybridization = 'aromatic'
-                            bond.order = 1.5
+                            car_data['hybridization'] = 'aromatic'
+                            oxy_data['hybridization'] = 'aromatic'
+                            data['order'] = 1.5
                 if "N" in carnelem:
                     at = carnn[carnelem.index("N")]
                     # C=O of amide group
-                    if len(oxy.neighbours) == 1:
+                    if self.degree(oxy) == 1:
                         bond.order = 1.5
                         car.hybridization = 'aromatic'
                         oxy.hybridization = 'aromatic'
@@ -286,50 +330,56 @@ class MolecularGraph(nx.Graph):
                             oxy.hybridization = 'sp2'
                             bond.order = 2.0
             if set(elements) == set(["C", "N"]) and not samering:
-                car = atoms[elements.index("C")]
-                nit = atoms[elements.index("N")]
-                nitnn = [self.atoms[j] for j in nit.neighbours if j != car.index]
-                nitnelem = [k.element for k in nitnn]
+                car = n1 if self.node[n1]['element'] == "C" else n2
+                car_data = self.node[car]
+                nit = n2 if self.node[n2]['element'] == "N" else n1
+                nit_data = self.node[nit]
+                carnn = [j for j in self.neighbors(car) if j != nit]
+                carnelem = [self.node[k]['element'] for k in carnn]
+                nitnn = [j for j in self.neighbors(nit) if j != car]
+                nitnelem = [self.node[k]['element'] for k in nitnn]
                 # aromatic amine connected -- assume part of delocalized system
-                if car.hybridization == 'aromatic' and set(['H']) == set(nitnelem):
-                    bond.order = 1.5
-                    nit.hybridization = 'aromatic'
+                if car_data['hybridization'] == 'aromatic' and set(['H']) == set(nitnelem):
+                    data['order'] = 1.5
+                    nit_data['hybridization'] = 'aromatic'
                 # amide?
-                elif len(car.neighbours) == 3 and len(nitnn) >=2:
+                elif len(self.neighbors(car)) == 3 and len(nitnn) >=2:
                     if "O" in carnelem:
-                        bond.order = 1.5 # (amide)
-                        nit.hybridization = 'aromatic'
-            if (not atoms[0].is_cycle) and (not atoms[1].is_cycle) and (set(elements) <= organic):
-                if set([a.hybridization for a in atoms]) == set(['sp2']):
+                        data['order'] = 1.5 # (amide)
+                        nit_data['hybridization'] = 'aromatic'
+            if (not self.node[n1]['cycle']) and (not self.node[n2]['cycle']) and (set(elements) <= organic):
+                if set(hybridization) == set(['sp2']):
                     # check bond length.. probably not a good indicator..
                     try:
-                        cr1 = COVALENT_RADII['%s_2'%atoms[0].element]
+                        cr1 = COVALENT_RADII['%s_2'%elements[0]]
                     except KeyError:
-                        cr1 = COVALENT_RADII[atoms[0].element]
+                        cr1 = COVALENT_RADII[elements[0]]
                     try:
-                        cr2 = COVALENT_RADII['%s_2'%(atoms[1].element)]
+                        cr2 = COVALENT_RADII['%s_2'%(elements[1])]
                     except KeyError:
-                        cr2 = COVALENT_RADII[atoms[1].element]
+                        cr2 = COVALENT_RADII[elements[1]]
                     covrad = cr1 + cr2
-                    if (bond.length <= covrad*.95):
-                        bond.order = 2.0
-                elif set([a.hybridization for a in atoms]) == set(['sp']):
+                    if (data['length'] <= covrad*.95):
+                        data['order'] = 2.0
+                elif set(hybridization) == set(['sp']):
                     try:
-                        cr1 = COVALENT_RADII['%s_1'%atoms[0].element]
+                        cr1 = COVALENT_RADII['%s_1'%elements[0]]
                     except KeyError:
-                        cr1 = COVALENT_RADII[atoms[0].element]
+                        cr1 = COVALENT_RADII[elements[0]]
                     try:
-                        cr2 = COVALENT_RADII['%s_1'%(atoms[1].element)]
+                        cr2 = COVALENT_RADII['%s_1'%elements[1]]
                     except KeyError:
-                        cr2 = COVALENT_RADII[atoms[1].element]
+                        cr2 = COVALENT_RADII[elements[1]]
                     covrad = cr1 + cr2 
-                    if (bond.length <= covrad*.95):
-                        bond.order = 3.0
+                    if (data['length'] <= covrad*.95):
+                        data['order'] = 3.0
+
     def atomic_node_sanity_check(self):
         """Check for specific keyword/value pairs. Exit if non-existent"""
 
     def show(self):
         nx.draw(self)
+    
 
 def from_CIF(cifname):
     """Reads the structure data from the CIF
@@ -374,6 +424,8 @@ def from_CIF(cifname):
     mg.compute_cartesian_coordinates(cell)
     mg.compute_min_img_distances(cell)
     mg.compute_bonding()
+    mg.compute_init_typing()
+    mg.compute_bond_typing()
     return cell, mg
     #x, y, z = [], [], []
     #if '_atom_site_fract_x' in data:
