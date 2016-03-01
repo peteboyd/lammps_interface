@@ -470,6 +470,13 @@ def main():
         print("CIF file requested. Exiting...")
         write_CIF(graph, cell)
         sys.exit()
+    try:
+        ff = getattr(ForceFields, options.force_field)(graph)
+    except AttributeError:
+        print("Error: could not find the force field: %s"%options.force_field)
+        sys.exit()
+    ff.detect_ff_terms() 
+    ff.compute_force_field_terms()
     sys.exit()
     # compute minimum supercell
     # NB: half box width should be a user-defined command,
@@ -477,12 +484,6 @@ def main():
     # currently defaults to 12.5 anstroms
     #obtain desired force field class from command line, parse 
     # string to real class value
-    try:
-        ff = getattr(ForceFields, options.force_field)(struct)
-    except AttributeError:
-        print("Error: could not find the force field: %s"%options.force_field)
-        sys.exit()
-    ff.detect_ff_terms() 
     ff.cutoff = options.cutoff
     ff.structure.minimum_cell(cutoff=options.cutoff)
     compute_molecules(struct)
@@ -496,7 +497,6 @@ def main():
     # doesn't really follow the logic of the program, but can only be done 
     # when the atoms have been assigned to a force field.
 
-    ff.compute_force_field_terms()
     data_str = construct_data_file(ff) 
     inp_str = construct_input_file(ff)
    

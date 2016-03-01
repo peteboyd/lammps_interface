@@ -56,7 +56,8 @@ class MolecularGraph(nx.Graph):
         kwargs.update({'mass':MASS[element]})
         kwargs.update({'element':element})
         kwargs.update({'cycle':False})
-        kwargs.update({'rings':[]}) 
+        kwargs.update({'rings':[]})
+        kwargs.update({'atomic_number':ATOMIC_NUMBER.index(element)})
         try:
             kwargs['charge'] = float(kwargs['_atom_type_partial_charge'])
         except KeyError:
@@ -433,7 +434,7 @@ class MolecularGraph(nx.Graph):
                 continue
             angles = itertools.combinations(self.neighbors(b), 2)
             for (a, c) in angles:
-                data.setdefault('angle', {}).update({(a,c):None})
+                data.setdefault('angle', {}).update({(a,c):{'potential':None}})
     
     def compute_dihedrals(self):
         """Dihedrals are attached to specific edges in the graph.
@@ -453,7 +454,7 @@ class MolecularGraph(nx.Graph):
             c_neighbours = self.neighbors(c)
             for a in b_neighbours:
                 for d in c_neighbours:
-                    data.setdefault('dihedrals',{}).update({(a, d):None})
+                    data.setdefault('dihedrals',{}).update({(a, d):{'potential':None}})
     
     def compute_improper_dihedrals(self):
         """Improper Dihedrals are attached to specific nodes in the graph.
@@ -474,7 +475,7 @@ class MolecularGraph(nx.Graph):
             local_impropers = list(itertools.permutations(self.neighbors(b)))
             for idx in range(0, 6, 2):
                 (a, c, d) = local_impropers[idx]
-                data.setdefault('impropers',{}).update({(a,c,d):None})
+                data.setdefault('impropers',{}).update({(a,c,d):{'potential':None}})
 
     def compute_topology_information(self, cell):
         self.compute_cartesian_coordinates(cell)
