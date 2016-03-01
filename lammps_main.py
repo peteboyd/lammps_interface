@@ -7,12 +7,14 @@ the program starts here.
 """
 
 import sys
-import os
 import math
+import numpy as np
 import ForceFields
 import itertools
 import operator
-from structure_data import from_CIF, Structure
+from structure_data import from_CIF, write_CIF, Structure
+from CIFIO import CIF
+from ccdc import CCDC_BOND_ORDERS
 from datetime import datetime
 from InputHandler import Options
 
@@ -430,12 +432,6 @@ def construct_input_file(ff):
 #    inp_str += "thermo_style custom step temp etotal ebond eangle edihed eimp\n thermo 1 \n timestep 0.5 \n fix   2 all nvt temp 300.0 300  100\n run  50000"
     return inp_str
 
-def clean(name):
-    name = os.path.split(name)[-1]
-    if name.endswith('.cif'):
-        name = name[:-4]
-    return name
-
 def groups(ints):
     ints = sorted(ints)
     for k, g in itertools.groupby(enumerate(ints), lambda ix : ix[0]-ix[1]):
@@ -460,14 +456,16 @@ def compute_molecules(structure):
             # assume the rest is the framework
             else:
                 self.molecules.setdefault("framework", []).append([i.index for i in ats]) 
+
 def main():
 
     # command line parsing
     options = Options()
-
-    mofname = clean(options.cif_file)
-    struct = Structure(name=mofname)
     cell, graph = from_CIF(options.cif_file)
+    if options.output_cif:
+        print("CIF file requested. Exiting...")
+        write_CIF(graph, cell)
+        sys.exit()
     sys.exit()
     # compute minimum supercell
     # NB: half box width should be a user-defined command,
@@ -484,10 +482,6 @@ def main():
     ff.cutoff = options.cutoff
     ff.structure.minimum_cell(cutoff=options.cutoff)
     compute_molecules(struct)
-    if options.output_cif:
-        print("output of .cif file requested. Exiting.")
-        struct.write_cif()
-        sys.exit()
 
     struct.compute_angles()
     struct.compute_dihedrals()

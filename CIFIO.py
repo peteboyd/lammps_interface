@@ -1,4 +1,5 @@
 import shlex
+from datetime import date
 
 class CIF(object):
 

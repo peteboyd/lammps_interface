@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from datetime import date
+import os
 import numpy as np
 from scipy.spatial import distance
 import math
@@ -40,6 +40,10 @@ class MolecularGraph(nx.Graph):
         nx.Graph.__init__(self, **kwargs)
         # coordinates and distances will be kept in a matrix because 
         # networkx edge and node lookup is slow.
+        try:
+            self.name = kwargs['name']
+        except KeyError:
+            self.name = 'default'
         self.coordinates = None
         self.distmatrix = None 
 
@@ -56,19 +60,42 @@ class MolecularGraph(nx.Graph):
         try:
             kwargs['charge'] = float(kwargs['_atom_type_partial_charge'])
         except KeyError:
-            kwargs['charge'] = 0.0 
+            kwargs['charge'] = 0.0
+        try:
+            fftype = kwargs.pop('_atom_site_description')
+        except KeyError:
+            fftype = None
 
+        kwargs.update({'force_field_type':fftype})
         kwargs.update({'index':self.number_of_nodes() + 1})
         #TODO(pboyd) should have some error checking here..
         n = kwargs.pop('_atom_site_label')
         self.add_node(n, **kwargs)
    
-    def compute_bonding(self, scale_factor = 0.9):
+    def compute_bonding(self, cell, scale_factor = 0.9):
         """Computes bonds between atoms based on covalent radii."""
+        # here assume bonds exist, populate data with lengths and 
+        # symflags if needed.
         if (self.number_of_edges() > 0):
             # bonding found in cif file
-            # TODO(pboyd) should check to see if lengths are computed..
+            sf = []
+            for n1, n2, data in self.edges_iter(data=True):
+                sf.append(data['symflag'])
+                bl = data['length']
+                if bl <= 0.01:
+                    id1, id2 = self.node[n1]['index']-1, self.node[n2]['index']-1
+                    dist = self.distance_matrix[id1,id2]
+                    data['length'] = dist
+
+            if (set(sf) == set(['.'])):
+                # compute sym flags
+                for n1, n2, data in self.edges_iter(data=True):
+                    flag = self.compute_bond_image_flag(n1, n2, cell)
+                    data['symflag'] = flag
             return
+
+        # Here we will determine bonding from all atom pairs using 
+        # covalent radii.
         for n1, n2 in itertools.combinations(self.nodes(), 2):
             node1, node2 = self.node[n1], self.node[n2]
             e1, e2 = node1['element'],\
@@ -77,34 +104,36 @@ class MolecularGraph(nx.Graph):
             rad = (COVALENT_RADII[e1] + COVALENT_RADII[e2])
             dist = self.distance_matrix[i1,i2]
             if dist*scale_factor < rad:
+                flag = self.compute_bond_image_flag(n1, n2, cell)
                 self.add_edge(n1, n2, key=self.number_of_edges() + 1, 
                               order=1.0, 
                               weight=1,
-                              length=dist
+                              length=dist,
+                              symflag = flag
                               )
-            # add image flag if necessary (and missing..)
     
     #TODO(pboyd) update this
-    def compute_bond_image_flag(self):
+    def compute_bond_image_flag(self, n1, n2, cell):
         """Update bonds to contain bond type, distances, and min img
         shift."""
         supercells = np.array(list(itertools.product((-1, 0, 1), repeat=3)))
         unit_repr = np.array([5,5,5], dtype=int)
-        for bond in self.bonds:
-            atom1,atom2 = bond.atoms
-            fcoords = atom2.scaled_pos(self.cell.inverse) + supercells
-            coords = []
-            for j in fcoords:
-                coords.append(np.dot(j, self.cell.cell))
-            coords = np.array(coords)
-            dists = distance.cdist([atom1.coordinates[:3]], coords)
-            dists = dists[0].tolist()
-            image = dists.index(min(dists))
-            dist = min(dists)
-            sym = '.' if all([i==0 for i in supercells[image]]) else \
-                    "1_%i%i%i"%(tuple(np.array(supercells[image],dtype=int) +
-                                      unit_repr))
-            bond.symflag = sym
+        atom1 = self.node[n1]
+        atom2 = self.node[n2]
+        coord1 = self.coordinates[atom1['index']-1]
+        coord2 = self.coordinates[atom2['index']-1]
+        fcoords = np.dot(cell.inverse, coord2) + supercells
+        
+        coords = np.array([np.dot(j, cell.cell) for j in fcoords])
+        
+        dists = distance.cdist([coord1], coords)
+        dists = dists[0].tolist()
+        image = dists.index(min(dists))
+        dist = min(dists)
+        sym = '.' if all([i==0 for i in supercells[image]]) else \
+                "1_%i%i%i"%(tuple(np.array(supercells[image],dtype=int) +
+                                  unit_repr))
+        return sym
 
     def add_bond_edge(self, **kwargs):
         """Add bond edges (weight factor = 1)"""
@@ -125,9 +154,16 @@ class MolecularGraph(nx.Graph):
             order = CCDC_BOND_ORDERS[kwargs['_ccdc_geom_bond_type']]
         except KeyError:
             order = 1.0
+
+        try:
+            flag = kwargs.pop('_geom_bond_site_symmetry_2')
+        except KeyError:
+            # assume bond does not straddle a periodic boundary
+            flag = '.'
         kwargs.update({'length':length})
         kwargs.update({'weight': 1})
         kwargs.update({'order': order})
+        kwargs.update({'symflag': flag})
         self.add_edge(n1, n2, key=self.number_of_edges()+1, **kwargs)
 
     def compute_cartesian_coordinates(self, cell):
@@ -395,7 +431,7 @@ def from_CIF(cifname):
     # obtain atoms and cell
     cell = Cell()
     # add data to molecular graph (to be parsed later..)
-    mg = MolecularGraph()
+    mg = MolecularGraph(name=clean(cifname))
     cellparams = [float(i) for i in [data['_cell_length_a'], 
                                      data['_cell_length_b'], 
                                      data['_cell_length_c'],
@@ -423,7 +459,7 @@ def from_CIF(cifname):
         print("No bonds reported in cif file - computing bonding..")
     mg.compute_cartesian_coordinates(cell)
     mg.compute_min_img_distances(cell)
-    mg.compute_bonding()
+    mg.compute_bonding(cell)
     mg.compute_init_typing()
     mg.compute_bond_typing()
     return cell, mg
@@ -574,6 +610,81 @@ def from_CIF(cifname):
     #    self.compute_bonding()
     #    self.obtain_graph()
     #self.compute_atom_bond_typing()
+
+def write_CIF(graph, cell):
+    """Currently used for debugging purposes"""
+    c = CIF(name="%s.debug"%graph.name)
+    # data block
+    c.add_data("data", data_=graph.name)
+    c.add_data("data", _audit_creation_date=
+                        CIF.label(c.get_time()))
+    c.add_data("data", _audit_creation_method=
+                        CIF.label("Lammps Interface v.%s"%(str(0))))
+
+    # sym block
+    c.add_data("sym", _symmetry_space_group_name_H_M=
+                        CIF.label("P1"))
+    c.add_data("sym", _symmetry_Int_Tables_number=
+                        CIF.label("1"))
+    c.add_data("sym", _symmetry_cell_setting=
+                        CIF.label("triclinic"))
+
+    # sym loop block
+    c.add_data("sym_loop", _symmetry_equiv_pos_as_xyz=
+                        CIF.label("'x, y, z'"))
+
+    # cell block
+    c.add_data("cell", _cell_length_a=CIF.cell_length_a(cell.a))
+    c.add_data("cell", _cell_length_b=CIF.cell_length_b(cell.b))
+    c.add_data("cell", _cell_length_c=CIF.cell_length_c(cell.c))
+    c.add_data("cell", _cell_angle_alpha=CIF.cell_angle_alpha(cell.alpha))
+    c.add_data("cell", _cell_angle_beta=CIF.cell_angle_beta(cell.beta))
+    c.add_data("cell", _cell_angle_gamma=CIF.cell_angle_gamma(cell.gamma))
+    # atom block
+    element_counter = {}
+    for node, data in graph.nodes_iter(data=True):
+        label = "%s"%(node)
+        c.add_data("atoms", _atom_site_label=
+                                CIF.atom_site_label(label))
+        c.add_data("atoms", _atom_site_type_symbol=
+                                CIF.atom_site_type_symbol(data['element']))
+        c.add_data("atoms", _atom_site_description=
+                                CIF.atom_site_description(data['force_field_type']))
+        coords = graph.coordinates[data['index']-1]
+        fc = np.dot(cell.inverse, coords) 
+        c.add_data("atoms", _atom_site_fract_x=
+                                CIF.atom_site_fract_x(fc[0]))
+        c.add_data("atoms", _atom_site_fract_y=
+                                CIF.atom_site_fract_y(fc[1]))
+        c.add_data("atoms", _atom_site_fract_z=
+                                CIF.atom_site_fract_z(fc[2]))
+
+    # bond block
+    # must re-sort them based on bond type (Mat Sudio)
+    tosort = [(data['order'], (n1, n2, data)) for n1, n2, data in graph.edges_iter(data=True)]
+    for ord, (n1, n2, data) in sorted(tosort, key=lambda tup: tup[0]):
+        type = CCDC_BOND_ORDERS[data['order']]
+        dist = data['length'] 
+        sym = data['symflag']
+
+        label1 = n1 
+        label2 = n2 
+        c.add_data("bonds", _geom_bond_atom_site_label_1=
+                                    CIF.geom_bond_atom_site_label_1(label1))
+        c.add_data("bonds", _geom_bond_atom_site_label_2=
+                                    CIF.geom_bond_atom_site_label_2(label2))
+        c.add_data("bonds", _geom_bond_distance=
+                                    CIF.geom_bond_distance(dist))
+        c.add_data("bonds", _geom_bond_site_symmetry_2=
+                                    CIF.geom_bond_site_symmetry_2(sym))
+        c.add_data("bonds", _ccdc_geom_bond_type=
+                                    CIF.ccdc_geom_bond_type(type))
+    
+    print('Output cif file written to %s.cif'%c.name)
+    file = open("%s.cif"%c.name, "w")
+    file.writelines(str(c))
+    file.close()
+
 class Structure(object):
 
     def __init__(self, name):
@@ -847,81 +958,6 @@ class Structure(object):
         return np.linalg.norm(four)
 
 
-    def write_cif(self):
-        """Currently used for debugging purposes"""
-        c = CIF(name="%s.debug"%self.name)
-        # data block
-        c.add_data("data", data_=self.name)
-        c.add_data("data", _audit_creation_date=
-                            CIF.label(c.get_time()))
-        c.add_data("data", _audit_creation_method=
-                            CIF.label("Lammps Interface v.%s"%(str(0))))
-        if self.charge:
-            c.add_data("data", _chemical_properties_physical=
-                               "net charge is %12.5f"%(self.charge))
-
-        # sym block
-        c.add_data("sym", _symmetry_space_group_name_H_M=
-                            CIF.label("P1"))
-        c.add_data("sym", _symmetry_Int_Tables_number=
-                            CIF.label("1"))
-        c.add_data("sym", _symmetry_cell_setting=
-                            CIF.label("triclinic"))
-
-        # sym loop block
-        c.add_data("sym_loop", _symmetry_equiv_pos_as_xyz=
-                            CIF.label("'x, y, z'"))
-
-        # cell block
-        c.add_data("cell", _cell_length_a=CIF.cell_length_a(self.cell.a))
-        c.add_data("cell", _cell_length_b=CIF.cell_length_b(self.cell.b))
-        c.add_data("cell", _cell_length_c=CIF.cell_length_c(self.cell.c))
-        c.add_data("cell", _cell_angle_alpha=CIF.cell_angle_alpha(self.cell.alpha))
-        c.add_data("cell", _cell_angle_beta=CIF.cell_angle_beta(self.cell.beta))
-        c.add_data("cell", _cell_angle_gamma=CIF.cell_angle_gamma(self.cell.gamma))
-        # atom block
-        element_counter = {}
-        for id, atom in enumerate(self.atoms):
-            label = "%s%i"%(atom.element, atom.index)
-            c.add_data("atoms", _atom_site_label=
-                                    CIF.atom_site_label(label))
-            c.add_data("atoms", _atom_site_type_symbol=
-                                    CIF.atom_site_type_symbol(atom.element))
-            c.add_data("atoms", _atom_site_description=
-                                    CIF.atom_site_description(atom.force_field_type))
-            fc = atom.scaled_pos(self.cell.inverse)
-            c.add_data("atoms", _atom_site_fract_x=
-                                    CIF.atom_site_fract_x(fc[0]))
-            c.add_data("atoms", _atom_site_fract_y=
-                                    CIF.atom_site_fract_y(fc[1]))
-            c.add_data("atoms", _atom_site_fract_z=
-                                    CIF.atom_site_fract_z(fc[2]))
-
-        # bond block
-        # must re-sort them based on bond type (Mat Sudio)
-        tosort = [(bond.order, bond) for bond in self.bonds]
-        for ord, bond in sorted(tosort, key=lambda tup: tup[0]):
-            at1, at2 = bond.atoms
-            type = CCDC_BOND_ORDERS[bond.order]
-            dist = bond.length
-            sym = bond.symflag
-
-            label1 = "%s%i"%(at1.element, at1.index) 
-            label2 = "%s%i"%(at2.element, at2.index)
-            c.add_data("bonds", _geom_bond_atom_site_label_1=
-                                        CIF.geom_bond_atom_site_label_1(label1))
-            c.add_data("bonds", _geom_bond_atom_site_label_2=
-                                        CIF.geom_bond_atom_site_label_2(label2))
-            c.add_data("bonds", _geom_bond_distance=
-                                        CIF.geom_bond_distance(dist))
-            c.add_data("bonds", _geom_bond_site_symmetry_2=
-                                        CIF.geom_bond_site_symmetry_2(sym))
-            c.add_data("bonds", _ccdc_geom_bond_type=
-                                        CIF.ccdc_geom_bond_type(type))
-
-        file = open("%s.cif"%c.name, "w")
-        file.writelines(str(c))
-        file.close()
 
 class Bond(object):
     __ID = 0
@@ -1499,3 +1535,8 @@ class Cell(object):
         """Cell angle gamma."""
         return self.params[5]
 
+def clean(name):
+    name = os.path.split(name)[-1]
+    if name.endswith('.cif'):
+        name = name[:-4]
+    return name
