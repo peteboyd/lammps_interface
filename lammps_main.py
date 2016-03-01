@@ -462,6 +462,10 @@ def main():
     # command line parsing
     options = Options()
     cell, graph = from_CIF(options.cif_file)
+    # self contained routine to compute all the bond, angle, diheral and impropers
+    # also determines the chemical environment surrounding each atom (node)
+    # in the graph.
+    graph.compute_topology_information(cell)
     if options.output_cif:
         print("CIF file requested. Exiting...")
         write_CIF(graph, cell)

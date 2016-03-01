@@ -413,9 +413,81 @@ class MolecularGraph(nx.Graph):
     def atomic_node_sanity_check(self):
         """Check for specific keyword/value pairs. Exit if non-existent"""
 
+    def compute_angles(self):
+        """angles are attached to specific nodes, this way
+        if a node is cut out of a graph, the angle comes with it.
+
+               
+               b-----a
+              /
+             /
+            c
+               
+        Must be updated with different adjacent nodes if a
+        supercell is requested, and the angle crosses a 
+        periodic image.
+        
+        """
+        for b, data in self.nodes_iter(data=True):
+            if self.degree(b) < 2:
+                continue
+            angles = itertools.combinations(self.neighbors(b), 2)
+            for (a, c) in angles:
+                data.setdefault('angle', {}).update({(a,c):None})
+    
+    def compute_dihedrals(self):
+        """Dihedrals are attached to specific edges in the graph.
+           a
+            \ 
+             b -- c
+                   \ 
+                    d
+
+        the edge between b and c will contain all possible dihedral
+        angles between the neighbours of b and c (this includes a
+        and d and other possible bonded atoms)
+
+        """
+        for b, c, data in self.edges_iter(data=True):
+            b_neighbours = self.neighbors(b)
+            c_neighbours = self.neighbors(c)
+            for a in b_neighbours:
+                for d in c_neighbours:
+                    data.setdefault('dihedrals',{}).update({(a, d):None})
+    
+    def compute_improper_dihedrals(self):
+        """Improper Dihedrals are attached to specific nodes in the graph.
+           a
+            \ 
+             b -- c
+             |     
+             d    
+
+        the node b will contain all possible improper dihedral 
+        angles between the neighbours of b 
+
+        """
+        for b, data in self.nodes_iter(data=True):
+            if self.degree(b) != 3:
+                continue
+            # three improper torsion angles about each atom
+            local_impropers = list(itertools.permutations(self.neighbors(b)))
+            for idx in range(0, 6, 2):
+                (a, c, d) = local_impropers[idx]
+                data.setdefault('impropers',{}).update({(a,c,d):None})
+
+    def compute_topology_information(self, cell):
+        self.compute_cartesian_coordinates(cell)
+        self.compute_min_img_distances(cell)
+        self.compute_bonding(cell)
+        self.compute_init_typing()
+        self.compute_bond_typing()
+        self.compute_angles()
+        self.compute_dihedrals()
+        self.compute_improper_dihedrals()
+
     def show(self):
         nx.draw(self)
-    
 
 def from_CIF(cifname):
     """Reads the structure data from the CIF
@@ -457,11 +529,6 @@ def from_CIF(cifname):
     except:
         # catch no bonds
         print("No bonds reported in cif file - computing bonding..")
-    mg.compute_cartesian_coordinates(cell)
-    mg.compute_min_img_distances(cell)
-    mg.compute_bonding(cell)
-    mg.compute_init_typing()
-    mg.compute_bond_typing()
     return cell, mg
     #x, y, z = [], [], []
     #if '_atom_site_fract_x' in data:
@@ -761,56 +828,11 @@ class Structure(object):
             if atom.ciflabel == label:
                 return atom
 
-    def compute_angles(self):
-        for atom in self.atoms:
-            if len(atom.neighbours) < 2:
-                continue
-            angles = itertools.combinations(atom.neighbours, 2)
-            for (lid, rid) in angles:
-                left_atom = self.atoms[lid]
-                right_atom = self.atoms[rid]
-                abbond = self.get_bond(left_atom, atom)
-                bcbond = self.get_bond(atom, right_atom)
-                angle = Angle(abbond, bcbond)
-                self.angles.append(angle)
-
     def get_bond(self, atom1, atom2):
         for bond in self.bonds:
             if set((atom1, atom2)) ==  set(bond.atoms):
                 return bond
         return None
-
-    def compute_dihedrals(self):
-        done_bs=[]
-        for atom_b in self.atoms:
-            ib = atom_b.index
-            ib_type = atom_b.ff_type_index
-            angles = itertools.permutations(atom_b.neighbours, 2)
-            done_bs.append(atom_b)
-            for ia, ic in angles:
-                atom_a = self.atoms[ia]
-                atom_c = self.atoms[ic]
-                ia_type = atom_a.ff_type_index
-                ic_type = atom_c.ff_type_index
-                # ignore cases where the c atom has already
-                # been used as a b atom. Otherwise this will double-count
-                # dihedral angles in the reverse order..
-                if atom_c in done_bs:
-                    continue
-                c_neighbours = [i for i in atom_c.neighbours if ib != i and
-                                ia != i]
-                for id in c_neighbours:
-                    atom_d = self.atoms[id]
-                    id_type = atom_d.ff_type_index
-                    
-                    angle1 = self.get_angle(atom_a, atom_b, atom_c)
-                    angle2 = self.get_angle(atom_b, atom_c, atom_d)
-                    if angle1 is None:
-                        angle1 = self.get_angle(atom_c, atom_b, atom_a)
-                    if angle2 is None:
-                        angle2 = self.get_angle(atom_d, atom_c, atom_b)
-                    dihedral = Dihedral(angle1, angle2)
-                    self.dihedrals.append(dihedral)
     
     def get_angle(self, atom_a, atom_b, atom_c):
         for angle in self.angles:
@@ -818,25 +840,6 @@ class Structure(object):
                 return angle
         return None
 
-    def compute_improper_dihedrals(self):
-        count = 0
-        improper_type = {}
-
-        for atom_b in self.atoms:
-            if len(atom_b.neighbours) != 3:
-                continue
-            ib = atom_b.index
-            # three improper torsion angles about each atom
-            local_impropers = list(itertools.permutations(atom_b.neighbours))
-            for idx in range(0, 6, 2):
-                (ia, ic, id) = local_impropers[idx]
-                atom_a, atom_c, atom_d = self.atoms[ia], self.atoms[ic], self.atoms[id]
-
-                abbond = self.get_bond(atom_a, atom_b)
-                bcbond = self.get_bond(atom_b, atom_c)
-                bdbond = self.get_bond(atom_b, atom_d)
-                improper = ImproperDihedral(abbond, bcbond, bdbond)
-                self.impropers.append(improper)
     
     def compute_pair_terms(self):
         """Place holder for hydrogen bonding?"""
