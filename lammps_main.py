@@ -466,24 +466,28 @@ def main():
     # also determines the chemical environment surrounding each atom (node)
     # in the graph.
     graph.compute_topology_information(cell)
-    if options.output_cif:
-        print("CIF file requested. Exiting...")
-        write_CIF(graph, cell)
-        sys.exit()
+    # parse into molecules if they exist
     try:
         ff = getattr(ForceFields, options.force_field)(graph)
     except AttributeError:
         print("Error: could not find the force field: %s"%options.force_field)
         sys.exit()
-    ff.detect_ff_terms() 
-    ff.compute_force_field_terms()
+    if options.output_cif:
+        print("CIF file requested. Exiting...")
+        write_CIF(graph, cell)
+        sys.exit()
+    # determine minimum acceptable supercell based on the non-bonded cutoff
+    supercell = cell.minimum_supercell(options.cutoff)
+    if np.any(np.array(supercell) > 1):
+        print("Warning: unit cell is not large enough to"
+              +" support a non-bonded cutoff of %.2f Angstroms\n"%options.cutoff +
+               "Re-sizing to a %i x %i x %i supercell. "%(supercell))
+        
+        #TODO(pboyd): apply to subgraphs as well, if requested.
+        graph.build_supercell(supercell)
+
     sys.exit()
     # compute minimum supercell
-    # NB: half box width should be a user-defined command,
-    # or default to 2.5*sigma_max of the requested force field
-    # currently defaults to 12.5 anstroms
-    #obtain desired force field class from command line, parse 
-    # string to real class value
     ff.cutoff = options.cutoff
     ff.structure.minimum_cell(cutoff=options.cutoff)
     compute_molecules(struct)

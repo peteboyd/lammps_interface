@@ -45,7 +45,8 @@ class MolecularGraph(nx.Graph):
         except KeyError:
             self.name = 'default'
         self.coordinates = None
-        self.distmatrix = None 
+        self.distmatrix = None
+        self.original_size = 0
 
     def add_atomic_node(self, **kwargs):
         """Insert nodes into the graph from the cif file"""
@@ -165,6 +166,7 @@ class MolecularGraph(nx.Graph):
         kwargs.update({'weight': 1})
         kwargs.update({'order': order})
         kwargs.update({'symflag': flag})
+        kwargs.update({'potential': None})
         self.add_edge(n1, n2, key=self.number_of_edges()+1, **kwargs)
 
     def compute_cartesian_coordinates(self, cell):
@@ -189,7 +191,11 @@ class MolecularGraph(nx.Graph):
             id1, id2 = self.node[n1]['index']-1,\
                                 self.node[n2]['index']-1
             coords1, coords2 = self.coordinates[id1], self.coordinates[id2]
-            dist = self.min_img_distance(coords1, coords2, cell)
+            try:
+                dist = self.min_img_distance(coords1, coords2, cell)
+            except TypeError:
+                print (coords1, coords2, cell)
+                sys.exit()
             self.distance_matrix[id1][id2] = dist
             self.distance_matrix[id2][id1] = dist
     
@@ -434,7 +440,7 @@ class MolecularGraph(nx.Graph):
                 continue
             angles = itertools.combinations(self.neighbors(b), 2)
             for (a, c) in angles:
-                data.setdefault('angle', {}).update({(a,c):{'potential':None}})
+                data.setdefault('angles', {}).update({(a,c):{'potential':None}})
     
     def compute_dihedrals(self):
         """Dihedrals are attached to specific edges in the graph.
@@ -450,8 +456,8 @@ class MolecularGraph(nx.Graph):
 
         """
         for b, c, data in self.edges_iter(data=True):
-            b_neighbours = self.neighbors(b)
-            c_neighbours = self.neighbors(c)
+            b_neighbours = [k for k in self.neighbors(b) if k != c]
+            c_neighbours = [k for k in self.neighbors(c) if k != b]
             for a in b_neighbours:
                 for d in c_neighbours:
                     data.setdefault('dihedrals',{}).update({(a, d):{'potential':None}})
@@ -487,8 +493,211 @@ class MolecularGraph(nx.Graph):
         self.compute_dihedrals()
         self.compute_improper_dihedrals()
 
+    def sorted_node_list(self):
+        return [n[1] for n in sorted([(data['index'], node) for node, data in self.nodes_iter(data=True)])]
+
+    def sorted_edge_list(self): 
+        return [e[1] for e in sorted([(data['index'], (n1, n2)) for n1, n2, data in self.edges_iter(data=True)])]
+
     def show(self):
         nx.draw(self)
+
+    def img_offset(self, cells, cell, flag):
+        maxcell = cells[-1]
+        unit_repr = np.array([5, 5, 5], dtype=int)
+        ocell = cell + np.array([int(j) for j in flag[2:]]) - unit_repr
+        # get the image cell of this bond
+        imgcell = ocell % maxcell
+        # determine the atom indices from the image cell
+        return cells.index(tuple([tuple([i]) for i in imgcell]))
+
+
+    def build_supercell(self, sc):
+        """Construct a graph with nodes supporting the size of the 
+        supercell (sc)
+        
+        NB: this replaces and overwrites the original unit cell data 
+            with a supercell. There may be a better way to do this 
+            if one needs to keep both the super- and unit cells.
+        """
+        # preserve indices across molecules.
+        unitatomlen = self.original_size
+        origincell = np.array([0., 0., 0.])
+        cells = list(itertools.product(*[itertools.product(range(j)) for j in sc]))
+        maxcell = np.array(sc)
+         
+        for count, cell in enumerate(cells):
+            newcell = np.array(cell).flatten()
+            offset = count * unitatomlen
+            if (count == 0):
+                graph_image = self
+            else:
+                # rename nodes
+                graph_image = nx.convert_node_labels_to_integers(self, first_label=offset, label_attribute = 'image')
+                graph_image = nx.relabel_nodes(graph_image, {i: "%s%i"%(graph_image.node[i]['element'], i) for i in range(offset, offset + unitatomlen)})
+
+            for n1, n2, data in graph_image.edges_iter(data=True):
+                # flag boundary crossings, and determine updated nodes.
+                # check symmetry flags if they need to be updated,
+                n1_data = graph_image.node[n1]
+                n2_data = graph_image.node[n2]
+                
+                n1img = n1_data['image']
+                n2img = n2_data['image']
+                # TODO(pboyd) the data of 'rings' for each node is not updated, do so if needed..
+                # update angle, dihedral, improper indices.
+                # dihedrals are difficult if the edge spans one of the terminal atoms..
+                if (data['symflag'] != '.'):
+                    os_id = self.img_offset(cells, newcell, data['symflag']) 
+                    offset_c = os_id * unitatomlen
+                    img_n2 = "%s%i"%(n2img['element'], offset_c + n2img['index'])
+                    # pain...
+                    opposite_flag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in data['symflag'][2:]]))) 
+                    rev_n1_img = "%s%i"%(n1img['element'], self.img_offset(cells, newcell, opposite_flag) * unitatomlen + n1img['index'])
+                    # dihedral check
+                    try:
+                        for (a, d), val in data['dihedrals'].items():
+                            # check to make sure edge between a, n1 is not crossing an image
+                            edge_n1_a = self[n1img]][a]
+                            offset_a = offset
+                            if (edge_n1_a['symflag'] != '.'):
+                                offset_a = self.img_offset(cells, newcell, edge_n1_a['symflag']) * unitatomlen
+                            # check to make sure edge between n2, c is not crossing an image
+                            edge_n2_d = self[n2img]][d]
+                            offset_d = offset_c
+                            if (edge_n2_d['symflag'] != '.'):
+                                offset_d = self.img_offset(cells, cells[os_id], edge_n2_d['symflag']) * unitatomlen
+
+                            aid, did = '%s%i'%(self.node[a]['element'], offset_a), '%s%i'%(self.node[d]['element'], offset_d)
+                            
+                            copyover = data['dihedrals'].pop((a,d))
+                            data['dihedrals'][(aid, did)] = copyover
+
+                    except KeyError:
+                        # no dihedrals here.
+                        pass
+
+                    # angle check
+                    try:
+                        for (a, c), val in n1_data['angles'].items():
+                            if(a == n2img):
+                                copyover = n1_data['angles'].pop((a,c))
+                                n1_data['angles'][(img_n2, c)] = copyover
+                            elif(c == n2img):
+                                n1_data['angles'][(a, img_n2)] = copyover
+
+                    except KeyError:
+                        # no angles for n1
+                        pass
+                    # improper check
+                    try:
+                        for (a, c, d), val in n1_data['impropers'].items():
+                    except KeyError:
+                        # no impropers for n1
+                        pass
+
+                    # angle check
+                    try:
+                        for (a, c), val in n2_data['angles'].items():
+
+                            if(a == n1img):
+                                copyover = n1_data['angles'].pop((a,c))
+                                n1_data['angles'][(rev_n1_img, c)] = copyover
+                            elif(c == n2img):
+                                n1_data['angles'][(a, rev_n1_img)] = copyover
+
+                    except KeyError:
+                        # no angles for n2
+                        pass
+
+                    # improper check
+                    try:
+                        for (a, c, d), val in n2_data['impropers'].items():
+
+                    except KeyError:
+                        # no impropers for n2
+                        pass
+
+
+            #for bidx, bond in enumerate(self.bonds):
+            #    (atom1, atom2) = bond.atoms
+            #    newatom1 = self.atoms[(atom1.index%unitatomlen + offset)]
+            #    newatom2 = self.atoms[(atom2.index%unitatomlen + offset)]
+            #    if bond.symflag != '.':
+            #        # check if the current cell is at the extrema of the supercell
+            #        ocell = newcell + np.array([int(j) for j in bond.symflag[2:]]) - unit_repr
+            #        imgcell = ocell % maxcell
+            #        imgoffset = cells.index(tuple([tuple([i]) for i in imgcell]))*unitatomlen
+            #        newatom2 = self.atoms[atom2.index%unitatomlen + imgoffset]
+            #        # new symflag
+            #        if(np.all(newcell == np.zeros(3))):
+            #            delbonds.append(bidx)
+            #            if self.graph is not None:
+            #                self.graph.remove_edge(atom1.ciflabel, atom2.ciflabel)
+
+            #        newbond = Bond(newatom1, newatom2, order=bond.order)
+            #        newbond.length = bond.length
+            #        if any(ocell < origincell) or any(ocell >= maxcell):
+            #            newflaga = np.array([5,5,5])
+            #            newflaga[np.where(ocell >= maxcell)] = 6
+            #            newflaga[np.where(ocell < np.zeros(3))] = 4
+            #            newflag = "1_%i%i%i"%(tuple(newflaga))
+            #            newbond.symflag = newflag
+            #        else:
+            #            newbond.symflag = '.'
+            #        repbonds.append(newbond)
+            #        oldind2 = atom2.index + offset
+            #        try:
+            #            del(newatom1.neighbours[newatom1.neighbours.index(oldind2)])
+            #        except ValueError:
+            #            pass
+            #        newatom1.neighbours.append(newatom2.index)
+            #        oldind1 = atom1.index + imgoffset
+            #        try:
+            #            del(newatom2.neighbours[newatom2.neighbours.index(oldind1)])
+            #        except ValueError:
+            #            pass
+            #        newatom2.neighbours.append(newatom1.index)
+            #    else:
+            #        if(np.any(newcell != np.zeros(3))):
+            #            newbond = Bond(newatom1, newatom2, order=bond.order)
+            #            newbond.length = bond.length
+            #            newbond.symflag = '.'
+            #            repbonds.append(newbond)
+            #            #new images, shouldn't have to delete existing neighbours
+            #            newatom1.neighbours.append(newatom2.index)
+            #            newatom2.neighbours.append(newatom1.index)
+            #    if self.graph is not None:
+            #        if newatom1.ciflabel not in self.graph.nodes():
+            #            self.graph.add_node(newatom1.ciflabel)
+            #        if newatom2.ciflabel not in self.graph.nodes():
+            #            self.graph.add_node(newatom2.ciflabel)
+            #        self.graph.add_edge(newatom1.ciflabel, newatom2.ciflabel)
+
+        #self.bonds += repbonds
+        ## update lattice boxsize to supercell
+        #self.cell.multiply(sc)
+        #for idbad in reversed(sorted(delbonds)):
+        #    del(self.bonds[idbad])
+        ## re-index bonds
+        #for newidx, bond in enumerate(self.bonds):
+        #    bond.index=newidx
+
+        # re-calculate bonding across periodic images. 
+    def replicate(self, image):
+        """Replicate the structure in the image direction"""
+        trans = np.sum(np.multiply(self.cell.cell, np.array(image)).T, axis=1)
+        l = len(self.atoms)
+        repatoms = []
+        for atom in self.atoms:
+            newatom = copy(atom)
+            newatom.coordinates += trans
+            repatoms.append(newatom)
+        return repatoms
+
+    def store_original_size(self):
+        self.original_size = self.number_of_nodes()
+
 
 def from_CIF(cifname):
     """Reads the structure data from the CIF
@@ -530,6 +739,7 @@ def from_CIF(cifname):
     except:
         # catch no bonds
         print("No bonds reported in cif file - computing bonding..")
+    mg.store_original_size()
     return cell, mg
     #x, y, z = [], [], []
     #if '_atom_site_fract_x' in data:
@@ -847,119 +1057,6 @@ class Structure(object):
         for i in self.atoms:
             pair = PairTerm(i, i)
             self.pairs.append(pair)
-
-    def minimum_cell(self, cutoff=12.5):
-        """Determine the minimum cell size such that half the orthogonal cell
-        width is greater than or equal to 'cutoff' which is default
-        12.5 angstroms.
-        
-        NB: this replaces and overwrites the original unit cell data 
-            with a supercell. There may be a better way to do this 
-            if one needs to keep both the super- and unit cells.
-        """
-        sc = self.cell.minimum_supercell(cutoff)
-        unitatomlen = len(self.atoms)
-        unit_repr = np.array([5,5,5], dtype=int)
-        origincell = np.array([0., 0., 0.])
-        if np.any(np.array(sc) > 1):
-            print("Warning: unit cell is not large enough to"
-            +" support a non-bonded cutoff of %.2f Angstroms\n"%cutoff +
-            "Re-sizing to a %i x %i x %i supercell. "%(sc))
-            cells = list(itertools.product(*[itertools.product(range(j)) for j in sc]))
-            repatoms = []
-            repbonds = []
-            maxcell = np.array(sc)
-            for cell in cells[1:]:
-                repatoms += self.replicate(cell)
-            self.atoms += repatoms
-            totatomlen = len(self.atoms)
-            # do bonding
-            delbonds = []
-            for cell in cells:
-                newcell = np.array(cell).flatten()
-                offset = cells.index(cell)*unitatomlen
-                for bidx, bond in enumerate(self.bonds):
-                    (atom1, atom2) = bond.atoms
-                    newatom1 = self.atoms[(atom1.index%unitatomlen + offset)]
-                    newatom2 = self.atoms[(atom2.index%unitatomlen + offset)]
-                    if bond.symflag != '.':
-                        # check if the current cell is at the extrema of the supercell
-                        ocell = newcell + np.array([int(j) for j in bond.symflag[2:]]) - unit_repr
-                        imgcell = ocell % maxcell
-                        imgoffset = cells.index(tuple([tuple([i]) for i in imgcell]))*unitatomlen
-                        newatom2 = self.atoms[atom2.index%unitatomlen + imgoffset]
-                        # new symflag
-                        if(np.all(newcell == np.zeros(3))):
-                            delbonds.append(bidx)
-                            if self.graph is not None:
-                                self.graph.remove_edge(atom1.ciflabel, atom2.ciflabel)
-
-                        newbond = Bond(newatom1, newatom2, order=bond.order)
-                        newbond.length = bond.length
-                        if any(ocell < origincell) or any(ocell >= maxcell):
-                            newflaga = np.array([5,5,5])
-                            newflaga[np.where(ocell >= maxcell)] = 6
-                            newflaga[np.where(ocell < np.zeros(3))] = 4
-                            newflag = "1_%i%i%i"%(tuple(newflaga))
-                            newbond.symflag = newflag
-                        else:
-                            newbond.symflag = '.'
-                        repbonds.append(newbond)
-                        oldind2 = atom2.index + offset
-                        try:
-                            del(newatom1.neighbours[newatom1.neighbours.index(oldind2)])
-                        except ValueError:
-                            pass
-                        newatom1.neighbours.append(newatom2.index)
-                        oldind1 = atom1.index + imgoffset
-                        try:
-                            del(newatom2.neighbours[newatom2.neighbours.index(oldind1)])
-                        except ValueError:
-                            pass
-                        newatom2.neighbours.append(newatom1.index)
-                    else:
-                        if(np.any(newcell != np.zeros(3))):
-                            newbond = Bond(newatom1, newatom2, order=bond.order)
-                            newbond.length = bond.length
-                            newbond.symflag = '.'
-                            repbonds.append(newbond)
-                            #new images, shouldn't have to delete existing neighbours
-                            newatom1.neighbours.append(newatom2.index)
-                            newatom2.neighbours.append(newatom1.index)
-                    if self.graph is not None:
-                        if newatom1.ciflabel not in self.graph.nodes():
-                            self.graph.add_node(newatom1.ciflabel)
-                        if newatom2.ciflabel not in self.graph.nodes():
-                            self.graph.add_node(newatom2.ciflabel)
-                        self.graph.add_edge(newatom1.ciflabel, newatom2.ciflabel)
-
-            self.bonds += repbonds
-            # update lattice boxsize to supercell
-            self.cell.multiply(sc)
-            for idbad in reversed(sorted(delbonds)):
-                del(self.bonds[idbad])
-            # re-index bonds
-            for newidx, bond in enumerate(self.bonds):
-                bond.index=newidx
-
-        # re-calculate bonding across periodic images. 
-    def replicate(self, image):
-        """Replicate the structure in the image direction"""
-        trans = np.sum(np.multiply(self.cell.cell, np.array(image)).T, axis=1)
-        l = len(self.atoms)
-        repatoms = []
-        for atom in self.atoms:
-            newatom = copy(atom)
-            newatom.coordinates += trans
-            repatoms.append(newatom)
-        return repatoms
-
-    def min_img_distance(self, coords1, coords2):
-        one = np.dot(self.cell.inverse, coords1) % 1
-        two = np.dot(self.cell.inverse, coords2) % 1
-        three = np.around(one - two)
-        four = np.dot(one - two - three, self.cell.cell)
-        return np.linalg.norm(four)
 
 
 

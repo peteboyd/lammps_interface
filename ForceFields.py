@@ -56,7 +56,7 @@ class ForceField(object):
                 count += 1
                 type = count
                 ff_type[label] = type  
-                self.unique_atom_types[type] = atom 
+                self.unique_atom_types[type] = node 
             data['ff_type_index'] = type
 
     
@@ -77,7 +77,7 @@ class ForceField(object):
                 type = count
                 bb_type[btype] = type
 
-                self.unique_bond_types[type] = bond
+                self.unique_bond_types[type] = (n1, n2, data) 
 
             data['ff_type_index'] = type
     
@@ -88,7 +88,7 @@ class ForceField(object):
         for b, data in self.graph.nodes_iter(data=True):
             # compute and store angle terms
             try:
-                ang_data = data['angle']
+                ang_data = data['angles']
                 for (a, c), val in ang_data.items():
                     self.angle_term((a, b, c, val))
                     atype = "%s"%val['potential']
@@ -99,53 +99,64 @@ class ForceField(object):
                         count += 1
                         type = count
                         ang_type[atype] = type
-                        self.unique_angle_types[type] = angle 
+                        self.unique_angle_types[type] = (a, b, c, val) 
                     val['ff_type_index'] = type
+                    # update original dictionary
+                    data['angles'][(a, c)] = val
+            except KeyError:
+                # no angle associated with this node.
+                pass
 
     @abc.abstractmethod
     def unique_dihedrals(self):
         count = 0
         dihedral_type = {}
-        for dihedral in self.structure.dihedrals:
-            # just use the potential parameter string
-            self.dihedral_term(dihedral)
-            dtype = "%s"%dihedral.potential
+        for b, c, data in self.graph.edges_iter(data=True):
             try:
-                type = dihedral_type[dtype]
+                dihed_data = data['dihedrals']
+                for (a, d), val in dihed_data.items():
+                    self.dihedral_term((a,b,c,d, val))
+                    dtype = "%s"%val['potential']
+                    try:
+                        type = dihedral_type[dtype]
+                    except KeyError:
+                        count += 1 
+                        type = count
+                        dihedral_type[dtype] = type
+                        self.unique_dihedral_types[type] = (a, b, c, d, val)
+                    val['ff_type_index'] = type
+                    # update original dictionary
+                    data['dihedrals'][(a,d)] = val
             except KeyError:
-                count += 1 
-                type = count
-                dihedral_type[dtype] = type
-                self.unique_dihedral_types[type] = dihedral
-            dihedral.ff_type_index = type
+                # no dihedrals associated with this edge
+                pass
 
     @abc.abstractmethod
     def unique_impropers(self):
-        """How many times to list the same set of atoms ???"""
         count = 0
         improper_type = {}
-        remove = []
-        for idx,improper in enumerate(self.structure.impropers):
-
-            self.improper_term(improper)
-            if improper.potential is not None:
-                itype = "%s"%improper.potential
-                try:
-                    type = improper_type[itype]
-                except KeyError:
-                    count += 1
-                    type = count
-                    improper_type[itype] = type
-                    self.unique_improper_types[type] = improper
-                improper.ff_type_index = type
-            else:
-                remove.append(idx)
-        for j in reversed(sorted(remove)):
-            del(self.structure.impropers[j])
-
-        # re-index the imporopers
-        for idx, improper in enumerate(self.structure.impropers):
-            improper.index = idx 
+        for b, data in self.graph.nodes_iter(data=True):
+            try:
+                imp_data = data['impropers']
+                for (a, c, d), val in imp_data.items():
+                    self.improper_term((a,b,c,d, val))
+                    if val['potential'] is not None:
+                        itype = "%s"%val['potential']
+                        try:
+                            type = improper_type[itype]
+                        except KeyError:
+                            count += 1
+                            type = count
+                            improper_type[itype] = type
+                            self.unique_improper_types[type] = (a, b, c, d, val) 
+                        val['ff_type_index'] = type
+                        # update original dictionary
+                        data['impropers'][(a, c, d)] = val
+                    else:
+                        data['impropers'].pop((a, c, d))
+            except KeyError:
+                # no improper terms associated with this atom
+                pass
 
     @abc.abstractmethod
     def unique_pair_terms(self):
@@ -206,8 +217,10 @@ class ForceField(object):
         self.unique_angles()
         self.unique_dihedrals()
         self.unique_impropers()
-        self.unique_pair_terms()
-        self.define_styles()
+        # combining pair terms will have to be done outside of an instanced FF class
+        # in case more than one FF is applied to a system.
+        # self.unique_pair_terms()
+        # self.define_styles()
 
 class UserFF(ForceField):
 
@@ -1501,6 +1514,9 @@ class UFF(ForceField):
         self.unique_improper_types = {}
         self.unique_pair_types = {}
 
+        self.detect_ff_terms() 
+        self.compute_force_field_terms()
+
     def detect_ff_exist(self):
         return None
 
@@ -1525,10 +1541,9 @@ class UFF(ForceField):
         if (self.keep_metal_geometry) and (n1_data['atomic_number'] in METALS
             or n2_data['atomic_number'] in METALS):
             r0 = data['length']
-
-        edge['potential'] = BondPotential.Harmonic()
-        edge['potential'].K = K
-        edge['potential'].R0 = r0
+        data['potential'] = BondPotential.Harmonic()
+        data['potential'].K = K
+        data['potential'].R0 = r0
 
     def angle_term(self, angle):
         """several cases exist where the type of atom in a particular environment is considered
@@ -1561,7 +1576,7 @@ class UFF(ForceField):
 
         # fourier/simple
         sf = ['linear', 'trigonal-planar', 'square-planar', 'octahedral']
-        (a, b, c), data = angle
+        a, b, c, data = angle
         angle_type = self.uff_angle_type(b)
         
         a_data = self.graph.node[a]
@@ -1627,11 +1642,11 @@ class UFF(ForceField):
             c1 = -4.*c2*cosT0
             c0 = c2*(2.*cosT0*cosT0 + 1)
             kappa = ka
-            angle.potential = AnglePotential.Fourier()
-            angle.potential.K = kappa
-            angle.potential.C0 = c0
-            angle.potential.C1 = c1
-            angle.potential.C2 = c2
+            data['potential'] = AnglePotential.Fourier()
+            data['potential'].K = kappa
+            data['potential'].C0 = c0
+            data['potential'].C1 = c1
+            data['potential'].C2 = c2
 
     def uff_angle_type(self, b):
         name = self.graph.node[b]['force_field_type']
@@ -1680,9 +1695,6 @@ class UFF(ForceField):
         V = 0
         n = 0
         #FIXME(pboyd): coord = (4, x) in cases probably copper paddlewheel
-        #TODO(pboyd): all of the hybridization and bond order info 
-        # is determined automatically by the program now.
-        # this must be updated for the UFF ForceField data
         mixed_case = (b_data['hybridization'] == 'sp2' and
                       c_data['hybridization'] == 'sp3') or \
                 (b_data['hybridization'] == 'sp3' and 
@@ -1699,20 +1711,20 @@ class UFF(ForceField):
             vi = UFF_DATA[b_data['force_field_type']][6]
             vj = UFF_DATA[c_data['force_field_type']][6]
             
-            if atom_b.atomic_number == 8:
+            if b_data['atomic_number'] == 8:
                 vi = 2.
                 n = 2
                 phi0 = 90.
-            elif atom_b.atomic_number in (16, 34, 52, 84):
+            elif b_data['atomic_number'] in (16, 34, 52, 84):
                 vi = 6.8
                 n = 2
                 phi0 = 90.0
-            if atom_c.atomic_number == 8:
+            if c_data['atomic_number'] == 8:
                 vj = 2.
                 n = 2
                 phi0 = 90.0
 
-            elif atom_c.atomic_number in (16, 34, 52, 84):
+            elif c_data['atomic_number'] in (16, 34, 52, 84):
                 vj = 6.8
                 n = 2
                 phi0 = 90.0
@@ -1798,8 +1810,7 @@ class UFF(ForceField):
         else:
             return 
         
-        #NB: TOWHEE divides by 3.
-        koop /= 3. # Not clear in UFF paper, but division by the number of bonds is probably not appropriate. Should test on real systems..
+        koop /= 3. 
 
         data['potential'] = ImproperPotential.Fourier()
         data['potential'].K = koop
