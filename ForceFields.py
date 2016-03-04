@@ -38,177 +38,6 @@ class ForceField(object):
     @abc.abstractmethod
     def improper_term(self):
         """Computes the improper dihedral parameters"""
-    
-    @abc.abstractmethod
-    def unique_atoms(self):
-        """Computes the number of unique atoms in the structure"""
-        count = 0
-        ff_type = {}
-        for node, data in self.graph.nodes_iter(data=True):
-            if data['force_field_type'] is None:
-                label = data['element']
-            else:
-                label = data['force_field_type']
-
-            try:
-                type = ff_type[label]
-            except KeyError:
-                count += 1
-                type = count
-                ff_type[label] = type  
-                self.unique_atom_types[type] = node 
-            data['ff_type_index'] = type
-
-    
-    @abc.abstractmethod
-    def unique_bonds(self):
-        """Computes the number of unique bonds in the structure"""
-        count = 0
-        bb_type = {}
-        for n1, n2, data in self.graph.edges_iter(data=True):
-            self.bond_term((n1, n2, data))
-
-            btype = "%s"%data['potential']
-            try:
-                type = bb_type[btype]
-
-            except KeyError:
-                count += 1
-                type = count
-                bb_type[btype] = type
-
-                self.unique_bond_types[type] = (n1, n2, data) 
-
-            data['ff_type_index'] = type
-    
-    @abc.abstractmethod
-    def unique_angles(self):
-        ang_type = {}
-        count = 0
-        for b, data in self.graph.nodes_iter(data=True):
-            # compute and store angle terms
-            try:
-                ang_data = data['angles']
-                for (a, c), val in ang_data.items():
-                    self.angle_term((a, b, c, val))
-                    atype = "%s"%val['potential']
-                    try:
-                        type = ang_type[atype]
-
-                    except KeyError:
-                        count += 1
-                        type = count
-                        ang_type[atype] = type
-                        self.unique_angle_types[type] = (a, b, c, val) 
-                    val['ff_type_index'] = type
-                    # update original dictionary
-                    data['angles'][(a, c)] = val
-            except KeyError:
-                # no angle associated with this node.
-                pass
-
-    @abc.abstractmethod
-    def unique_dihedrals(self):
-        count = 0
-        dihedral_type = {}
-        for b, c, data in self.graph.edges_iter(data=True):
-            try:
-                dihed_data = data['dihedrals']
-                for (a, d), val in dihed_data.items():
-                    self.dihedral_term((a,b,c,d, val))
-                    dtype = "%s"%val['potential']
-                    try:
-                        type = dihedral_type[dtype]
-                    except KeyError:
-                        count += 1 
-                        type = count
-                        dihedral_type[dtype] = type
-                        self.unique_dihedral_types[type] = (a, b, c, d, val)
-                    val['ff_type_index'] = type
-                    # update original dictionary
-                    data['dihedrals'][(a,d)] = val
-            except KeyError:
-                # no dihedrals associated with this edge
-                pass
-
-    @abc.abstractmethod
-    def unique_impropers(self):
-        count = 0
-        improper_type = {}
-        for b, data in self.graph.nodes_iter(data=True):
-            try:
-                imp_data = data['impropers']
-                for (a, c, d), val in imp_data.items():
-                    self.improper_term((a,b,c,d, val))
-                    if val['potential'] is not None:
-                        itype = "%s"%val['potential']
-                        try:
-                            type = improper_type[itype]
-                        except KeyError:
-                            count += 1
-                            type = count
-                            improper_type[itype] = type
-                            self.unique_improper_types[type] = (a, b, c, d, val) 
-                        val['ff_type_index'] = type
-                        # update original dictionary
-                        data['impropers'][(a, c, d)] = val
-                    else:
-                        data['impropers'].pop((a, c, d))
-            except KeyError:
-                # no improper terms associated with this atom
-                pass
-
-    @abc.abstractmethod
-    def unique_pair_terms(self):
-        """This is force field dependent."""
-        return
-
-    @abc.abstractmethod
-    def define_styles(self):
-        # should be more robust, some of the styles require multiple parameters specified on these lines
-        self.kspace_style = "ewald %f"%(0.001)
-        bonds = set([j.potential.name for j in list(self.unique_bond_types.values())])
-        if len(list(bonds)) > 1:
-            self.bond_style = "hybrid %s"%" ".join(list(bonds))
-        else:
-            self.bond_style = "%s"%list(bonds)[0]
-            for b in list(self.unique_bond_types.values()):
-                b.potential.reduced = True
-
-        angles = set([j.potential.name for j in list(self.unique_angle_types.values())])
-        if len(list(angles)) > 1:
-            self.angle_style = "hybrid %s"%" ".join(list(angles))
-        else:
-            self.angle_style = "%s"%list(angles)[0]
-            for a in list(self.unique_angle_types.values()):
-                a.potential.reduced = True
-
-        dihedrals = set([j.potential.name for j in list(self.unique_dihedral_types.values())])
-        if len(list(dihedrals)) > 1:
-            self.dihedral_style = "hybrid %s"%" ".join(list(dihedrals))
-        else:
-            self.dihedral_style = "%s"%list(dihedrals)[0]
-            for d in list(self.unique_dihedral_types.values()):
-                d.potential.reduced = True
-
-        impropers = set([j.potential.name for j in list(self.unique_improper_types.values())])
-        if len(list(impropers)) > 1:
-            self.improper_style = "hybrid %s"%" ".join(list(impropers))
-        elif len(list(impropers)) == 1:
-            self.improper_style = "%s"%list(impropers)[0]
-            for i in list(self.unique_improper_types.values()):
-                i.potential.reduced = True
-        else:
-            self.improper_style = "" 
-        pairs = set(["%r"%(j.potential) for j in list(self.unique_pair_types.values())])
-        if len(list(pairs)) > 1:
-            self.pair_style = "hybrid/overlay %s"%(" ".join(list(pairs)))
-            # by default, turn off listing Pair Coeff in the data file if this is the case
-            self.pair_in_data = False
-        else:
-            self.pair_style = list(pairs)[0]
-            for p in list(self.unique_pair_types.values()):
-                p.potential.reduced = True
 
     @abc.abstractmethod
     def compute_force_field_terms(self):
@@ -1507,12 +1336,6 @@ class UFF(ForceField):
         self.pair_in_data = True
         self.graph = graph
         self.keep_metal_geometry = False
-        self.unique_atom_types = {}
-        self.unique_bond_types = {}
-        self.unique_angle_types = {}
-        self.unique_dihedral_types = {}
-        self.unique_improper_types = {}
-        self.unique_pair_types = {}
 
         self.detect_ff_terms() 
         self.compute_force_field_terms()
@@ -1904,12 +1727,6 @@ class Dreiding(ForceField):
     def __init__(self, struct):
         self.pair_in_data = False
         self.structure = struct
-        self.unique_atom_types = {}
-        self.unique_bond_types = {}
-        self.unique_angle_types = {}
-        self.unique_dihedral_types = {}
-        self.unique_improper_types = {}
-        self.unique_pair_types = {}
 
 
     def detect_ff_exist(self):

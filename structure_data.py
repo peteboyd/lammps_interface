@@ -46,37 +46,17 @@ class MolecularGraph(nx.Graph):
         except KeyError:
             self.name = 'default'
         self.coordinates = None
-        self.distmatrix = None
+        self.distance_matrix = None
         self.original_size = 0
         #TODO(pboyd): networkx edges do not store the nodes in order!
         # Have to keep a dictionary lookup to make sure the nodes 
         # are referenced properly (particularly across periodic images)
         self.sorted_edge_dict = {}
+        self.molecule_images = []
 
     def edges_iter2(self, **kwargs):
         for n1, n2, d in self.edges_iter(**kwargs):
             yield (self.sorted_edge_dict[(n1, n2)][0], self.sorted_edge_dict[(n1,n2)][1], d)
-
-    def convert_labels_to_indices(self):
-        """ESSENTIAL to maintain the proper atomic order"""
-        oldnodes = self.nodes()
-        for node in oldnodes:
-            data = self.node[node]
-            data['ciflabel'] = node
-            self.add_node(data['index'], **data)
-
-        oldedges = self.edges()
-        for n1, n2 in oldedges:
-            data = self[n1][n2]
-            newn1 = self.node[n1]['index']
-            newn2 = self.node[n2]['index']
-            self.add_edge(newn1, newn2, **data)
-
-        for n1, n2 in oldedges:
-            self.remove_edge(n1, n2)
-
-        for n in oldnodes:
-            self.remove_node(n)
 
     def add_atomic_node(self, **kwargs):
         """Insert nodes into the graph from the cif file"""
@@ -99,10 +79,12 @@ class MolecularGraph(nx.Graph):
             fftype = None
 
         kwargs.update({'force_field_type':fftype})
-        kwargs.update({'index':self.number_of_nodes() + 1})
+        idx = self.number_of_nodes() + 1
+        kwargs.update({'index':idx})
         #TODO(pboyd) should have some error checking here..
         n = kwargs.pop('_atom_site_label')
-        self.add_node(n, **kwargs)
+        kwargs.update({'ciflabel':n})
+        self.add_node(idx, **kwargs)
    
     def compute_bonding(self, cell, scale_factor = 0.9):
         """Computes bonds between atoms based on covalent radii."""
@@ -112,6 +94,32 @@ class MolecularGraph(nx.Graph):
             # bonding found in cif file
             sf = []
             for n1, n2, data in self.edges_iter2(data=True):
+                # get data['ciflabel'] for self.node[n1] and self.node[n2]
+                # update the sorted_edge_dict with the indices, not the 
+                # cif labels
+                n1data = self.node[n1]
+                n2data = self.node[n2]
+                n1label = n1data['ciflabel']
+                n2label = n2data['ciflabel']
+                try:
+                    nn1, nn2 = self.sorted_edge_dict.pop((n1label, n2label))
+                    if nn2 == n1label:
+                        nn1 = n2
+                        nn2 = n1
+                    self.sorted_edge_dict.update({(n1, n2):(nn1, nn2)})
+                    self.sorted_edge_dict.update({(n2, n1):(nn1, nn2)})
+                except KeyError:
+                    pass
+                try:
+                    nn1, nn2 = self.sorted_edge_dict.pop((n2label, n1label))
+                    if nn2 == n1label:
+                        nn1 = n2
+                        nn2 = n1
+                    self.sorted_edge_dict.update({(n2, n1):(nn1, nn2)})
+                    self.sorted_edge_dict.update({(n1, n2):(nn1, nn2)})
+                except KeyError:
+                    pass
+
                 sf.append(data['symflag'])
                 bl = data['length']
                 if bl <= 0.01:
@@ -197,6 +205,13 @@ class MolecularGraph(nx.Graph):
         kwargs.update({'order': order})
         kwargs.update({'symflag': flag})
         kwargs.update({'potential': None})
+        # get the node index to avoid headaches
+        for k,data in self.nodes_iter(data=True):
+            if data['ciflabel'] == n1:
+                n1 = k
+            elif data['ciflabel'] == n2:
+                n2 =k
+
         self.sorted_edge_dict.update({(n1,n2): (n1, n2), (n2, n1):(n1, n2)})
         self.add_edge(n1, n2, key=self.number_of_edges()+1, **kwargs)
 
@@ -554,7 +569,7 @@ class MolecularGraph(nx.Graph):
             newflag = '.'
         return newflag
 
-    def build_supercell(self, sc, lattice):
+    def build_supercell(self, sc, lattice, track_molecule=False):
         """Construct a graph with nodes supporting the size of the 
         supercell (sc)
         Oh man.. so ugly.        
@@ -564,6 +579,10 @@ class MolecularGraph(nx.Graph):
         """
         # preserve indices across molecules.
         unitatomlen = self.original_size
+        totatomlen = nx.number_of_nodes(self)
+        # keep a numerical index of the nodes.. this is to make sure that the molecules
+        # are kept in their positions in the supercell (if replicated)
+        unit_node_ids = sorted(self.nodes())
         origincell = np.array([0., 0., 0.])
         cells = list(itertools.product(*[itertools.product(range(j)) for j in sc]))
         maxcell = np.array(sc)
@@ -579,7 +598,7 @@ class MolecularGraph(nx.Graph):
                 graph_image = self
             else:
                 # rename nodes
-                graph_image = nx.relabel_nodes(orig_copy, {i: offset+i for i in range(1, unitatomlen+1)})
+                graph_image = nx.relabel_nodes(orig_copy, {unit_node_ids[i-1]: offset+unit_node_ids[i-1] for i in range(1, totatomlen+1)})
                 graph_image.sorted_edge_dict = self.sorted_edge_dict.copy()
                 for k,v in list(graph_image.sorted_edge_dict.items()):
                     newkey = (k[0] + offset, k[1] + offset) 
@@ -587,9 +606,11 @@ class MolecularGraph(nx.Graph):
                     del graph_image.sorted_edge_dict[k]
                     graph_image.sorted_edge_dict.update({newkey:newval})
 
-                for i in range(1, unitatomlen+1):
-                    graph_image.node[i+offset]['image'] = i
+                for i in range(1, totatomlen+1):
+                    graph_image.node[unit_node_ids[i-1]+offset]['image'] = unit_node_ids[i-1]
 
+            if track_molecule:
+                self.molecule_images.append(graph_image.nodes())
             # update cartesian coordinates for each node in the image
             for node, data in graph_image.nodes_iter(data=True):
                 
@@ -830,7 +851,6 @@ def from_CIF(cifname):
         # catch no bonds
         print("No bonds reported in cif file - computing bonding..")
     mg.store_original_size()
-    mg.convert_labels_to_indices()
     return cell, mg
 
 def write_CIF(graph, cell):
