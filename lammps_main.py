@@ -9,6 +9,7 @@ the program starts here.
 import sys
 import math
 import numpy as np
+import networkx as nx
 import ForceFields
 import itertools
 import operator
@@ -472,10 +473,6 @@ def main():
     except AttributeError:
         print("Error: could not find the force field: %s"%options.force_field)
         sys.exit()
-    if options.output_cif:
-        print("CIF file requested. Exiting...")
-        write_CIF(graph, cell)
-        sys.exit()
     # determine minimum acceptable supercell based on the non-bonded cutoff
     supercell = cell.minimum_supercell(options.cutoff)
     if np.any(np.array(supercell) > 1):
@@ -484,7 +481,14 @@ def main():
                "Re-sizing to a %i x %i x %i supercell. "%(supercell))
         
         #TODO(pboyd): apply to subgraphs as well, if requested.
-        graph.build_supercell(supercell)
+        graph.build_supercell(supercell, cell)
+        cell.update_supercell(supercell)
+
+        # merge all subgraphs (and compute unique FF terms)
+    if options.output_cif:
+        print("CIF file requested. Exiting...")
+        write_CIF(graph, cell)
+        sys.exit()
 
     sys.exit()
     # compute minimum supercell
