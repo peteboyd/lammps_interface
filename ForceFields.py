@@ -41,15 +41,56 @@ class ForceField(object):
 
     @abc.abstractmethod
     def compute_force_field_terms(self):
-        self.unique_atoms()
-        self.unique_bonds()
-        self.unique_angles()
-        self.unique_dihedrals()
-        self.unique_impropers()
+        self.compute_atomic_pair_terms()
+        self.compute_bond_terms()
+        self.compute_angle_terms()
+        self.compute_dihedral_terms()
+        self.compute_improper_terms()
         # combining pair terms will have to be done outside of an instanced FF class
         # in case more than one FF is applied to a system.
         # self.unique_pair_terms()
         # self.define_styles()
+
+    @abc.abstractmethod
+    def compute_atomic_pair_terms(self):
+        for n, data in self.graph.nodes_iter(data=True):
+            self.pair_terms(n, data)
+
+    @abc.abstractmethod
+    def compute_bond_terms(self):
+        for n1, n2, data in self.graph.edges_iter2(data=True):
+            self.bond_term((n1, n2, data))
+
+    @abc.abstractmethod
+    def compute_angle_terms(self):
+        for b, data in self.graph.nodes_iter(data=True):
+            # compute and store angle terms
+            try:
+                ang_data = data['angles']
+                for (a, c), val in ang_data.items():
+                    self.angle_term((a, b, c, val))
+            except KeyError:
+                pass
+
+    @abc.abstractmethod
+    def compute_dihedral_terms(self):
+        for b, c, data in self.graph.edges_iter2(data=True):
+            try:
+                dihed_data = data['dihedrals']
+                for (a, d), val in dihed_data.items():
+                    self.dihedral_term((a,b,c,d, val))
+            except KeyError:
+                pass
+
+    @abc.abstractmethod
+    def compute_improper_terms(self):
+        for b, data in self.graph.nodes_iter(data=True):
+            try:
+                imp_data = data['impropers']
+                for (a, c, d), val in imp_data.items():
+                    self.improper_term((a,b,c,d, val))
+            except KeyError:
+                pass
 
 class UserFF(ForceField):
 
@@ -1343,6 +1384,12 @@ class UFF(ForceField):
     def detect_ff_exist(self):
         return None
 
+    def pair_terms(self, node, data):
+        """Add L-J term to atom"""
+        data['pair_potential'] = PairPotential.LjCutCoulLong()
+        data['pair_potential'].eps = UFF_DATA[data['force_field_type']][3] 
+        data['pair_potential'].sig = UFF_DATA[data['force_field_type']][2]*(2**(-1./6.))
+
     def bond_term(self, edge):
         """Harmonic assumed"""
         n1, n2, data = edge
@@ -1512,18 +1559,19 @@ class UFF(ForceField):
         d_data = self.graph.node[d]
 
         torsiontype = self.graph[b][c]['order']
+        
         coord_bc = (self.graph.degree(b), self.graph.degree(c))
         bc = (b_data['force_field_type'], c_data['force_field_type'])
         M = mul(*coord_bc)
         V = 0
         n = 0
         #FIXME(pboyd): coord = (4, x) in cases probably copper paddlewheel
-        mixed_case = (b_data['hybridization'] == 'sp2' and
+        mixed_case = ((b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic') and
                       c_data['hybridization'] == 'sp3') or \
                 (b_data['hybridization'] == 'sp3' and 
-                 c_data['hybridization'] == 'sp2') 
-        all_sp2 = (b_data['hybridization'] == 'sp2' and
-                   c_data['hybridization'] == 'sp2')
+                (c_data['hybridization'] == 'sp2' or c_data['hybridization'] == 'aromatic')) 
+        all_sp2 = ((b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic') and
+                   c_data['hybridization'] == 'sp2' or c_data['hybridization'] == 'aromatic')
         all_sp3 = (b_data['hybridization'] == 'sp3' and 
                    c_data['hybridization'] == 'sp3')
 

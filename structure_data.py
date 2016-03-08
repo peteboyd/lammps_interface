@@ -5,7 +5,9 @@ from scipy.spatial import distance
 import math
 import shlex
 from CIFIO import CIF
+from atomic import METALS
 from copy import copy
+from mof_sbus import InorganicCluster
 import itertools
 
 try:
@@ -69,6 +71,7 @@ class MolecularGraph(nx.Graph):
         kwargs.update({'cycle':False})
         kwargs.update({'rings':[]})
         kwargs.update({'atomic_number':ATOMIC_NUMBER.index(element)})
+        kwargs.update({'pair_potential':None})
         try:
             kwargs['charge'] = float(kwargs['_atom_type_partial_charge'])
         except KeyError:
@@ -150,7 +153,8 @@ class MolecularGraph(nx.Graph):
                               order=1.0, 
                               weight=1,
                               length=dist,
-                              symflag = flag
+                              symflag = flag,
+                              potential = None
                               )
     #TODO(pboyd) update this
     def compute_bond_image_flag(self, n1, n2, cell):
@@ -534,6 +538,7 @@ class MolecularGraph(nx.Graph):
         self.compute_bonding(cell)
         self.compute_init_typing()
         self.compute_bond_typing()
+        self.detect_inorganic_clusters(num_neighbors=5) # num neighbors determines how many nodes from the metal element to cut out for comparison 
         self.compute_angles()
         self.compute_dihedrals()
         self.compute_improper_dihedrals()
@@ -568,6 +573,88 @@ class MolecularGraph(nx.Graph):
         else:
             newflag = '.'
         return newflag
+    
+    def correspondence_graph(self, graph, node_subset=None, tol=0.1):
+        """Generate a correspondence graph between the nodes
+        and the SBU.
+        tolerance is the distance tolerance for the edge generation 
+        in the correspondence graph.
+
+        """
+        if node_subset is None:
+            node_subset = self.nodes()
+        graph_nodes = graph.nodes()
+        cg = nx.Graph()
+        # add nodes to cg 
+        for (i, j) in itertools.product(node_subset, graph_nodes):
+            # match element-wise
+            if self.node[i]['element'] == graph.node[j]['element']:
+                cg.add_node((i,j))
+        # add edges to cg
+        for (a1, b1), (a2, b2) in itertools.combinations(cg.nodes(), 2):
+            da = self.distance_matrix[a1-1, a2-1]
+            db = graph.distance_matrix[b1-1, b2-1]
+            if np.allclose(da, db, atol=tol):
+                cg.add_edge((a1,b1), (a2,b2))
+        return cg
+
+    def detect_inorganic_clusters(self, num_neighbors=5):
+        """Detect clusters such as the copper paddlewheel using
+        maximum clique detection. This will assign specific atoms
+        with a special flag for use when building their force field.
+
+
+        """
+        print("Detecting Inorganic clusters")
+        metal_nodes = []
+        for node, data in self.nodes_iter(data=True):
+            if data['atomic_number'] in METALS:
+                metal_nodes.append(node)
+
+        no_cluster = []
+        while metal_nodes:
+            node = metal_nodes.pop() 
+            data = self.node[node]
+            try:
+                possible_clusters = InorganicCluster[data['element']]
+                neighbour_nodes = [] 
+                instanced_neighbours = self.neighbors(node)
+                # tree-like spanning of original node
+                for j in range(num_neighbors):
+                    temp_neighbours = []
+                    for n in instanced_neighbours:
+                        neighbour_nodes.append(n)
+                        temp_neighbours += [j for j in self.neighbors(n) if j not in neighbour_nodes]
+                    instanced_neighbours = temp_neighbours
+                for n in neighbour_nodes:
+                    try:
+                        metal_nodes.pop(metal_nodes.index(n))
+                    except:
+                        pass
+                cluster_found = False
+                for name, cluster in possible_clusters.items():
+                    cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node])
+                    cliques = nx.find_cliques(cg)
+                    for clique in cliques:
+                        if len(clique) == cluster.number_of_nodes():
+                            # found cluster
+                            # update the 'hybridization' data
+                            for i,j in clique:
+                                self.node[i]['hybridization'] = cluster.node[j]['hybridization']
+                            cluster_found = True
+                            print("Found %s"%(name))
+                            break
+
+                    if(cluster_found):
+                        break
+                if not (cluster_found):
+                    no_cluster.append(data['element'])
+            except KeyError:
+                # no recognizable metal clusters for element
+                no_cluster.append(data['element'])
+
+        for j in set(no_cluster):
+            print ("No recognizable metal clusters for element %s"%(j))
 
     def build_supercell(self, sc, lattice, track_molecule=False):
         """Construct a graph with nodes supporting the size of the 
@@ -806,9 +893,53 @@ class MolecularGraph(nx.Graph):
             self.sorted_edge_dict.update({(n1,n2):(n1,n2)})
             self.sorted_edge_dict.update({(n2,n1):(n1,n2)})
 
+    def unwrap_node_coordinates(self, cell):
+        """Must be done before supercell generation.
+        This is a recursive method iterating over all edges.
+        The design is totally unpythonic and 
+        written in about 5 mins.. so be nice (PB)
+        
+        """
+        supercells = np.array(list(itertools.product((-1, 0, 1), repeat=3)))
+        # just use the first node as the unwrapping point..
+        # probably a better way to do this to keep most atoms in the unit cell,
+        # but I don't think it matters too much.
+        nodelist = self.nodes()
+        n1 = nodelist[0] 
+        queue = []
+        while (nodelist or queue):
+            for n2, data in self[n1].items():
+                if n2 not in queue and n2 in nodelist:
+                    queue.append(n2)
+                    coord1 = self.node[n1]['cartesian_coordinates'] 
+                    coord2 = self.node[n2]['cartesian_coordinates']
+                    fcoords = np.dot(cell.inverse, coord2) + supercells
+                    
+                    coords = np.array([np.dot(j, cell.cell) for j in fcoords])
+                    
+                    dists = distance.cdist([coord1], coords)
+                    dists = dists[0].tolist()
+                    image = dists.index(min(dists))
+                    self.node[n2]['cartesian_coordinates'] += np.dot(supercells[image], cell.cell)
+                    data['symflag'] = '.'
+            del nodelist[nodelist.index(n1)]
+            try:
+                n1 = queue[0]
+                queue = queue[1:]
+
+            except IndexError:
+                pass
+
     def store_original_size(self):
         self.original_size = self.number_of_nodes()
 
+    def __iadd__(self, newgraph):
+        self.sorted_edge_dict.update(newgraph.sorted_edge_dict)
+        for n, data in newgraph.nodes_iter(data=True):
+            self.add_node(n, **data)
+        for n1,n2, data in newgraph.edges_iter2(data=True):
+            self.add_edge(n1,n2, **data)
+        return self
 
 def from_CIF(cifname):
     """Reads the structure data from the CIF

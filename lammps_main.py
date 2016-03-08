@@ -13,7 +13,7 @@ import networkx as nx
 import ForceFields
 import itertools
 import operator
-from structure_data import from_CIF, write_CIF, Structure
+from structure_data import from_CIF, write_CIF, clean
 from CIFIO import CIF
 from ccdc import CCDC_BOND_ORDERS
 from datetime import datetime
@@ -21,15 +21,18 @@ from InputHandler import Options
 
 class LammpsSimulation(object):
     def __init__(self, options):
-        self.name = options.cif_file
+        self.name = clean(options.cif_file)
         self.options = options
         self.molecules = []
         self.subgraphs = []
         self.unique_atom_types = {}
         self.unique_bond_types = {}
         self.unique_angle_types = {}
+        self.unique_dihedral_types = {}
         self.unique_improper_types = {}
-    
+        self.unique_pair_types = {}
+        self.pair_in_data = True 
+
     def unique_atoms(self):
         """Computes the number of unique atoms in the structure"""
         count = 0
@@ -54,8 +57,6 @@ class LammpsSimulation(object):
         count = 0
         bb_type = {}
         for n1, n2, data in self.graph.edges_iter2(data=True):
-            self.bond_term((n1, n2, data))
-
             btype = "%s"%data['potential']
             try:
                 type = bb_type[btype]
@@ -77,7 +78,6 @@ class LammpsSimulation(object):
             try:
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
-                    self.angle_term((a, b, c, val))
                     atype = "%s"%val['potential']
                     try:
                         type = ang_type[atype]
@@ -97,11 +97,10 @@ class LammpsSimulation(object):
     def unique_dihedrals(self):
         count = 0
         dihedral_type = {}
-        for b, c, data in self.graph.edges_iter(data=True):
+        for b, c, data in self.graph.edges_iter2(data=True):
             try:
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
-                    self.dihedral_term((a,b,c,d, val))
                     dtype = "%s"%val['potential']
                     try:
                         type = dihedral_type[dtype]
@@ -124,7 +123,6 @@ class LammpsSimulation(object):
             try:
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
-                    self.improper_term((a,b,c,d, val))
                     if val['potential'] is not None:
                         itype = "%s"%val['potential']
                         try:
@@ -135,8 +133,6 @@ class LammpsSimulation(object):
                             improper_type[itype] = type
                             self.unique_improper_types[type] = (a, b, c, d, val) 
                         val['ff_type_index'] = type
-                        # update original dictionary
-                        data['impropers'][(a, c, d)] = val
                     else:
                         data['impropers'].pop((a, c, d))
             except KeyError:
@@ -144,54 +140,66 @@ class LammpsSimulation(object):
                 pass
 
     def unique_pair_terms(self):
-        """This is force field dependent."""
+        pair_type = {}
+        count=0
+        for b, data in self.graph.nodes_iter(data=True):
+            # compute and store angle terms
+            pot = data['pair_potential']
+            itype = "%s"%pot
+            try:
+                type = pair_type[itype]
+            except KeyError:
+                count += 1
+                type = count
+                pair_type[itype] = type
+                self.unique_pair_types[type] = (b, data)
         return
 
     def define_styles(self):
         # should be more robust, some of the styles require multiple parameters specified on these lines
-        self.kspace_style = "ewald %f"%(0.001)
-        bonds = set([j.potential.name for j in list(self.unique_bond_types.values())])
+        self.kspace_style = "ewald %f"%(0.000001)
+        bonds = set([j['potential'].name for n1, n2, j in list(self.unique_bond_types.values())])
         if len(list(bonds)) > 1:
             self.bond_style = "hybrid %s"%" ".join(list(bonds))
         else:
             self.bond_style = "%s"%list(bonds)[0]
-            for b in list(self.unique_bond_types.values()):
-                b.potential.reduced = True
+            for n1, n2, b in list(self.unique_bond_types.values()):
+                b['potential'].reduced = True
 
-        angles = set([j.potential.name for j in list(self.unique_angle_types.values())])
+        angles = set([j['potential'].name for a,b,c,j in list(self.unique_angle_types.values())])
         if len(list(angles)) > 1:
             self.angle_style = "hybrid %s"%" ".join(list(angles))
         else:
             self.angle_style = "%s"%list(angles)[0]
-            for a in list(self.unique_angle_types.values()):
-                a.potential.reduced = True
+            for a,b,c,ang in list(self.unique_angle_types.values()):
+                ang['potential'].reduced = True
 
-        dihedrals = set([j.potential.name for j in list(self.unique_dihedral_types.values())])
+        dihedrals = set([j['potential'].name for a,b,c,d,j in list(self.unique_dihedral_types.values())])
         if len(list(dihedrals)) > 1:
             self.dihedral_style = "hybrid %s"%" ".join(list(dihedrals))
         else:
             self.dihedral_style = "%s"%list(dihedrals)[0]
-            for d in list(self.unique_dihedral_types.values()):
-                d.potential.reduced = True
+            for a,b,c,d, di in list(self.unique_dihedral_types.values()):
+                di['potential'].reduced = True
 
-        impropers = set([j.potential.name for j in list(self.unique_improper_types.values())])
+        impropers = set([j['potential'].name for a,b,c,d,j in list(self.unique_improper_types.values())])
         if len(list(impropers)) > 1:
             self.improper_style = "hybrid %s"%" ".join(list(impropers))
         elif len(list(impropers)) == 1:
             self.improper_style = "%s"%list(impropers)[0]
-            for i in list(self.unique_improper_types.values()):
-                i.potential.reduced = True
+            for a,b,c,d,i in list(self.unique_improper_types.values()):
+                i['potential'].reduced = True
         else:
             self.improper_style = "" 
-        pairs = set(["%r"%(j.potential) for j in list(self.unique_pair_types.values())])
+        pairs = set(["%r"%(j['pair_potential'].name) for b,j in list(self.unique_pair_types.values())])
         if len(list(pairs)) > 1:
             self.pair_style = "hybrid/overlay %s"%(" ".join(list(pairs)))
             # by default, turn off listing Pair Coeff in the data file if this is the case
             self.pair_in_data = False
         else:
             self.pair_style = list(pairs)[0]
-            for p in list(self.unique_pair_types.values()):
-                p.potential.reduced = True
+            for b,p in list(self.unique_pair_types.values()):
+                p['pair_potential'].reduced = True
 
     def set_graph(self, graph):
         self.graph = graph
@@ -215,8 +223,10 @@ class LammpsSimulation(object):
         if (self.molecules): 
             print("Molecules found in the framework, separating.")
             for molecule in self.molecules:
-                self.subgraphs.append(self.cut_molecule(molecule))
+                sg = self.cut_molecule(molecule)
                 # unwrap coordinates
+                sg.unwrap_node_coordinates(self.cell)
+                self.subgraphs.append(sg)
 
     def assign_force_fields(self):
 
@@ -225,6 +235,9 @@ class LammpsSimulation(object):
         except AttributeError:
             print("Error: could not find the force field: %s"%self.options.force_field)
             sys.exit()
+        # apply different force fields.
+        for sg in self.subgraphs:
+            getattr(ForceFields, self.options.force_field)(sg)
 
     def compute_simulation_size(self):
 
@@ -237,20 +250,12 @@ class LammpsSimulation(object):
             #TODO(pboyd): apply to subgraphs as well, if requested.
             self.graph.build_supercell(supercell, self.cell)
             for mgraph in self.subgraphs:
-                mgraph.build_supercell(supercell, cell, track_molecule=True)
+                mgraph.build_supercell(supercell, self.cell, track_molecule=True)
             self.cell.update_supercell(supercell)
-
-    def compute_unique_atoms(self):
-        #must ensure that graphs are merged at this point.
-        pass
-
-    def compute_unique_force_field_terms(self):
-        #must ensure that graphs are merged at this point.
-        pass
 
     def count_dihedrals(self):
         count = 0
-        for edge, data in self.graph.edges_iter(data=True):
+        for n1, n2, data in self.graph.edges_iter(data=True):
             try:
                 for dihed in data['dihedrals'].keys():
                     count += 1
@@ -266,6 +271,7 @@ class LammpsSimulation(object):
                     count += 1
             except KeyError:
                 pass
+        return count
 
     def count_impropers(self):
         count = 0
@@ -275,15 +281,27 @@ class LammpsSimulation(object):
                     count += 1
             except KeyError:
                 pass
+        return count
+
+    def merge_graphs(self):
+        for mgraph in self.subgraphs:
+            self.graph += mgraph
 
     def write_lammps_files(self):
+        self.unique_atoms()
+        self.unique_bonds()
+        self.unique_angles()
+        self.unique_dihedrals()
+        self.unique_impropers()
+        self.unique_pair_terms()
+        self.define_styles()
+
         data_str = self.construct_data_file() 
-        inp_str = self.construct_input_file()
-   
         datafile = open("data.%s"%self.name, 'w')
         datafile.writelines(data_str)
         datafile.close()
 
+        inp_str = self.construct_input_file()
         inpfile = open("in.%s"%self.name, 'w')
         inpfile.writelines(inp_str)
         inpfile.close()
@@ -294,27 +312,27 @@ class LammpsSimulation(object):
         t = datetime.today()
         string = "Created on %s\n\n"%t.strftime("%a %b %d %H:%M:%S %Y %Z")
     
-        if(len(ff.unique_atom_types.keys()) > 0):
+        if(len(self.unique_atom_types.keys()) > 0):
             string += "%12i atoms\n"%(nx.number_of_nodes(self.graph))
-        if(len(ff.unique_bond_types.keys()) > 0):
+        if(len(self.unique_bond_types.keys()) > 0):
             string += "%12i bonds\n"%(nx.number_of_edges(self.graph))
-        if(len(ff.unique_angle_types.keys()) > 0):
+        if(len(self.unique_angle_types.keys()) > 0):
             string += "%12i angles\n"%(self.count_angles())
-        if(len(ff.unique_dihedral_types.keys()) > 0):
+        if(len(self.unique_dihedral_types.keys()) > 0):
             string += "%12i dihedrals\n"%(self.count_dihedrals())
-        if (len(ff.unique_improper_types.keys()) > 0):
-            string += "%12i impropers\n\n"%(self.count_impropers())
+        if (len(self.unique_improper_types.keys()) > 0):
+            string += "%12i impropers\n"%(self.count_impropers())
     
-        if(len(ff.unique_atom_types.keys()) > 0):
-            string += "%12i atom types\n"%(len(ff.unique_atom_types.keys()))
-        if(len(ff.unique_bond_types.keys()) > 0):
-            string += "%12i bond types\n"%(len(ff.unique_bond_types.keys()))
-        if(len(ff.unique_angle_types.keys()) > 0):
-            string += "%12i angle types\n"%(len(ff.unique_angle_types.keys()))
-        if(len(ff.unique_dihedral_types.keys()) > 0):
-            string += "%12i dihedral types\n"%(len(ff.unique_dihedral_types.keys()))
-        if (len(ff.unique_improper_types.keys()) > 0):
-            string += "%12i improper types\n"%(len(ff.unique_improper_types.keys()))
+        if(len(self.unique_atom_types.keys()) > 0):
+            string += "\n%12i atom types\n"%(len(self.unique_atom_types.keys()))
+        if(len(self.unique_bond_types.keys()) > 0):
+            string += "%12i bond types\n"%(len(self.unique_bond_types.keys()))
+        if(len(self.unique_angle_types.keys()) > 0):
+            string += "%12i angle types\n"%(len(self.unique_angle_types.keys()))
+        if(len(self.unique_dihedral_types.keys()) > 0):
+            string += "%12i dihedral types\n"%(len(self.unique_dihedral_types.keys()))
+        if (len(self.unique_improper_types.keys()) > 0):
+            string += "%12i improper types\n"%(len(self.unique_improper_types.keys()))
     
         string += "%19.6f %10.6f %s %s\n"%(0., self.cell.lx, "xlo", "xhi")
         string += "%19.6f %10.6f %s %s\n"%(0., self.cell.ly, "ylo", "yhi")
@@ -329,198 +347,232 @@ class LammpsSimulation(object):
         no_improper = []
         
         # this should be non-zero, but just in case..
-        if(len(ff.unique_atom_types.keys()) > 0):
+        if(len(self.unique_atom_types.keys()) > 0):
             string += "\nMasses\n\n"
-            for key in sorted(ff.unique_atom_types.keys()):
-                unq_atom = ff.unique_atom_types[key]
-                mass, type = unq_atom.mass, unq_atom.force_field_type
+            for key in sorted(self.unique_atom_types.keys()):
+                unq_atom = self.graph.node[self.unique_atom_types[key]]
+                mass, type = unq_atom['mass'], unq_atom['force_field_type']
                 string += "%5i %8.4f # %s\n"%(key, mass, type)
     
-        if(len(ff.unique_bond_types.keys()) > 0):
+        if(len(self.unique_bond_types.keys()) > 0):
             string += "\nBond Coeffs\n\n"
-            for key in sorted(ff.unique_bond_types.keys()):
-                bond = ff.unique_bond_types[key]
-                if bond.potential is None:
+            for key in sorted(self.unique_bond_types.keys()):
+                n1, n2, bond = self.unique_bond_types[key]
+                atom1, atom2 = self.graph.node[n1], self.graph.node[n2]
+                if bond['potential'] is None:
                     no_bond.append("%5i : %s %s"%(key, 
-                                        bond.atoms[0].force_field_type, 
-                                        bond.atoms[1].force_field_type))
+                                                  atom1['force_field_type'], 
+                                                  atom2['force_field_type']))
                 else:
-                    ff1, ff2 = (bond.atoms[0].force_field_type, 
-                                bond.atoms[1].force_field_type)
+                    ff1, ff2 = (atom1['force_field_type'], 
+                                atom2['force_field_type'])
     
-                    string += "%5i %s "%(key, bond.potential)
+                    string += "%5i %s "%(key, bond['potential'])
                     string += "# %s %s\n"%(ff1, ff2)
     
         class2angle = False
-        if(len(ff.unique_angle_types.keys()) > 0):
+        if(len(self.unique_angle_types.keys()) > 0):
             string += "\nAngle Coeffs\n\n"
-            for key in sorted(ff.unique_angle_types.keys()):
-                angle = ff.unique_angle_types[key]
-                atom_a, atom_b, atom_c = angle.atoms
+            for key in sorted(self.unique_angle_types.keys()):
+                a, b, c, angle = self.unique_angle_types[key]
+                atom_a, atom_b, atom_c = self.graph.node[a], \
+                                         self.graph.node[b], \
+                                         self.graph.node[c] 
     
-                if angle.potential is None:
+                if angle['potential'] is None:
                     no_angle.append("%5i : %s %s %s"%(key, 
-                                          atom_a.force_field_type, 
-                                          atom_b.force_field_type, 
-                                          atom_c.force_field_type))
+                                          atom_a['force_field_type'], 
+                                          atom_b['force_field_type'], 
+                                          atom_c['force_field_type']))
                 else:
-                    if (angle.potential.name == "class2"):
+                    if (angle['potential'].name == "class2"):
                         class2angle = True
     
-                    string += "%5i %s "%(key, angle.potential)
-                    string += "# %s %s %s\n"%(atom_a.force_field_type, 
-                                              atom_b.force_field_type, 
-                                              atom_c.force_field_type)
+                    string += "%5i %s "%(key, angle['potential'])
+                    string += "# %s %s %s\n"%(atom_a['force_field_type'], 
+                                              atom_b['force_field_type'], 
+                                              atom_c['force_field_type'])
     
         if(class2angle):
             string += "\nBondBond Coeffs\n\n"
-            for key in sorted(ff.unique_angle_types.keys()):
-                angle = ff.unique_angle_types[key]
-                atom_a, atom_b, atom_c = angle.atoms
+            for key in sorted(self.unique_angle_types.keys()):
+                a, b, c, angle = self.unique_angle_types[key]
+                atom_a, atom_b, atom_c = self.graph.node[a], \
+                                         self.graph.node[b], \
+                                         self.graph.node[c]
+
                 try:
-                    string += "%5i %s "%(key, angle.potential.bb)
-                    string += "# %s %s %s\n"%(atom_a.force_field_type, 
-                                              atom_b.force_field_type, 
-                                              atom_c.force_field_type)
+                    string += "%5i %s "%(key, angle['potential'].bb)
+                    string += "# %s %s %s\n"%(atom_a['force_field_type'], 
+                                              atom_b['force_field_type'], 
+                                              atom_c['force_field_type'])
                 except AttributeError:
                     pass
         
             string += "\nBondAngle Coeffs\n\n"
-            for key in sorted(ff.unique_angle_types.keys()):
-                angle = ff.unique_angle_types[key]
-                atom_a, atom_b, atom_c = angle.atoms
+            for key in sorted(self.unique_angle_types.keys()):
+                a, b, c, angle = self.unique_angle_types[key]
+                atom_a, atom_b, atom_c = self.graph.node[a],\
+                                         self.graph.node[b],\
+                                         self.graph.node[c]
                 try:
-                    string += "%5i %s "%(key, angle.potential.ba)
-                    string += "# %s %s %s\n"%(atom_a.force_field_type, 
-                                              atom_b.force_field_type, 
-                                              atom_c.force_field_type)
+                    string += "%5i %s "%(key, angle['potential'].ba)
+                    string += "# %s %s %s\n"%(atom_a['force_field_type'], 
+                                              atom_b['force_field_type'], 
+                                              atom_c['force_field_type'])
                 except AttributeError:
                     pass   
     
         class2dihed = False
-        if(len(ff.unique_dihedral_types.keys()) > 0):
+        if(len(self.unique_dihedral_types.keys()) > 0):
             string +=  "\nDihedral Coeffs\n\n"
-            for key in sorted(ff.unique_dihedral_types.keys()):
-                dihedral = ff.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = dihedral.atoms
-                if dihedral.potential is None:
+            for key in sorted(self.unique_dihedral_types.keys()):
+                a, b, c, d, dihedral = self.unique_dihedral_types[key]
+                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
+                                                 self.graph.node[b], \
+                                                 self.graph.node[c], \
+                                                 self.graph.node[d]
+                if dihedral['potential'] is None:
                     no_dihedral.append("%5i : %s %s %s %s"%(key, 
-                                       atom_a.force_field_type, 
-                                       atom_b.force_field_type, 
-                                       atom_c.force_field_type, 
-                                       atom_d.force_field_type))
+                                       atom_a['force_field_type'], 
+                                       atom_b['force_field_type'], 
+                                       atom_c['force_field_type'], 
+                                       atom_d['force_field_type']))
                 else:
-                    if(dihedral.potential.name == "class2"):
+                    if(dihedral['potential'].name == "class2"):
                         class2dihed = True
-                    string += "%5i %s "%(key, dihedral.potential)
-                    string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
-                                                 atom_b.force_field_type, 
-                                                 atom_c.force_field_type, 
-                                                 atom_d.force_field_type)
+                    string += "%5i %s "%(key, dihedral['potential'])
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                                 atom_b['force_field_type'], 
+                                                 atom_c['force_field_type'], 
+                                                 atom_d['force_field_type'])
     
         if (class2dihed):
             string += "\nMiddleBondTorsion Coeffs\n\n"
-            for key in sorted(ff.unique_dihedral_types.keys()):
-                dihedral = ff.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = dihedral.atoms
+            for key in sorted(self.unique_dihedral_types.keys()):
+                a, b, c, d, dihedral = self.unique_dihedral_types[key]
+                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
+                                                 self.graph.node[b], \
+                                                 self.graph.node[c], \
+                                                 self.graph.node[d]
+
                 try:
-                    string += "%5i %s "%(key, dihedral.potential.mbt) 
-                    string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
-                                              atom_b.force_field_type, 
-                                              atom_c.force_field_type,
-                                              atom_d.force_field_type)
+                    string += "%5i %s "%(key, dihedral['potential'].mbt) 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                              atom_b['force_field_type'], 
+                                              atom_c['force_field_type'],
+                                              atom_d['force_field_type'])
                 except AttributeError:
                     pass
             string += "\nEndBondTorsion Coeffs\n\n"
-            for key in sorted(ff.unique_dihedral_types.keys()):
-                dihedral = ff.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = dihedral.atoms
+            for key in sorted(self.unique_dihedral_types.keys()):
+                a, b, c, d, dihedral = self.unique_dihedral_types[key]
+                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
+                                                 self.graph.node[b], \
+                                                 self.graph.node[c], \
+                                                 self.graph.node[d]
                 try:
-                    string += "%5i %s "%(key, dihedral.potential.ebt) 
-                    string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
-                                              atom_b.force_field_type, 
-                                              atom_c.force_field_type,
-                                              atom_d.force_field_type)
+                    string += "%5i %s "%(key, dihedral['potential'].ebt) 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                              atom_b['force_field_type'], 
+                                              atom_c['force_field_type'],
+                                              atom_d['force_field_type'])
                 except AttributeError:
                     pass
             string += "\nAngleTorsion Coeffs\n\n"
-            for key in sorted(ff.unique_dihedral_types.keys()):
-                dihedral = ff.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = dihedral.atoms
+            for key in sorted(self.unique_dihedral_types.keys()):
+                a, b, c, d, dihedral = self.unique_dihedral_types[key]
+                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
+                                                 self.graph.node[b], \
+                                                 self.graph.node[c], \
+                                                 self.graph.node[d]
                 try:
-                    string += "%5i %s "%(key, dihedral.potential.at) 
-                    string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
-                                              atom_b.force_field_type, 
-                                              atom_c.force_field_type,
-                                              atom_d.force_field_type)
+                    string += "%5i %s "%(key, dihedral['potential'].at) 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                              atom_b['force_field_type'], 
+                                              atom_c['force_field_type'],
+                                              atom_d['force_field_type'])
                 except AttributeError:
                     pass
             string += "\nAngleAngleTorsion Coeffs\n\n"
-            for key in sorted(ff.unique_dihedral_types.keys()):
-                dihedral = ff.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = dihedral.atoms
+            for key in sorted(self.unique_dihedral_types.keys()):
+                a, b, c, d, dihedral = self.unique_dihedral_types[key]
+                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
+                                                 self.graph.node[b], \
+                                                 self.graph.node[c], \
+                                                 self.graph.node[d]
                 try:
-                    string += "%5i %s "%(key, dihedral.potential.aat) 
-                    string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
-                                              atom_b.force_field_type, 
-                                              atom_c.force_field_type,
-                                              atom_d.force_field_type)
+                    string += "%5i %s "%(key, dihedral['potential'].aat) 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                              atom_b['force_field_type'], 
+                                              atom_c['force_field_type'],
+                                              atom_d['force_field_type'])
                 except AttributeError:
                     pass
             string += "\nBondBond13 Coeffs\n\n"
-            for key in sorted(ff.unique_dihedral_types.keys()):
-                dihedral = ff.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = dihedral.atoms
+            for key in sorted(self.unique_dihedral_types.keys()):
+                a, b, c, d, dihedral = self.unique_dihedral_types[key]
+                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
+                                                 self.graph.node[b], \
+                                                 self.graph.node[c], \
+                                                 self.graph.node[d]
                 try:
-                    string += "%5i %s "%(key, dihedral.potential.bb13) 
-                    string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
-                                                 atom_b.force_field_type, 
-                                                 atom_c.force_field_type,
-                                                 atom_d.force_field_type)
+                    string += "%5i %s "%(key, dihedral['potential'].bb13) 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                                 atom_b['force_field_type'], 
+                                                 atom_c['force_field_type'],
+                                                 atom_d['force_field_type'])
                 except AttributeError:
                     pass
         
         
         class2improper = False 
-        if (len(ff.unique_improper_types.keys()) > 0):
+        if (len(self.unique_improper_types.keys()) > 0):
             string += "\nImproper Coeffs\n\n"
-            for key in sorted(ff.unique_improper_types.keys()):
-                improper = ff.unique_improper_types[key]
-                atom_a, atom_b, atom_c, atom_d = improper.atoms  
-                if improper.potential is None:
+            for key in sorted(self.unique_improper_types.keys()):
+                a, b, c, d, improper = self.unique_improper_types[key]
+                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
+                                                 self.graph.node[b], \
+                                                 self.graph.node[c], \
+                                                 self.graph.node[d]
+
+                if improper['potential'] is None:
                     no_improper.append("%5i : %s %s %s %s"%(key, 
-                        atom_a.force_field_type, 
-                        atom_b.force_field_type, 
-                        atom_c.force_field_type, 
-                        atom_d.force_field_type))
+                        atom_a['force_field_type'], 
+                        atom_b['force_field_type'], 
+                        atom_c['force_field_type'], 
+                        atom_d['force_field_type']))
                 else:
-                    if(improper.potential.name == "class2"):
+                    if(improper['potential'].name == "class2"):
                         class2improper = True
-                    string += "%5i %s "%(key, improper.potential)
-                    string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
-                                                 atom_b.force_field_type, 
-                                                 atom_c.force_field_type, 
-                                                 atom_d.force_field_type)
+                    string += "%5i %s "%(key, improper['potential'])
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                                 atom_b['force_field_type'], 
+                                                 atom_c['force_field_type'], 
+                                                 atom_d['force_field_type'])
         if (class2improper):
             string += "\nAngleAngle Coeffs\n\n"
-            for key in sorted(ff.unique_improper_types.keys()):
-                improper = ff.unique_improper_types[key]
-                atom_a, atom_b, atom_c, atom_d = improper.atoms 
+            for key in sorted(self.unique_improper_types.keys()):
+                a, b, c, d, improper = self.unique_improper_types[key]
+                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
+                                                 self.graph.node[b], \
+                                                 self.graph.node[c], \
+                                                 self.graph.node[d]
                 try:
-                    string += "%5i %s "%(key, improper.potential.aa)
-                    string += "# %s %s %s %s\n"%(atom_a.force_field_type, 
-                                                 atom_b.force_field_type, 
-                                                 atom_c.force_field_type, 
-                                                 atom_d.force_field_type)
+                    string += "%5i %s "%(key, improper['potential'].aa)
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                                 atom_b['force_field_type'], 
+                                                 atom_c['force_field_type'], 
+                                                 atom_d['force_field_type'])
                 except AttributeError:
                     pass
     
-        if((len(ff.unique_pair_types.keys()) > 0) and (ff.pair_in_data)):
+        if((len(self.unique_pair_types.keys()) > 0) and (self.pair_in_data)):
             string += "\nPair Coeffs\n\n"
-            for key, pair in sorted(ff.unique_pair_types.items()):
-                string += "%5i %s "%(key, pair.potential)
-                string += "# %s %s\n"%(pair.atoms[0].force_field_type, 
-                                       pair.atoms[1].force_field_type)
+            for key, (n,pair) in sorted(self.unique_pair_types.items()):
+                string += "%5i %s "%(key, pair['pair_potential'])
+                string += "# %s %s\n"%(self.graph.node[n]['force_field_type'], 
+                                       self.graph.node[n]['force_field_type'])
         
         # Nest this in an if statement
         if any([no_bond, no_angle, no_dihedral, no_improper]):
@@ -548,69 +600,87 @@ class LammpsSimulation(object):
     
         #************[atoms]************
     	# Added 1 to all atom, bond, angle, dihedral, improper indices (LAMMPS does not accept atom of index 0)
-        if(len(ff.unique_atom_types.keys()) > 0):
+        sorted_nodes = sorted(self.graph.nodes())
+        if(len(self.unique_atom_types.keys()) > 0):
             string += "\nAtoms\n\n"
-            for atom in ff.structure.atoms:
+            for node in sorted_nodes:
+                atom = self.graph.node[node]
                 molid = 444
-                string += "%8i %8i %8i %11.5f %10.5f %10.5f %10.5f\n"%(atom.index+1, 
+                string += "%8i %8i %8i %11.5f %10.5f %10.5f %10.5f\n"%(node, 
                                                                        molid, 
-                                                                       atom.ff_type_index,
-                                                                       atom.charge,
-                                                                       atom.coordinates[0], 
-                                                                       atom.coordinates[1], 
-                                                                       atom.coordinates[2])
+                                                                       atom['ff_type_index'],
+                                                                       atom['charge'],
+                                                                       atom['cartesian_coordinates'][0], 
+                                                                       atom['cartesian_coordinates'][1], 
+                                                                       atom['cartesian_coordinates'][2])
     
         #************[bonds]************
-        if(len(ff.unique_bond_types.keys()) > 0):
+        if(len(self.unique_bond_types.keys()) > 0):
             string += "\nBonds\n\n"
-            for bond in ff.structure.bonds:
-                atm1, atm2 = bond.atoms 
-                string += "%8i %8i %8i %8i\n"%(bond.index+1, 
-                                               bond.ff_type_index, 
-                                               atm1.index+1, 
-                                               atm2.index+1)
+            idx = 0
+            for n1, n2, bond in sorted(list(self.graph.edges_iter2(data=True))):
+                idx += 1
+                string += "%8i %8i %8i %8i\n"%(idx,
+                                               bond['ff_type_index'], 
+                                               n1, 
+                                               n2)
     
         #************[angles]***********
-        if(len(ff.unique_angle_types.keys()) > 0):
+        if(len(self.unique_angle_types.keys()) > 0):
             string += "\nAngles\n\n"
-            for angle in ff.structure.angles:
-                atm1, atm2, atm3 = angle.atoms 
-                # what order are they presented? b, a, c? or a, b, c?
-                string += "%8i %8i %8i %8i %8i\n"%(angle.index+1, 
-                                                   angle.ff_type_index, 
-                                                   atm1.index+1, 
-                                                   atm2.index+1, 
-                                                   atm3.index+1)
-    
+            idx = 0
+            for node in sorted_nodes:
+                atom = self.graph.node[node]
+                try:
+                    for (a, c), angle in list(atom['angles'].items()):
+                        idx += 1
+                        string += "%8i %8i %8i %8i %8i\n"%(idx,
+                                                           angle['ff_type_index'], 
+                                                           a, 
+                                                           node,
+                                                           c)
+                except KeyError:
+                    pass
+
         #************[dihedrals]********
-        if(len(ff.unique_dihedral_types.keys()) > 0):
+        if(len(self.unique_dihedral_types.keys()) > 0):
             string += "\nDihedrals\n\n"
-            for dihedral in ff.structure.dihedrals:
-                atm1, atm2, atm3, atm4 = dihedral.atoms 
-                # order?
-                string += "%8i %8i %8i %8i %8i %8i\n"%(dihedral.index+1, 
-                                                       dihedral.ff_type_index, 
-                                                       atm1.index+1, 
-                                                       atm2.index+1,
-                                                       atm3.index+1, 
-                                                       atm4.index+1)
-    
+            idx = 0
+            for n1, n2, data in sorted(list(self.graph.edges_iter2(data=True))):
+                try:
+                    for (a, d), dihedral in list(data['dihedrals'].items()):
+                        idx+=1     
+                        string += "%8i %8i %8i %8i %8i %8i\n"%(idx, 
+                                                              dihedral['ff_type_index'], 
+                                                              a, 
+                                                              n1,
+                                                              n2, 
+                                                              d)
+                except KeyError:
+                    pass
         #************[impropers]********
-        if(len(ff.unique_improper_types.keys()) > 0):
+        if(len(self.unique_improper_types.keys()) > 0):
             string += "\nImpropers\n\n"
-            for improper in ff.structure.impropers:
-                atm1, atm2, atm3, atm4 = improper.atoms
-                # order?
-                string += "%8i %8i %8i %8i %8i %8i\n"%(improper.index+1,
-                                                       improper.ff_type_index,
-                                                       atm1.index+1, 
-                                                       atm2.index+1,
-                                                       atm3.index+1,
-                                                       atm4.index+1)
-    
+            idx = 0
+            for node in sorted_nodes:
+                atom = self.graph.node[node]
+                try:
+                    for (a, c, d), improper in list(atom['impropers'].items()):
+                        idx += 1
+                        string += "%8i %8i %8i %8i %8i %8i\n"%(idx,
+                                                               improper['ff_type_index'],
+                                                               a, 
+                                                               node,
+                                                               c,
+                                                               d)
+                except KeyError:
+                    pass
     
         return string
     
+    def special_commands(self):
+        return ""
+
     def construct_input_file(self):
         """Input file will depend on what the user wants to do"""
     
@@ -622,82 +692,84 @@ class LammpsSimulation(object):
         inp_str += "%-15s %s\n"%("boundary","p p p")
         inp_str += "%-15s %s\n"%("dielectric","1")
         inp_str += "\n"
-        if(len(ff.unique_pair_types.keys()) > 0):
-            inp_str += "%-15s %s\n"%("pair_style", ff.pair_style)
-        if(len(ff.unique_bond_types.keys()) > 0):
-            inp_str += "%-15s %s\n"%("bond_style", ff.bond_style)
-        if(len(ff.unique_angle_types.keys()) > 0):
-            inp_str += "%-15s %s\n"%("angle_style", ff.angle_style)
-        if(len(ff.unique_dihedral_types.keys()) > 0):
-            inp_str += "%-15s %s\n"%("dihedral_style", ff.dihedral_style)
-        if(len(ff.unique_improper_types.keys()) > 0):
-            inp_str += "%-15s %s\n"%("improper_style", ff.improper_style)
-        if(ff.kspace_style): 
-            inp_str += "%-15s %s\n"%("kspace_style", ff.kspace_style) 
+        if(len(self.unique_pair_types.keys()) > 0):
+            inp_str += "%-15s %s\n"%("pair_style", self.pair_style)
+        if(len(self.unique_bond_types.keys()) > 0):
+            inp_str += "%-15s %s\n"%("bond_style", self.bond_style)
+        if(len(self.unique_angle_types.keys()) > 0):
+            inp_str += "%-15s %s\n"%("angle_style", self.angle_style)
+        if(len(self.unique_dihedral_types.keys()) > 0):
+            inp_str += "%-15s %s\n"%("dihedral_style", self.dihedral_style)
+        if(len(self.unique_improper_types.keys()) > 0):
+            inp_str += "%-15s %s\n"%("improper_style", self.improper_style)
+        if(self.kspace_style): 
+            inp_str += "%-15s %s\n"%("kspace_style", self.kspace_style) 
         inp_str += "\n"
     
         # general catch-all for extra force field commands needed.
-        inp_str += ff.special_commands()
+        inp_str += self.special_commands()
     
         inp_str += "%-15s %s\n"%("box tilt","large")
-        inp_str += "%-15s %s\n"%("read_data","data.%s"%(ff.structure.name))
+        inp_str += "%-15s %s\n"%("read_data","data.%s"%(self.name))
     
-        if(not ff.pair_in_data):
+        if(not self.pair_in_data):
             inp_str += "#### Pair Coefficients ####\n"
-            for k, pair in ff.unique_pair_types.items():
+            for k, (n,pair) in self.unique_pair_types.items():
                 inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
-                        pair.atoms[0].ff_type_index, pair.atoms[1].ff_type_index,
-                        pair.potential, pair.atoms[0].force_field_type,
-                        pair.atoms[1].force_field_type)
+                        pair['ff_type_index'], pair['ff_type_index'],
+                        pair['pair_potential'], self.graph.node[n]['force_field_type'],
+                        self.graph.node[n]['force_field_type'])
             
             inp_str += "#### END Pair Coefficients ####\n\n"
     
-        if(ff.structure.molecules):
+        if(self.molecules):
             inp_str += "#### Atom Groupings ####\n"
             idx = 1
-            for molecule in ff.structure.molecules.keys():
-                mols = [item for sublist in sorted(ff.structure.molecules[molecule]) for item in sublist]
-                inc_idx=False
-                if (molecule == "framework"):
-                    inp_str += "%-15s %-8s %s  "%("group", "fram", "id")
-                else:
-                    inp_str += "%-15s %-8s %s  "%("group", "%i"%(idx), "id")
-                    inc_idx = True
-                for x in groups(mols):
+            framework_atoms = self.graph.nodes()
+            for molecule in self.molecules: 
+                
+                inp_str += "%-15s %-8s %s  "%("group", "%i"%(idx), "id")
+                for x in groups(molecule):
                     x = list(x)
                     if(len(x)>1):
                         inp_str += " %i:%i"%(x[0]+1, x[-1]+1)
                     else:
                         inp_str += " %i"%(x[0]+1)
                 inp_str += "\n"
-    
-                for idy, mol in enumerate(ff.structure.molecules[molecule]):
-                    inp_str += "%-15s %-8s %s  "%("group", "%i-%i"%(idx, idy+1), "id")
-                    for g in sorted(groups(mol)):
-                        g = list(g)
-                        if(len(g)>1):
-                            inp_str += " %i:%i"%(g[0]+1, g[-1]+1)
-                        else:
-                            inp_str += " %i"%(g[0]+1)
-                    inp_str += "\n"
-                if inc_idx:
-                    idx += 1
+                for id in molecule:
+                    del framework_atoms[framework_atoms.index(id)]
+                idx+=1
+                #for idy, mol in enumerate(self.molecules[molecule]):
+                #    inp_str += "%-15s %-8s %s  "%("group", "%i-%i"%(idx, idy+1), "id")
+                #    for g in sorted(groups(mol)):
+                #        g = list(g)
+                #        if(len(g)>1):
+                #            inp_str += " %i:%i"%(g[0]+1, g[-1]+1)
+                #        else:
+                #            inp_str += " %i"%(g[0]+1)
+                #    inp_str += "\n"
+            inp_str += "%-15s %-8s %s  "%("group", "fram", "id")
+            for x in groups(framework_atoms):
+                x = list(x)
+                if(len(x)>1):
+                    inp_str += " %i:%i"%(x[0]+1, x[-1]+1)
+                else:
+                    inp_str += " %i"%(x[0]+1)
             inp_str += "#### END Atom Groupings ####\n"
     
-    
-    
         inp_str += "%-15s %s\n"%("dump","%s_mov all xyz 1 %s_mov.xyz"%
-                            (ff.structure.name, ff.structure.name))
+                            (self.name, self.name))
         inp_str += "%-15s %s\n"%("dump_modify", "%s_mov element %s"%(
-                                 ff.structure.name, 
-                                 " ".join([ff.unique_atom_types[key].element 
-                                            for key in sorted(ff.unique_atom_types.keys())])))
+                                 self.name, 
+                                 " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
+                                            for key in sorted(self.unique_atom_types.keys())])))
         inp_str += "%-15s %s\n"%("min_style","cg")
         inp_str += "%-15s %s\n"%("minimize","1.0e-4 1.0e-4 10000 100000")
         inp_str += "%-15s %s\n"%("fix","1 all box/relax tri 0.0 vmax 0.01")
         inp_str += "%-15s %s\n"%("minimize","1.0e-4 1.0e-4 10000 100000")
         inp_str += "%-15s %s\n"%("unfix", "1")
         inp_str += "%-15s %s\n"%("minimize","1.0e-4 1.0e-4 10000 100000")
+        inp_str += "%-15s %s\n"%("undump","%s_mov"%self.name)
     
     #    inp_str += "thermo_style custom step temp etotal ebond eangle edihed eimp\n thermo 1 \n timestep 0.5 \n fix   2 all nvt temp 300.0 300  100\n run  50000"
         return inp_str
@@ -743,13 +815,15 @@ def main():
     cell, graph = from_CIF(options.cif_file)
     sim.set_cell(cell)
     sim.set_graph(graph)
-    sim.split_graph()
+    #sim.split_graph()
     sim.assign_force_fields()
     sim.compute_simulation_size()
+    #sim.merge_graphs()
     if options.output_cif:
         print("CIF file requested. Exiting...")
         write_CIF(graph, cell)
         sys.exit()
+    sim.write_lammps_files()
 
 if __name__ == "__main__": 
     main()
