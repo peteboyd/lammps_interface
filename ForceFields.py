@@ -46,15 +46,11 @@ class ForceField(object):
         self.compute_angle_terms()
         self.compute_dihedral_terms()
         self.compute_improper_terms()
-        # combining pair terms will have to be done outside of an instanced FF class
-        # in case more than one FF is applied to a system.
-        # self.unique_pair_terms()
-        # self.define_styles()
 
     @abc.abstractmethod
     def compute_atomic_pair_terms(self):
         for n, data in self.graph.nodes_iter(data=True):
-            self.pair_terms(n, data)
+            self.pair_terms(n, data, self.cutoff)
 
     @abc.abstractmethod
     def compute_bond_terms(self):
@@ -1373,22 +1369,24 @@ class UFF(ForceField):
     The ammendments mentioned that document are included here
     """
     
-    def __init__(self, graph):
+    def __init__(self, graph, cutoff=None):
+        if cutoff is not None:
+            self.cutoff = cutoff
         self.pair_in_data = True
         self.graph = graph
         self.keep_metal_geometry = False
-
         self.detect_ff_terms() 
         self.compute_force_field_terms()
 
     def detect_ff_exist(self):
         return None
 
-    def pair_terms(self, node, data):
+    def pair_terms(self, node, data, cutoff):
         """Add L-J term to atom"""
         data['pair_potential'] = PairPotential.LjCutCoulLong()
         data['pair_potential'].eps = UFF_DATA[data['force_field_type']][3] 
         data['pair_potential'].sig = UFF_DATA[data['force_field_type']][2]*(2**(-1./6.))
+        data['pair_potential'].cutoff = cutoff
 
     def bond_term(self, edge):
         """Harmonic assumed"""
@@ -1688,46 +1686,6 @@ class UFF(ForceField):
         data['potential'].C0 = c0
         data['potential'].C1 = c1
         data['potential'].C2 = c2
-    
-    def unique_pair_terms(self):
-        """This is force field dependent."""
-        count = 0 
-        pair_type = {}
-        atom_types = list(self.unique_atom_types.keys())
-        for at in sorted(atom_types):
-            atom = self.unique_atom_types[at]
-            #a1 = self.unique_atom_types[pair1]
-            #a2 = self.unique_atom_types[pair2]
-
-            p1 = (atom.ff_type_index, atom.ff_type_index)
-            #pair = PairTerm(a1, a2)
-            pair = PairTerm(atom, atom)
-            if p1 in pair_type.keys():
-                type = pair_type[p1]
-            else:
-                count += 1
-                type = count
-                pair_type[p1] = type
-                self.pair_term(pair)
-                self.unique_pair_types[type] = pair
-            pair.ff_type_index = type
-        return
-
-    def pair_term(self, pair):
-        atom1 = pair.atoms[0]
-        atom2 = pair.atoms[1]
-        eps1 = UFF_DATA[atom1.force_field_type][3]
-        sig1 = UFF_DATA[atom1.force_field_type][2]*(2**(-1./6.))
-        eps2 = UFF_DATA[atom2.force_field_type][3]
-        sig2 = UFF_DATA[atom2.force_field_type][2]*(2**(-1./6.))
-        # default LB mixing.
-        eps = np.sqrt(eps1*eps2)
-        sig = (sig1 + sig2) / 2.
-        pot = PairPotential.LjCutCoulLong()
-        pot.eps = eps
-        pot.sig = sig
-        pot.cutoff = self.cutoff
-        pair.potential = pot 
     
     def special_commands(self):
         st = ""

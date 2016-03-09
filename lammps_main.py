@@ -25,6 +25,7 @@ class LammpsSimulation(object):
         self.options = options
         self.molecules = []
         self.subgraphs = []
+        self.molecule_types = {}
         self.unique_atom_types = {}
         self.unique_bond_types = {}
         self.unique_angle_types = {}
@@ -140,19 +141,11 @@ class LammpsSimulation(object):
                 pass
 
     def unique_pair_terms(self):
-        pair_type = {}
-        count=0
-        for b, data in self.graph.nodes_iter(data=True):
+        for b in sorted(list(self.unique_atom_types.keys())):
+            data = self.graph.node[self.unique_atom_types[b]]
             # compute and store angle terms
             pot = data['pair_potential']
-            itype = "%s"%pot
-            try:
-                type = pair_type[itype]
-            except KeyError:
-                count += 1
-                type = count
-                pair_type[itype] = type
-                self.unique_pair_types[type] = (b, data)
+            self.unique_pair_types[b] = data
         return
 
     def define_styles(self):
@@ -191,14 +184,14 @@ class LammpsSimulation(object):
                 i['potential'].reduced = True
         else:
             self.improper_style = "" 
-        pairs = set(["%r"%(j['pair_potential'].name) for b,j in list(self.unique_pair_types.values())])
+        pairs = set(["%r"%(j['pair_potential']) for j in list(self.unique_pair_types.values())])
         if len(list(pairs)) > 1:
             self.pair_style = "hybrid/overlay %s"%(" ".join(list(pairs)))
             # by default, turn off listing Pair Coeff in the data file if this is the case
             self.pair_in_data = False
         else:
-            self.pair_style = list(pairs)[0]
-            for b,p in list(self.unique_pair_types.values()):
+            self.pair_style = "%s"%list(pairs)[0]
+            for p in list(self.unique_pair_types.values()):
                 p['pair_potential'].reduced = True
 
     def set_graph(self, graph):
@@ -227,17 +220,48 @@ class LammpsSimulation(object):
                 # unwrap coordinates
                 sg.unwrap_node_coordinates(self.cell)
                 self.subgraphs.append(sg)
+        type = 0
+        temp_types = {}
+        for i, j in itertools.combinations(range(len(self.subgraphs)), 2):
+            if self.subgraphs[i].number_of_nodes() != self.subgraphs[j].number_of_nodes():
+                continue
+
+            matched = self.subgraphs[i] | self.subgraphs[j]
+            if (len(matched) == self.subgraphs[i].number_of_nodes()):
+                if i not in list(temp_types.keys()) and j not in list(temp_types.keys()):
+                    type += 1
+                    temp_types[i] = type
+                    temp_types[j] = type
+                    self.molecule_types.setdefault(type, []).append(i)
+                    self.molecule_types[type].append(j)
+                else:
+                    try:
+                        type = temp_types[i]
+                        temp_types[j] = type
+                    except KeyError:
+                        type = temp_types[j]
+                        temp_types[i] = type
+                    if i not in self.molecule_types[type]:
+                        self.molecule_types[type].append(i)
+                    if j not in self.molecule_types[type]:
+                        self.molecule_types[type].append(j)
+        unassigned = set(range(len(self.subgraphs))) - set(list(temp_types.keys()))
+        for j in list(unassigned):
+            type += 1
+            self.molecule_types[type] = [j]
 
     def assign_force_fields(self):
 
         try:
-            getattr(ForceFields, self.options.force_field)(self.graph)
+            getattr(ForceFields, self.options.force_field)(self.graph, cutoff=self.options.cutoff)
         except AttributeError:
             print("Error: could not find the force field: %s"%self.options.force_field)
             sys.exit()
         # apply different force fields.
-        for sg in self.subgraphs:
-            getattr(ForceFields, self.options.force_field)(sg)
+        for mtype in list(self.molecule_types.keys()):
+            # prompt for ForceField?
+            for m in self.molecule_types[mtype]:
+                getattr(ForceFields, self.options.force_field)(self.subgraphs[m], cutoff=self.options.cutoff)
 
     def compute_simulation_size(self):
 
@@ -249,8 +273,10 @@ class LammpsSimulation(object):
             
             #TODO(pboyd): apply to subgraphs as well, if requested.
             self.graph.build_supercell(supercell, self.cell)
-            for mgraph in self.subgraphs:
-                mgraph.build_supercell(supercell, self.cell, track_molecule=True)
+            for mtype in list(self.molecule_types.keys()):
+                # prompt for replication of this molecule in the supercell.
+                for m in self.molecule_types[mtype]:
+                    self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True)
             self.cell.update_supercell(supercell)
 
     def count_dihedrals(self):
@@ -569,7 +595,8 @@ class LammpsSimulation(object):
     
         if((len(self.unique_pair_types.keys()) > 0) and (self.pair_in_data)):
             string += "\nPair Coeffs\n\n"
-            for key, (n,pair) in sorted(self.unique_pair_types.items()):
+            for key, n in sorted(self.unique_atom_types.items()):
+                pair = self.graph.node[n]
                 string += "%5i %s "%(key, pair['pair_potential'])
                 string += "# %s %s\n"%(self.graph.node[n]['force_field_type'], 
                                        self.graph.node[n]['force_field_type'])
@@ -723,39 +750,58 @@ class LammpsSimulation(object):
             inp_str += "#### END Pair Coefficients ####\n\n"
     
         if(self.molecules):
-            inp_str += "#### Atom Groupings ####\n"
+            inp_str += "\n#### Atom Groupings ####\n"
             idx = 1
             framework_atoms = self.graph.nodes()
-            for molecule in self.molecules: 
+            for mtype in list(self.molecule_types.keys()): 
                 
-                inp_str += "%-15s %-8s %s  "%("group", "%i"%(idx), "id")
-                for x in groups(molecule):
+                inp_str += "%-15s %-8s %s  "%("group", "%i"%(mtype), "id")
+                all_atoms = []
+                for j in self.molecule_types[mtype]:
+                    all_atoms += self.subgraphs[j].nodes()
+                for x in self.groups(all_atoms):
                     x = list(x)
                     if(len(x)>1):
-                        inp_str += " %i:%i"%(x[0]+1, x[-1]+1)
+                        inp_str += " %i:%i"%(x[0], x[-1])
                     else:
-                        inp_str += " %i"%(x[0]+1)
+                        inp_str += " %i"%(x[0])
                 inp_str += "\n"
-                for id in molecule:
-                    del framework_atoms[framework_atoms.index(id)]
-                idx+=1
-                #for idy, mol in enumerate(self.molecules[molecule]):
-                #    inp_str += "%-15s %-8s %s  "%("group", "%i-%i"%(idx, idy+1), "id")
-                #    for g in sorted(groups(mol)):
-                #        g = list(g)
-                #        if(len(g)>1):
-                #            inp_str += " %i:%i"%(g[0]+1, g[-1]+1)
-                #        else:
-                #            inp_str += " %i"%(g[0]+1)
-                #    inp_str += "\n"
-            inp_str += "%-15s %-8s %s  "%("group", "fram", "id")
-            for x in groups(framework_atoms):
-                x = list(x)
-                if(len(x)>1):
-                    inp_str += " %i:%i"%(x[0]+1, x[-1]+1)
-                else:
-                    inp_str += " %i"%(x[0]+1)
-            inp_str += "#### END Atom Groupings ####\n"
+                for atom in reversed(sorted(all_atoms)):
+                    del framework_atoms[framework_atoms.index(atom)]
+                mcount = 0
+                for j in self.molecule_types[mtype]:
+                    if (self.subgraphs[j].molecule_images):
+                        for molecule in self.subgraphs[j].molecule_images:
+                            mcount += 1
+                            inp_str += "%-15s %-8s %s  "%("group", "%i-%i"%(mtype, mcount), "id")
+                            for x in self.groups(molecule):
+                                x = list(x)
+                                if(len(x)>1):
+                                    inp_str += " %i:%i"%(x[0], x[-1])
+                                else:
+                                    inp_str += " %i"%(x[0])
+                            inp_str += "\n"
+                    else:
+                        mcount += 1
+                        inp_str += "%-15s %-8s %s  "%("group", "%i-%i"%(mtype, mcount), "id")
+                        molecule = self.subgraphs[j].nodes()
+                        for x in self.groups(molecule):
+                            x = list(x)
+                            if(len(x)>1):
+                                inp_str += " %i:%i"%(x[0], x[-1])
+                            else:
+                                inp_str += " %i"%(x[0])
+                        inp_str += "\n"
+            if(framework_atoms):
+                inp_str += "%-15s %-8s %s  "%("group", "fram", "id")
+                for x in self.groups(framework_atoms):
+                    x = list(x)
+                    if(len(x)>1):
+                        inp_str += " %i:%i"%(x[0], x[-1])
+                    else:
+                        inp_str += " %i"%(x[0])
+                inp_str += "\n"
+            inp_str += "#### END Atom Groupings ####\n\n"
     
         inp_str += "%-15s %s\n"%("dump","%s_mov all xyz 1 %s_mov.xyz"%
                             (self.name, self.name))
@@ -784,7 +830,7 @@ class LammpsSimulation(object):
         """Ascertain if there are molecules within the porous structure"""
         for j in nx.connected_components(self.graph):
             # return a list of nodes of connected graphs (decisions to isolate them will come later)
-            if(len(j) <= self.graph.original_size*size_cutoff):
+            if(len(j) <= self.graph.original_size*size_cutoff) or (len(j) < 15):
                 self.molecules.append(j)
     
     def cut_molecule(self, nodes):
@@ -793,7 +839,8 @@ class LammpsSimulation(object):
         indices = np.array(nodes) - 1
         mgraph.coordinates = self.graph.coordinates[indices,:].copy()
         mgraph.sorted_edge_dict = self.graph.sorted_edge_dict.copy()
-        mgraph.distance_matrix = self.graph.distance_matrix[indices, indices].copy()
+        mgraph.distance_matrix = self.graph.distance_matrix.copy()
+        mgraph.original_size = self.graph.original_size
         for n1, n2 in mgraph.edges_iter():
             try:
                 val = self.graph.sorted_edge_dict.pop((n1, n2))
@@ -815,10 +862,10 @@ def main():
     cell, graph = from_CIF(options.cif_file)
     sim.set_cell(cell)
     sim.set_graph(graph)
-    #sim.split_graph()
+    sim.split_graph()
     sim.assign_force_fields()
     sim.compute_simulation_size()
-    #sim.merge_graphs()
+    sim.merge_graphs()
     if options.output_cif:
         print("CIF file requested. Exiting...")
         write_CIF(graph, cell)

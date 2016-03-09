@@ -8,6 +8,7 @@ from CIFIO import CIF
 from atomic import METALS
 from copy import copy
 from mof_sbus import InorganicCluster
+from copy import deepcopy
 import itertools
 
 try:
@@ -87,6 +88,7 @@ class MolecularGraph(nx.Graph):
         #TODO(pboyd) should have some error checking here..
         n = kwargs.pop('_atom_site_label')
         kwargs.update({'ciflabel':n})
+        kwargs.update({'special_flag':None})
         self.add_node(idx, **kwargs)
    
     def compute_bonding(self, cell, scale_factor = 0.9):
@@ -640,7 +642,7 @@ class MolecularGraph(nx.Graph):
                             # found cluster
                             # update the 'hybridization' data
                             for i,j in clique:
-                                self.node[i]['hybridization'] = cluster.node[j]['hybridization']
+                                self.node[i]['special_flag'] = cluster.node[j]['special_flag']
                             cluster_found = True
                             print("Found %s"%(name))
                             break
@@ -676,7 +678,7 @@ class MolecularGraph(nx.Graph):
         rem_edges = []
         add_edges = []
         union_graphs = []
-        orig_copy = self.copy()
+        orig_copy = deepcopy(self)
         for count, cell in enumerate(cells):
             newcell = np.array(cell).flatten()
             offset = count * unitatomlen 
@@ -685,7 +687,7 @@ class MolecularGraph(nx.Graph):
                 graph_image = self
             else:
                 # rename nodes
-                graph_image = nx.relabel_nodes(orig_copy, {unit_node_ids[i-1]: offset+unit_node_ids[i-1] for i in range(1, totatomlen+1)})
+                graph_image = nx.relabel_nodes(deepcopy(orig_copy), {unit_node_ids[i-1]: offset+unit_node_ids[i-1] for i in range(1, totatomlen+1)})
                 graph_image.sorted_edge_dict = self.sorted_edge_dict.copy()
                 for k,v in list(graph_image.sorted_edge_dict.items()):
                     newkey = (k[0] + offset, k[1] + offset) 
@@ -693,21 +695,22 @@ class MolecularGraph(nx.Graph):
                     del graph_image.sorted_edge_dict[k]
                     graph_image.sorted_edge_dict.update({newkey:newval})
 
-                for i in range(1, totatomlen+1):
-                    graph_image.node[unit_node_ids[i-1]+offset]['image'] = unit_node_ids[i-1]
+            for i in range(1, totatomlen+1):
+                graph_image.node[unit_node_ids[i-1]+offset]['image'] = unit_node_ids[i-1]
 
             if track_molecule:
                 self.molecule_images.append(graph_image.nodes())
             # update cartesian coordinates for each node in the image
             for node, data in graph_image.nodes_iter(data=True):
-                
+                n_orig = data['image']
                 data['cartesian_coordinates'] = data['cartesian_coordinates'] + cartesian_offset
                 # update all angle and improper terms to the curent image indices. Dihedrals will be done in the edge loop
                 # angle check
                 try:
                     for (a, c), val in list(data['angles'].items()):
+                        aid, cid = offset + a, offset + c
                         data['angles'].pop((a,c))
-                        data['angles'][(a + offset, c + offset)] = val
+                        data['angles'][(aid, cid)] = val
 
                 except KeyError:
                     # no angles for n1
@@ -715,8 +718,9 @@ class MolecularGraph(nx.Graph):
                 # improper check
                 try:
                     for (a, c, d), val in list(data['impropers'].items()):
+                        aid, cid, did = offset + a, offset + c, offset + d
                         data['impropers'].pop((a,c,d))
-                        data['impropers'][(a+offset, c+offset, d+offset)] = val
+                        data['impropers'][(aid, cid, did)] = val
 
                 except KeyError:
                     # no impropers for n1
@@ -940,6 +944,12 @@ class MolecularGraph(nx.Graph):
         for n1,n2, data in newgraph.edges_iter2(data=True):
             self.add_edge(n1,n2, **data)
         return self
+
+    def __or__(self, graph):
+        cg = self.correspondence_graph(graph)
+        cliques = list(nx.find_cliques(cg))
+        cliques.sort(key=len)
+        return cliques[-1] 
 
 def from_CIF(cifname):
     """Reads the structure data from the CIF
