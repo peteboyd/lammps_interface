@@ -1369,9 +1369,7 @@ class UFF(ForceField):
     The ammendments mentioned that document are included here
     """
     
-    def __init__(self, graph, cutoff=None):
-        if cutoff is not None:
-            self.cutoff = cutoff
+    def __init__(self, graph, cutoff=12.5):
         self.pair_in_data = True
         self.graph = graph
         self.keep_metal_geometry = False
@@ -1730,11 +1728,15 @@ class UFF(ForceField):
 
 class Dreiding(ForceField):
 
-    def __init__(self, struct):
-        self.pair_in_data = False
-        self.structure = struct
-
-
+    def __init__(self, graph, cutoff=12.5):
+        self.cutoff = cutoff
+        self.pair_in_data = True
+        self.graph = graph
+        self.keep_metal_geometry = False
+        self.detect_ff_terms() 
+        self.compute_force_field_terms()
+        self.h_bonding = False
+    
     def detect_ff_exist(self):
         return None
    
@@ -2309,35 +2311,32 @@ class Dreiding(ForceField):
         # for each atom determine the ff type if it is None
         organics = ["C", "N", "O", "S"]
         halides = ["F", "Cl", "Br", "I"]
-        for atom in self.structure.atoms:
-
-            if atom.force_field_type is None:
-                if atom.element in organics:
-                    if atom.hybridization == "sp3":
-                        atom.force_field_type = "%s_3"%atom.element
-                    elif atom.hybridization == "aromatic":
-                        atom.force_field_type = "%s_R"%atom.element
-                    elif atom.hybridization == "sp2":
-                        atom.force_field_type = "%s_2"%atom.element
-                    elif atom.hybridization == "sp":
-                        atom.force_field_type = "%s_1"%atom.element
-                    # default to sp3
+        for node, data in self.graph.nodes_iter(data=True):
+            if data['force_field_type'] is None:
+                if data['element'] in organics:
+                    if data['hybridization'] == "sp3":
+                        data['force_field_type'] = "%s_3"%data['element']
+                    elif data['hybridization'] == "aromatic":
+                        data['force_field_type'] = "%s_R"%data['element']
+                    elif data['hybridization'] == "sp2":
+                        data['force_field_type'] = "%s_2"%data['element']
+                    elif data['hybridization'] == "sp":
+                        data['force_field_type'] = "%s_1"%data['element']
                     else:
-                        atom.force_field_type = "%s_3"%atom.element
-                elif atom.element == "H":
-                    atom.force_field_type = "H_"
-                elif atom.element in halides:
-                    atom.force_field_type = atom.element
-                    if atom.element == "F":
-                        atom.force_field_type += "_"
+                        data['force_field_type'] = "%s_3"%data['element']
+
+                elif data['element'] == "H":
+                    data['force_field_type'] = "H_"
+                elif data['element'] in halides:
+                    data['force_field_type'] = data['element']
+                    if data['element'] == "F":
+                        data['force_field_type'] += "_"
                 else:
                     ffs = list(DREIDING_DATA.keys())
                     for j in ffs:
-                        if atom.element == j[:2].strip("_"):
-                            atom.force_field_type = j
-            if atom.force_field_type is None:
-                print(atom.hybridization)
-                print("ERROR: could not find the proper force field type for atom %i"%(atom.index)+
-                        " with element: '%s'"%(atom.element))
+                        if data['element'] == j[:2].strip("_"):
+                            data['force_field_type'] = j
+            if data['force_field_type'] is None:
+                print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
+                        " with element: '%s'"%(data['element']))
                 sys.exit()
-
