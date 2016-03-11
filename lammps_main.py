@@ -23,6 +23,7 @@ from copy import deepcopy
 class LammpsSimulation(object):
     def __init__(self, options):
         self.name = clean(options.cif_file)
+        self.special_commands = []
         self.options = options
         self.molecules = []
         self.subgraphs = []
@@ -171,11 +172,11 @@ class LammpsSimulation(object):
                 elif (i_data['h_bond_donor'] and j_data['element'] in electro_neg_atoms):
                     hdata = deepcopy(i_data)
                     hdata['h_bond_potential'] = hdata['h_bond_function'](n2, self.graph)
-                    self.unique_pair_types[(i,j,'hb')] = hdata 
+                    self.unique_pair_types[(i,j,'hb')] = deepcopy(hdata)
                 elif (j_data['h_bond_donor'] and i_data['element'] in electro_neg_atoms):
                     hdata = deepcopy(j_data)
                     hdata['h_bond_potential'] = hdata['h_bond_function'](n1, self.graph, flipped=True)
-                    self.unique_pair_types[(i,j,'hb')] = hdata 
+                    self.unique_pair_types[(i,j,'hb')] = deepcopy(hdata) 
                 # mix Lorentz-Berthelot rules
                 pair_data = deepcopy(i_data)
 
@@ -295,25 +296,41 @@ class LammpsSimulation(object):
     def assign_force_fields(self):
 
         try:
-            getattr(ForceFields, self.options.force_field)(graph=self.graph, 
+            param = getattr(ForceFields, self.options.force_field)(graph=self.graph, 
                                                            cutoff=self.options.cutoff,
                                                            h_bonding=self.options.h_bonding)
+            self.special_commands += param.special_commands()
         except AttributeError:
             print("Error: could not find the force field: %s"%self.options.force_field)
             sys.exit()
         # apply different force fields.
         for mtype in list(self.molecule_types.keys()):
             # prompt for ForceField?
-            #rep = self.subgraphs[self.molecule_types[mtype][0]]
-            #response = raw_input("Would you like to apply a new force field to molecule type %i with atoms (%s)?"%
-            #        (mtype, ", ".join([rep.node[j]['element'] for j rep.nodes()])))
-
-            #if response in ['y', 'Y', 'yes']:
-            #    pass
+            rep = self.subgraphs[self.molecule_types[mtype][0]]
+            response = input("Would you like to apply a new force field to molecule type %i with atoms (%s)? [y/n]: "%
+                    (mtype, ", ".join([rep.node[j]['element'] for j in rep.nodes()])))
+            ff = self.options.force_field
+            if response.lower() in ['y','yes']:
+                ff = input("Please enter the name of the force field: ")
+            elif response.lower() in ['n', 'no']:
+                pass 
+            else:
+                print("Unrecognized command: %s"%response)
+            h_bonding = False
+            if (ff == "Dreiding"):
+                hbonding = input("Would you like this molecule type to have hydrogen donor potentials? [y/n]: ")
+                if hbonding.lower() in ['y', 'yes']:
+                    h_bonding = True
+                elif hbonding.lower() in ['n', 'no']:
+                    h_bonding = False
+                else:
+                    print("Unrecognized command: %s"%hbonding)
+                    sys.exit()
             for m in self.molecule_types[mtype]:
-                getattr(ForceFields, self.options.force_field)(graph=self.subgraphs[m], 
-                                                               cutoff=self.options.cutoff, 
-                                                               h_bonding=self.options.h_bonding)
+                p = getattr(ForceFields, ff)(graph=self.subgraphs[m], 
+                                         cutoff=self.options.cutoff, 
+                                         h_bonding=h_bonding)
+                self.special_commands += p.special_commands()
 
     def compute_simulation_size(self):
 
@@ -328,7 +345,7 @@ class LammpsSimulation(object):
             for mtype in list(self.molecule_types.keys()):
                 # prompt for replication of this molecule in the supercell.
                 rep = self.subgraphs[self.molecule_types[mtype][0]]
-                response = input("Would you like to replicate moleule %i with atoms (%s) in the supercell?"%
+                response = input("Would you like to replicate moleule %i with atoms (%s) in the supercell? [y/n]: "%
                         (mtype, ", ".join([rep.node[j]['element'] for j in rep.nodes()])))
                 if response in ['y', 'Y', 'yes']:
                     for m in self.molecule_types[mtype]:
@@ -761,9 +778,6 @@ class LammpsSimulation(object):
     
         return string
     
-    def special_commands(self):
-        return ""
-
     def construct_input_file(self):
         """Input file will depend on what the user wants to do"""
     
@@ -790,8 +804,8 @@ class LammpsSimulation(object):
         inp_str += "\n"
     
         # general catch-all for extra force field commands needed.
-        inp_str += self.special_commands()
-    
+        inp_str += "\n".join(list(set(self.special_commands)))
+        inp_str += "\n"
         inp_str += "%-15s %s\n"%("box tilt","large")
         inp_str += "%-15s %s\n"%("read_data","data.%s"%(self.name))
     
@@ -812,7 +826,8 @@ class LammpsSimulation(object):
                     self.graph.node[n1]['force_field_type'],
                     self.graph.node[n2]['force_field_type'])
             inp_str += "#### END Pair Coefficients ####\n\n"
-    
+   
+        
         if(self.molecules):
             inp_str += "\n#### Atom Groupings ####\n"
             idx = 1

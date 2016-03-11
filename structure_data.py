@@ -809,7 +809,6 @@ class MolecularGraph(nx.Graph):
                         # no dihedrals here.
                         pass
 
-                
                     # Update symmetry flag of bond
                     data['symflag'] = self.update_symflag(newcell, data['symflag'], origincell, maxcell)
                     add_edges += [((n1, img_n2),data)]
@@ -906,7 +905,7 @@ class MolecularGraph(nx.Graph):
         return self
 
     def __or__(self, graph):
-        cg = self.correspondence_graph(graph)
+        cg = self.correspondence_graph(graph, tol=0.4)
         cliques = list(nx.find_cliques(cg))
         cliques.sort(key=len)
         return cliques[-1] 

@@ -1693,8 +1693,7 @@ class UFF(ForceField):
         data['potential'].C2 = c2
     
     def special_commands(self):
-        st = ""
-        st += "%-15s %s %s\n"%("pair_modify", "tail yes", "mix arithmetic")
+        st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic")]
         return st
 
     def detect_ff_terms(self):
@@ -1994,11 +1993,10 @@ class Dreiding(ForceField):
         # special case: ignore N column 
         sp3_N = ["N_3", "P_3", "As3", "Sb3"]
         K = 40.0
-        if b_data['hybridization'] == 'sp2' or b_data['hybridizaton'] == 'aromatic':
+        if b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic':
             K /= 3.
         if btype in sp3_N:
             return
-
         omega0 = DREIDING_DATA[btype][4]
         data['potential'] = ImproperPotential.Umbrella()
 
@@ -2065,7 +2063,6 @@ class Dreiding(ForceField):
 
         nb. need connectivity information - this is accessed by self.graph
         """
-        data = self.graph.node[node]
         if (nbpot == 'morse'):
             potential = PairPotential.HbondDreidingMorse()
         elif (nbpot == 'lj'):
@@ -2073,6 +2070,7 @@ class Dreiding(ForceField):
             pass
 
         def hbond_pair(node2, graph, flipped=False):
+            data = graph.node[node]
             data2 = graph.node[node2]
             if(flipped):
                 potential.donor = 'j'
@@ -2174,6 +2172,7 @@ class Dreiding(ForceField):
                     else:
                         D0 = 1.25
                         R0 = 3.15 
+            print(ff1, ff2, D0, R0)
             potential.htype = graph.node[hnode]['ff_type_index']
             potential.D0 = D0 
             potential.alpha = 10.0/ 2. / R0
@@ -2188,9 +2187,8 @@ class Dreiding(ForceField):
         return hbond_pair
 
     def special_commands(self):
-        st = ""
-        st += "%-15s %s\n"%("pair_modify", "tail yes")
-        st += "%-15s %s\n"%("special_bonds", "dreiding") # equivalent to 'special_bonds lj 0.0 0.0 1.0'
+        st = ["%-15s %s"%("pair_modify", "tail yes"),
+              "%-15s %s"%("special_bonds", "dreiding")] # equivalent to 'special_bonds lj 0.0 0.0 1.0'
         return st
 
     def detect_ff_terms(self):
