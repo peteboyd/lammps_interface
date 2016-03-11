@@ -18,6 +18,7 @@ from CIFIO import CIF
 from ccdc import CCDC_BOND_ORDERS
 from datetime import datetime
 from InputHandler import Options
+from copy import deepcopy
 
 class LammpsSimulation(object):
     def __init__(self, options):
@@ -39,10 +40,11 @@ class LammpsSimulation(object):
         count = 0
         ff_type = {}
         for node, data in self.graph.nodes_iter(data=True):
+            # add factor for h_bond donors
             if data['force_field_type'] is None:
-                label = data['element']
+                label = (data['element'], data['h_bond_donor'])
             else:
-                label = data['force_field_type']
+                label = (data['force_field_type'], data['h_bond_donor'])
 
             try:
                 type = ff_type[label]
@@ -120,8 +122,10 @@ class LammpsSimulation(object):
     def unique_impropers(self):
         count = 0
         improper_type = {}
+        
         for b, data in self.graph.nodes_iter(data=True):
             try:
+                rem = []
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
                     if val['potential'] is not None:
@@ -132,20 +136,59 @@ class LammpsSimulation(object):
                             count += 1
                             type = count
                             improper_type[itype] = type
-                            self.unique_improper_types[type] = (a, b, c, d, val) 
+                            self.unique_improper_types[type] = (a, b, c, d, val)
+
                         val['ff_type_index'] = type
                     else:
-                        data['impropers'].pop((a, c, d))
+                        rem.append((a,c,d))
+
+                for m in rem:
+                    data['impropers'].pop(m)
+
             except KeyError:
                 # no improper terms associated with this atom
                 pass
 
     def unique_pair_terms(self):
-        for b in sorted(list(self.unique_atom_types.keys())):
-            data = self.graph.node[self.unique_atom_types[b]]
-            # compute and store angle terms
-            pot = data['pair_potential']
-            self.unique_pair_types[b] = data
+        pot_names = []
+        nodes_list = sorted(self.unique_atom_types.keys())
+        electro_neg_atoms = ["N", "O", "F"]
+        for n, data in self.graph.nodes_iter(data=True):
+            if data['h_bond_donor']:
+                # derp. can't get the potential.name from a function.
+                pot_names.append('h_bonding')
+            pot_names.append(data['pair_potential'].name)
+        # mix yourself
+        if len(list(set(pot_names))) > 1:
+            self.pair_in_data = False
+            for (i, j) in itertools.combinations_with_replacement(nodes_list, 2):
+                n1, n2 = self.unique_atom_types[i], self.unique_atom_types[j]
+                i_data = self.graph.node[n1]
+                j_data = self.graph.node[n2]
+                # Do not form h-bonds with two donors.. (too restrictive? Water...)
+                if (i_data['h_bond_donor'] and j_data['h_bond_donor']):
+                    pass
+                elif (i_data['h_bond_donor'] and j_data['element'] in electro_neg_atoms):
+                    hdata = deepcopy(i_data)
+                    hdata['h_bond_potential'] = hdata['h_bond_function'](n2, self.graph)
+                    self.unique_pair_types[(i,j,'hb')] = hdata 
+                elif (j_data['h_bond_donor'] and i_data['element'] in electro_neg_atoms):
+                    hdata = deepcopy(j_data)
+                    hdata['h_bond_potential'] = hdata['h_bond_function'](n1, self.graph, flipped=True)
+                    self.unique_pair_types[(i,j,'hb')] = hdata 
+                # mix Lorentz-Berthelot rules
+                pair_data = deepcopy(i_data)
+
+                pair_data['pair_potential'].eps = np.sqrt(i_data['pair_potential'].eps*j_data['pair_potential'].eps)
+                pair_data['pair_potential'].sig = (i_data['pair_potential'].sig + j_data['pair_potential'].sig)/2.
+                self.unique_pair_types[(i,j)] = pair_data
+        # can be mixed by lammps
+        else:
+            for b in sorted(list(self.unique_atom_types.keys())):
+                data = self.graph.node[self.unique_atom_types[b]]
+                # compute and store angle terms
+                pot = data['pair_potential']
+                self.unique_pair_types[b] = data
         return
 
     def define_styles(self):
@@ -184,11 +227,10 @@ class LammpsSimulation(object):
                 i['potential'].reduced = True
         else:
             self.improper_style = "" 
-        pairs = set(["%r"%(j['pair_potential']) for j in list(self.unique_pair_types.values())])
+        pairs = set(["%r"%(j['pair_potential']) for j in list(self.unique_pair_types.values())]) | \
+                set(["%r"%(j['h_bond_potential']) for j in list(self.unique_pair_types.values()) if j['h_bond_potential'] is not None])
         if len(list(pairs)) > 1:
             self.pair_style = "hybrid/overlay %s"%(" ".join(list(pairs)))
-            # by default, turn off listing Pair Coeff in the data file if this is the case
-            self.pair_in_data = False
         else:
             self.pair_style = "%s"%list(pairs)[0]
             for p in list(self.unique_pair_types.values()):
@@ -253,15 +295,25 @@ class LammpsSimulation(object):
     def assign_force_fields(self):
 
         try:
-            getattr(ForceFields, self.options.force_field)(self.graph, cutoff=self.options.cutoff)
+            getattr(ForceFields, self.options.force_field)(graph=self.graph, 
+                                                           cutoff=self.options.cutoff,
+                                                           h_bonding=self.options.h_bonding)
         except AttributeError:
             print("Error: could not find the force field: %s"%self.options.force_field)
             sys.exit()
         # apply different force fields.
         for mtype in list(self.molecule_types.keys()):
             # prompt for ForceField?
+            #rep = self.subgraphs[self.molecule_types[mtype][0]]
+            #response = raw_input("Would you like to apply a new force field to molecule type %i with atoms (%s)?"%
+            #        (mtype, ", ".join([rep.node[j]['element'] for j rep.nodes()])))
+
+            #if response in ['y', 'Y', 'yes']:
+            #    pass
             for m in self.molecule_types[mtype]:
-                getattr(ForceFields, self.options.force_field)(self.subgraphs[m], cutoff=self.options.cutoff)
+                getattr(ForceFields, self.options.force_field)(graph=self.subgraphs[m], 
+                                                               cutoff=self.options.cutoff, 
+                                                               h_bonding=self.options.h_bonding)
 
     def compute_simulation_size(self):
 
@@ -275,8 +327,12 @@ class LammpsSimulation(object):
             self.graph.build_supercell(supercell, self.cell)
             for mtype in list(self.molecule_types.keys()):
                 # prompt for replication of this molecule in the supercell.
-                for m in self.molecule_types[mtype]:
-                    self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True)
+                rep = self.subgraphs[self.molecule_types[mtype][0]]
+                response = input("Would you like to replicate moleule %i with atoms (%s) in the supercell?"%
+                        (mtype, ", ".join([rep.node[j]['element'] for j in rep.nodes()])))
+                if response in ['y', 'Y', 'yes']:
+                    for m in self.molecule_types[mtype]:
+                        self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True)
             self.cell.update_supercell(supercell)
 
     def count_dihedrals(self):
@@ -741,12 +797,20 @@ class LammpsSimulation(object):
     
         if(not self.pair_in_data):
             inp_str += "#### Pair Coefficients ####\n"
-            for k, (n,pair) in self.unique_pair_types.items():
+            for pair,data in sorted(self.unique_pair_types.items()):
+                n1, n2 = self.unique_atom_types[pair[0]], self.unique_atom_types[pair[1]]
+                try:
+                    pair[2]
+                    inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
+                        pair[0], pair[1], data['h_bond_potential'],
+                        self.graph.node[n1]['force_field_type'],
+                        self.graph.node[n2]['force_field_type'])
+                except IndexError:
+                    pass
                 inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
-                        pair['ff_type_index'], pair['ff_type_index'],
-                        pair['pair_potential'], self.graph.node[n]['force_field_type'],
-                        self.graph.node[n]['force_field_type'])
-            
+                    pair[0], pair[1], data['pair_potential'],
+                    self.graph.node[n1]['force_field_type'],
+                    self.graph.node[n2]['force_field_type'])
             inp_str += "#### END Pair Coefficients ####\n\n"
     
         if(self.molecules):

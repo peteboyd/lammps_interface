@@ -1369,12 +1369,19 @@ class UFF(ForceField):
     The ammendments mentioned that document are included here
     """
     
-    def __init__(self, graph, cutoff=12.5):
+    def __init__(self, graph=None, cutoff=12.5, **kwargs):
         self.pair_in_data = True
-        self.graph = graph
         self.keep_metal_geometry = False
+        if (graph is not None):
+            self.graph = graph
+            self.detect_ff_terms() 
+            self.compute_force_field_terms()
+
+    def insert_graph(self, graph):
+        self.graph = graph
         self.detect_ff_terms() 
         self.compute_force_field_terms()
+
 
     def detect_ff_exist(self):
         return None
@@ -1728,105 +1735,25 @@ class UFF(ForceField):
 
 class Dreiding(ForceField):
 
-    def __init__(self, graph, cutoff=12.5):
+    def __init__(self, graph=None, cutoff=12.5, h_bonding=False, **kwargs):
         self.cutoff = cutoff
         self.pair_in_data = True
-        self.graph = graph
         self.keep_metal_geometry = False
+        self.h_bonding = h_bonding
+        if (graph is not None):
+            self.graph = graph
+            self.detect_ff_terms() 
+            self.compute_force_field_terms()
+
+    def insert_graph(self, graph):
+        self.graph = graph
         self.detect_ff_terms() 
         self.compute_force_field_terms()
-        self.h_bonding = False
     
     def detect_ff_exist(self):
         return None
    
-    def unique_atoms(self):
-        """Computes the number of unique atoms in the structure"""
-        count = 0
-        ff_type = {}
-        electro_neg_atoms = ["N", "O", "F"]
-        # RE-TYPE H_ to H__HB if needed
-        remember = {}
-        for atom in self.structure.atoms:
-            if atom.element == "H":
-                for n in atom.neighbours:
-                    atj = self.structure.atoms[n]
-                    if ((atj.element in electro_neg_atoms)
-                        and (atom.force_field_type != "H__HB")):
-                        decision = True
-                        if atj.molecule_id[0] is not None:
-                            try:
-                                decision = remember[atj.molecule_id[0]]
-                            except KeyError:
-                                decision = input("Would you like molecule with atoms (%s), index %i"%(
-                                                 ','.join(atj.molecule_id[0]), atj.molecule_id[1]) + 
-                                                 " at atom %i, %s to form hydrogen bonds? [y/n]"%(
-                                                     atj.index, atj.element)).lower()
-                                if (decision == 'n') or (decision == 'no'):
-                                    decision = False
-                                elif (decision == 'y') or (decision == 'yes'):
-                                    decision = True
-                                else:
-                                    print("ERROR: command %s not recognized"%(decision))
-                                    sys.exit()
-                                rem = input("Would you like to remember this answer for this molecule?")
-                                if rem == 'y' or 'yes':
-                                    remember[atj.molecule_id[0]] = decision
-                        if decision:
-
-                            print("WARNING: the atom %i is mis-labeled as %s. "%(
-                            atom.index, atom.force_field_type) +
-                            "Renaming to H__HB for hydrogen bonding possibilities.")
-                            atom.force_field_type = "H__HB"
-                            atj.h_bond_donor = True
-
-        for atom in self.structure.atoms:
-            if atom.force_field_type is None:
-                label = atom.element
-            else:
-                label = atom.force_field_type
-            if atom.h_bond_donor:
-                label += "_HB"
-            try:
-                type = ff_type[label]
-            except KeyError:
-                count += 1
-                type = count
-                ff_type[label] = type  
-                self.unique_atom_types[type] = atom 
-
-            atom.ff_type_index = type
-
-
-    def get_hybridization(self, type):
-        try:
-            hy = type[2]
-        except IndexError:
-            hy = '_'
-        return hy 
-
-    def get_bond_order(self, type1, type2, order=None):
-        """Return the bond order based on the DREIDING atom types."""
-        if order is None:
-
-            o1 = self.get_hybridization(type1)
-            o2 = self.get_hybridization(type2)
-
-            if (o1 == '2') and (o2 == '2'):
-                return 2.
-            elif (o1 == '1') and (o2 == '1'):
-                return 3.
-            # This is not explicitly stated in the DREIDING paper, but
-            # we are assuming here that an aromitic bond has an order
-            # of 1.5
-            elif (o1 == 'R') and (o2 == 'R'):
-                return 1.5
-            else:
-                return 1.0
-        else:
-            return order
-
-    def bond_term(self, bond, type='harmonic'):
+    def bond_term(self, edge, type='harmonic'):
         """The DREIDING Force Field contains two possible bond terms, harmonic and Morse.
         The authors recommend using harmonic as a default, and Morse potentials for more
         'refined' calculations. 
@@ -1841,27 +1768,29 @@ class Dreiding(ForceField):
 
         
         """
-        atom1, atom2 = bond.atoms
-        fflabel1, fflabel2 = atom1.force_field_type, atom2.force_field_type
+        n1, n2, data = edge
+
+        n1_data, n2_data = self.graph.node[n1], self.graph.node[n2]
+        fflabel1, fflabel2 = n1_data['force_field_type'], n2_data['force_field_type']
         R1 = DREIDING_DATA[fflabel1][0]
         R2 = DREIDING_DATA[fflabel2][0]
-        order = self.get_bond_order(fflabel1, fflabel2, bond.order)
+        order = data['order'] 
         K = order*700.
         D = order*70.
         Re = R1 + R2 - 0.01
         if type.lower() == 'harmonic':
 
-            bond.potential = BondPotential.Harmonic()
-            bond.potential.K = K/2.
+            data['potential'] = BondPotential.Harmonic()
+            data['potential'].K = K/2.
 
-            bond.potential.R0 = Re
+            data['potential'].R0 = Re
 
         elif type.lower() == 'morse':
             alpha = order * np.sqrt(K/2./D)
-            bond.potential = BondPotential.Morse()
-            bond.potential.D = D
-            bond.potential.alpha = alpha
-            bond.potential.R = Re
+            data['potential'] = BondPotential.Morse()
+            data['potential'].D = D
+            data['potential'].alpha = alpha
+            data['potential'].R = Re
 
     def angle_term(self, angle):
         """
@@ -1879,20 +1808,19 @@ class Dreiding(ForceField):
         This is available in LAMMPS as the cosine angle style
 
         """
+        a, b, c, data = angle
         K = 100.0
-        a_atom, b_atom, c_atom = angle.atoms
-        btype = b_atom.force_field_type
+        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
+        btype = b_data['force_field_type']
         theta0 = DREIDING_DATA[btype][1]
         if (theta0 == 180.):
-            angle.potential = AnglePotential.Cosine()
-            angle.potential.K = K
+            data['potential'] = AnglePotential.Cosine()
+            data['potential'].K = K
         else:
-            angle.potential = AnglePotential.CosineSquared()
-            #angle.potential = AnglePotential.Harmonic()
+            data['potential'] = AnglePotential.CosineSquared()
             K = 0.5*K/(np.sin(theta0*DEG2RAD))**2
-            #K = 0.5*K
-            angle.potential.K = K
-            angle.potential.theta0 = theta0
+            data['potential'].K = K
+            data['potential'].theta0 = theta0
 
     def dihedral_term(self, dihedral):
         """
@@ -1910,26 +1838,31 @@ class Dreiding(ForceField):
         shift must be added to 'd' to ensure that the potential behaves
         the same as the DREIDING article intended.
         """
+        
+        monovalent = ["Na", "F_", "Cl", "Br", "I_", "K"]
+        a,b,c,d, data = dihedral
+        a_data = self.graph.node[a]
+        b_data = self.graph.node[b]
+        c_data = self.graph.node[c]
+        d_data = self.graph.node[d]
 
-        a_atom, b_atom, c_atom, d_atom = dihedral.atoms
+        btype = b_data['force_field_type']
+        ctype = c_data['force_field_type']
 
-        btype = b_atom.force_field_type
-        ctype = c_atom.force_field_type
-
-        order = dihedral.bc_bond.order
-        a_hyb = self.get_hybridization(a_atom.force_field_type)
-        b_hyb = self.get_hybridization(btype)
-        c_hyb = self.get_hybridization(ctype)
-        d_hyb = self.get_hybridization(d_atom.force_field_type)
+        order = self.graph[b][c]['order'] 
+        a_hyb = a_data['hybridization'] 
+        b_hyb = b_data['hybridization'] 
+        c_hyb = c_data['hybridization'] 
+        d_hyb = d_data['hybridization'] 
 
         # special cases associated with oxygen column, listed here
         oxygen_sp3 = ["O_3", "S_3", "Se3", "Te3"]
         non_oxygen_sp2 = ["C_R", "N_R", "B_2", "C_2", "N_2"]
 
-        sp2 = ["R", "2"]
+        sp2 = ["aromatic", "sp2"]
 
         # a)
-        if((b_hyb == "3")and(c_hyb == "3")):
+        if((b_hyb == "sp3")and(c_hyb == "sp3")):
             V = 2.0
             n = 3
             phi0 = 180.0
@@ -1940,8 +1873,8 @@ class Dreiding(ForceField):
                 phi0 = 90.0
 
         # b)
-        elif(((b_hyb in sp2) and (c_hyb == "3"))or(
-            (b_hyb == "3") and (c_hyb in sp2))):
+        elif(((b_hyb in sp2) and (c_hyb == "sp3"))or(
+            (b_hyb == "sp3") and (c_hyb in sp2))):
             V = 1.0
             n = 6
             phi0 = 0.0
@@ -1980,42 +1913,42 @@ class Dreiding(ForceField):
             # f) just check if neighbours are aromatic, then apply the exception
             # NB: this may fail for phenyl esters if the oxygen atoms are not 
             # labelled as "R" (i.e. will fail if they are O_2 or O_3)
-            if(b_hyb == "R" and c_hyb == "R"):
+            if(b_hyb == "aromatic" and c_hyb == "aromatic"):
                 b_arom = True
-                for cycle in b_atom.rings:
+                for cycle in b_data['rings']:
                     # Need to make sure this isn't part of the same ring.
-                    if c_atom.index in cycle:
+                    if c in cycle:
                         b_arom = False
                         print("Warning: two resonant atoms "+
-                              "%s and %s"%(b_atom.ciflabel, c_atom.ciflabel)+
+                              "%s and %s"%(b_data['ciflabel'], c_data['ciflabel'])+
                               "in the same ring have a bond order of 1.0! "
                               "This will likely yield unphysical characteristics"+
                               " of your system.")
 
 
                 c_arom = True
-                for cycle in c_atom.rings:
+                for cycle in c_data['rings']:
                     # Need to make sure this isn't part of the same ring.
-                    if b_atom.index in cycle:
+                    if b in cycle:
                         c_arom = False
                         print("Warning: two resonant atoms "+
-                              "%s and %s"%(b_atom.ciflabel, c_atom.ciflabel)+
+                              "%s and %s"%(b_data['ciflabel'], c_data['ciflabel'])+
                               "in the same ring have a bond order of 1.0! "
                               "This will likely yield unphysical characteristics"+
                               " of your system.")
                 if (b_arom and c_arom):
                     V *= 2.0
         # g)
-        elif((b_hyb == "1")or(b_hyb == "_")or
-                (c_hyb == "1")or(c_hyb == "_")):
+        elif (b_hyb == 'sp' or c_hyb == 'sp') or (b_type in monovalent or c_type in monovalent) or \
+                (b_data['atomic_number'] in METALS or c_data['atomic_number'] in METALS):
             V = 0.0
             n = 2
             phi0 = 180.0
 
         # divide V by the number of dihedral angles
         # to compute across this a-b bond
-        b_neigh = len(b_atom.neighbours) - 1
-        c_neigh = len(c_atom.neighbours) - 1
+        b_neigh = self.graph.degree(b) - 1
+        c_neigh = self.graph.degree(c) - 1
         norm = float(b_neigh * c_neigh)
         V /= norm
         d = n*phi0 + 180
@@ -2023,11 +1956,11 @@ class Dreiding(ForceField):
         # but this breaks Lammps unless extra work-arounds are in place.
         # the weighting is added via a special_bonds keyword
         w = 0.0 
-        dihedral.potential = DihedralPotential.Charmm()
-        dihedral.potential.K = V/2.
-        dihedral.potential.n = n
-        dihedral.potential.d = d
-        dihedral.potential.w = w
+        data['potential'] = DihedralPotential.Charmm()
+        data['potential'].K = V/2.
+        data['potential'].n = n
+        data['potential'].d = d
+        data['potential'].w = w
 
     def improper_term(self, improper):
         """
@@ -2050,66 +1983,67 @@ class Dreiding(ForceField):
         This is available in LAMMPS as the 'umbrella' improper potential.
 
         """
+        a, b, c, d, data = improper
         
-        a_atom, b_atom, c_atom, d_atom = improper.atoms
-        btype = b_atom.force_field_type
+        a_data = self.graph.node[a]
+        b_data = self.graph.node[b]
+        c_data = self.graph.node[c]
+        d_data = self.graph.node[d]
+
+        btype = b_data['force_field_type']
         # special case: ignore N column 
         sp3_N = ["N_3", "P_3", "As3", "Sb3"]
         K = 40.0
-        if b_atom.hybridization == "sp2" or b_atom.hybridizaton == "aromatic":
+        if b_data['hybridization'] == 'sp2' or b_data['hybridizaton'] == 'aromatic':
             K /= 3.
         if btype in sp3_N:
             return
 
         omega0 = DREIDING_DATA[btype][4]
-        improper.potential = ImproperPotential.Umbrella()
+        data['potential'] = ImproperPotential.Umbrella()
 
-        improper.potential.K = K
-        improper.omega0 = omega0 
+        data['potential'].K = K
+        data['potential'].omega0 = omega0 
+    
+    def pair_terms(self, node, data, cutoff, nbpot='LJ', hbpot='morse'):
+        """ DREIDING can adopt the exponential-6 or
+        Ex6 = A*exp{-C*R} - B*R^{-6}
 
-    def unique_pair_terms(self, nbpot="LJ", hbpot="morse"):
-        """Include hydrogen bonding terms"""
-        atom_types = sorted(list(self.unique_atom_types.keys()))
-        electro_neg_atoms = ["N", "O", "F"]
-        pair_count = 0
-        for (i, j) in itertools.combinations_with_replacement(
-                                     atom_types, 2):
-            atomi = self.unique_atom_types[i]
-            atomj = self.unique_atom_types[j]
-            pair = PairTerm(atomi, atomj)
-            self.pair_term(pair, nbpot)
-            pair_count += 1
-            self.unique_pair_types[pair_count] = pair
-            # condition, two donors cannot form a hydrogen bond..
-            # this might be too restrictive?
-            if (atomi.h_bond_donor and 
-                    (atomj.element in electro_neg_atoms) and 
-                    (not atomj.h_bond_donor)):
-                # get H__HB type
-                htype = None
-                for nn in atomi.neighbours:
-                    at = self.structure.atoms[nn]
-                    if at.force_field_type == "H__HB":
-                        htype = at.ff_type_index
-                pair2 = PairTerm(atomi, atomj)
-                self.hbond_pair(pair2, hbpot, htype, flipped=False)
-                pair_count += 1
-                self.unique_pair_types[pair_count] = pair2
-            if (atomj.h_bond_donor and 
-                    (atomi.element in electro_neg_atoms) and
-                    (not atomi.h_bond_donor)):
-                # get H__HB type
-                htype = None
-                for nn in atomj.neighbours:
-                    at = self.structure.atoms[nn]
-                    if at.force_field_type == "H__HB":
-                        htype = at.ff_type_index
-                pair2 = PairTerm(atomi, atomj)
-                self.hbond_pair(pair2, hbpot, htype, flipped=True)
-                pair_count += 1
-                self.unique_pair_types[pair_count] = pair2
+        the Lennard-Jones type interactions.
+        Elj = A*R^{-12} - B*R^{-6}
 
-    def hbond_pair(self, pair, nbpot, htype, flipped=False):
+        This will eventually be user-defined
+
+        """
+        eps = DREIDING_DATA[data['force_field_type']][3]
+        R = DREIDING_DATA[data['force_field_type']][2]
+        sig = R*(2**(-1./6.))
+
+        if nbpot == "LJ":
+            data['pair_potential'] = PairPotential.LjCutCoulLong()
+            data['pair_potential'].eps = eps 
+            data['pair_potential'].sig = sig 
+            
+        else:
+            S = DREIDING_DATA[data['force_field_type']][5]
+
+            A = eps*(6./(S - 6.))*np.exp(S)
+            rho = R
+            C = eps*(S/(S - 6.)*R**6)
+
+            data['pair_potential'] = PairPotential.BuckLongCoulLong()
+            data['pair_potential'].A = A 
+            data['pair_potential'].C = C 
+            data['pair_potential'].rho = rho 
+        
+        data['pair_potential'].cutoff = cutoff
+        if data['h_bond_donor']:
+            for n in self.graph.neighbors(node):
+                if self.graph.node[n]['force_field_type'] == "H__HB":
+                    data['h_bond_function'] = self.hbond_pot(node, hbpot, n)
+                    break
+
+    def hbond_pot(self, node, nbpot, hnode):
         """
         DREIDING can describe hbonded donor and acceptors
         using a lj function or a morse potential
@@ -2119,39 +2053,43 @@ class Dreiding(ForceField):
        
         DREIDING III h-bonding terms
         specified in 10.1021/ja8100227. 
+
+        Table S3 of the SI of 10.1021/ja8100227 is poorly documented,
+        I have parameterized, to the best of my ability, what was intended
+        in that paper. This message posted on the lammps-users
+        message board http://lammps.sandia.gov/threads/msg36158.html
+        was helpful
+        N_3H == tertiary amine
+        N_3P == primary amine
+        N_3HP == protonated primary amine
+
+        nb. need connectivity information - this is accessed by self.graph
         """
+        data = self.graph.node[node]
         if (nbpot == 'morse'):
-            pair.potential = PairPotential.HbondDreidingMorse()
-            pair.potential.htype = htype
+            potential = PairPotential.HbondDreidingMorse()
+        elif (nbpot == 'lj'):
+            # not yet implemented
+            pass
+
+        def hbond_pair(node2, graph, flipped=False):
+            data2 = graph.node[node2]
             if(flipped):
-                pair.potential.donor = 'j'
-
-                atom1 = pair.atoms[1]
-                atom2 = pair.atoms[0]
+                potential.donor = 'j'
+                data1 = data2
+                data2 = data
+                node1 = node2
+                node2 = node
             else:
-                atom1 = pair.atoms[0]
-                atom2 = pair.atoms[1]
-            ff1 = atom1.force_field_type
-            ff2 = atom2.force_field_type
-            D0 = 9.0
+                data1 = data
+                node1 = node
+            ff1 = data1['force_field_type']
+            ff2 = data2['force_field_type']
+            # generic HB
+            D0 = 9.5
             R0 = 2.75
-            # Table S3 of the SI of 10.1021/ja8100227 is poorly documented,
-            # I have parameterized, to the best of my ability, what was intended
-            # in that paper. This message posted on the lammps-users
-            # message board http://lammps.sandia.gov/threads/msg36158.html
-            # was helpful
-            # N_3H == tertiary amine
-            # N_3P == primary amine
-            # N_3HP == protonated primary amine
-            ineigh = []
-            jneigh = []
-            for n in atom1.neighbours:
-                at = self.structure.atoms[n]
-                ineigh.append(at.element)
-            for n in atom2.neighbours:
-                at = self.structure.atoms[n]
-                jneigh.append(at.element)
-
+            ineigh = [graph.node[q]['element'] for q in graph.neighbors(node1)]
+            jneigh = [graph.node[q]['element'] for q in graph.neighbors(node2)]
             if(ff1 == "N_3"):
                 # tertiary amine
                 if ((ineigh.count("H") < 3) and (len(ineigh) == 4)or
@@ -2236,70 +2174,18 @@ class Dreiding(ForceField):
                     else:
                         D0 = 1.25
                         R0 = 3.15 
-            else:
-                # generic HB
-                D0 = 9.5
-                R0 = 2.75
-            pair.potential.D0 = D0 
-            pair.potential.alpha = 10.0/ 2. / R0
-            pair.potential.R0 = R0
-            pair.potential.n = 2
+            potential.htype = graph.node[hnode]['ff_type_index']
+            potential.D0 = D0 
+            potential.alpha = 10.0/ 2. / R0
+            potential.R0 = R0
+            potential.n = 2
             # one can edit these values for bookkeeping.
-            pair.potential.Rin = 9.0
-            pair.potential.Rout = 11.0
-            pair.potential.a_cut = 90.0
+            potential.Rin = 9.0
+            potential.Rout = 11.0
+            potential.a_cut = 90.0
+            return potential
 
-    def pair_term(self, pair, nbpot):
-        """ DREIDING can adopt the exponential-6 or
-        Ex6 = A*exp{-C*R} - B*R^{-6}
-
-        the Lennard-Jones type interactions.
-        Elj = A*R^{-12} - B*R^{-6}
-
-        This will eventually be user-defined
-
-        """
-
-        atom1 = pair.atoms[0]
-        atom2 = pair.atoms[1]
-
-
-        eps1 = DREIDING_DATA[atom1.force_field_type][3]
-        R1 = DREIDING_DATA[atom1.force_field_type][2]
-        sig1 = R1*(2**(-1./6.))
-        eps2 = DREIDING_DATA[atom2.force_field_type][3]
-        R2 = DREIDING_DATA[atom2.force_field_type][2]
-        sig2 = R2*(2**(-1./6.))
-
-        if nbpot == "LJ":
-            # default LB mixing.
-            
-            eps = np.sqrt(eps1*eps2)
-            sig = (sig1 + sig2) / 2.
-            pot = PairPotential.LjCutCoulLong()
-            pot.eps = eps
-            pot.sig = sig
-            pot.cutoff = self.cutoff
-            pair.potential = pot 
-
-        else:
-            S1 = DREIDING_DATA[atom1.force_field_type][5]
-            S2 = DREIDING_DATA[atom2.force_field_type][5]
-
-            A1 = eps1*(6./(S1 - 6.))*np.exp(S1)
-            rho1 = R1
-            C1 = eps1*(S1/(S1 - 6.)*R1**6)
-
-            A2 = eps2*(6./(S2 - 6.))*np.exp(S2)
-            rho2 = R2
-            C2 = eps2*(S2/(S2 - 6.)*R2**6)
-
-            pot = PairPotential.BuckLongCoulLong()
-            pot.A = np.sqrt(A1*A2)
-            pot.C = np.sqrt(C1*C2) 
-            pot.rho = (rho1 + rho2)/2.
-            pot.cutoff = self.cutoff
-            pair.potential = pot 
+        return hbond_pair
 
     def special_commands(self):
         st = ""
@@ -2311,8 +2197,9 @@ class Dreiding(ForceField):
         # for each atom determine the ff type if it is None
         organics = ["C", "N", "O", "S"]
         halides = ["F", "Cl", "Br", "I"]
+        electro_neg_atoms = ["N", "O", "F"]
         for node, data in self.graph.nodes_iter(data=True):
-            if data['force_field_type'] is None:
+            if data['force_field_type'] is None or self.h_bonding:
                 if data['element'] in organics:
                     if data['hybridization'] == "sp3":
                         data['force_field_type'] = "%s_3"%data['element']
@@ -2327,6 +2214,12 @@ class Dreiding(ForceField):
 
                 elif data['element'] == "H":
                     data['force_field_type'] = "H_"
+                    if self.h_bonding:
+                        for n in self.graph.neighbors(node):
+                            if self.graph.node[n]['element'] in electro_neg_atoms:
+                                self.graph.node[n]['h_bond_donor'] = True
+                                data['force_field_type'] = "H__HB"
+
                 elif data['element'] in halides:
                     data['force_field_type'] = data['element']
                     if data['element'] == "F":
@@ -2336,6 +2229,10 @@ class Dreiding(ForceField):
                     for j in ffs:
                         if data['element'] == j[:2].strip("_"):
                             data['force_field_type'] = j
+            elif data['force_field_type'] not in DREIDING_DATA.keys():
+                print('Error: %s is not a force field type in DREIDING.'%(data['force_field_type']))
+                sys.exit()
+
             if data['force_field_type'] is None:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))

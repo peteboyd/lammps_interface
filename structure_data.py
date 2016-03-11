@@ -73,6 +73,8 @@ class MolecularGraph(nx.Graph):
         kwargs.update({'rings':[]})
         kwargs.update({'atomic_number':ATOMIC_NUMBER.index(element)})
         kwargs.update({'pair_potential':None})
+        kwargs.update({'h_bond_donor':False})
+        kwargs.update({'h_bond_potential':None})
         try:
             kwargs['charge'] = float(kwargs['_atom_type_partial_charge'])
         except KeyError:
@@ -88,6 +90,7 @@ class MolecularGraph(nx.Graph):
         #TODO(pboyd) should have some error checking here..
         n = kwargs.pop('_atom_site_label')
         kwargs.update({'ciflabel':n})
+        # to identify Cu paddlewheels, etc.
         kwargs.update({'special_flag':None})
         self.add_node(idx, **kwargs)
    
@@ -556,6 +559,8 @@ class MolecularGraph(nx.Graph):
 
     def img_offset(self, cells, cell, maxcell, flag):
         unit_repr = np.array([5, 5, 5], dtype=int)
+        if(flag == '.'):
+            return cells.index(tuple([tuple([i]) for i in cell]))
         ocell = cell + np.array([int(j) for j in flag[2:]]) - unit_repr
         # get the image cell of this bond
         imgcell = ocell % maxcell
@@ -708,9 +713,22 @@ class MolecularGraph(nx.Graph):
                 # angle check
                 try:
                     for (a, c), val in list(data['angles'].items()):
+
                         aid, cid = offset + a, offset + c
+                        e_ba = graph_image[node][aid]
+                        e_bc = graph_image[node][cid]
+                        ba_symflag = e_ba['symflag']
+                        order_ba = graph_image.sorted_edge_dict[(aid, node)]
+                        if order_ba != (node, aid) and e_ba['symflag'] != '.':
+                            ba_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_ba['symflag'][2:]])))
+                        bc_symflag = e_bc['symflag']
+                        order_bc = graph_image.sorted_edge_dict[(node, cid)]
+                        if order_bc != (node, cid) and e_bc['symflag'] != '.':
+                            bc_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_bc['symflag'][2:]]))) 
+                        os_a = self.img_offset(cells, newcell, maxcell, ba_symflag) * unitatomlen
+                        os_b = self.img_offset(cells, newcell, maxcell, bc_symflag) * unitatomlen
                         data['angles'].pop((a,c))
-                        data['angles'][(aid, cid)] = val
+                        data['angles'][(a + os_a, c + os_b)] = val
 
                 except KeyError:
                     # no angles for n1
@@ -719,8 +737,27 @@ class MolecularGraph(nx.Graph):
                 try:
                     for (a, c, d), val in list(data['impropers'].items()):
                         aid, cid, did = offset + a, offset + c, offset + d
+                        e_ba = graph_image[node][aid]
+                        order_ba = graph_image.sorted_edge_dict[(node, aid)]
+                        ba_symflag = e_ba['symflag']
+                        e_bc = graph_image[node][cid]
+                        order_bc = graph_image.sorted_edge_dict[(node, cid)]
+                        bc_symflag = e_bc['symflag']
+                        e_bd = graph_image[node][did]
+                        order_bd = graph_image.sorted_edge_dict[(node, did)]
+                        bd_symflag = e_bd['symflag']
+                        if order_ba != (node, aid) and e_ba['symflag'] != '.':
+                            ba_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_ba['symflag'][2:]])))
+                        if order_bc != (node, cid) and e_bc['symflag'] != '.':
+                            bc_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_bc['symflag'][2:]])))
+                        if order_bd != (node, did) and e_bd['symflag'] != '.':
+                            bd_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_bd['symflag'][2:]])))
+
+                        os_a = self.img_offset(cells, newcell, maxcell, ba_symflag) * unitatomlen
+                        os_c = self.img_offset(cells, newcell, maxcell, bc_symflag) * unitatomlen
+                        os_d = self.img_offset(cells, newcell, maxcell, bd_symflag) * unitatomlen
                         data['impropers'].pop((a,c,d))
-                        data['impropers'][(aid, cid, did)] = val
+                        data['impropers'][(a + os_a, c + os_c, d + os_d)] = val
 
                 except KeyError:
                     # no impropers for n1
@@ -772,83 +809,6 @@ class MolecularGraph(nx.Graph):
                         # no dihedrals here.
                         pass
 
-                    ### NODE 1
-                    # angle check
-                    try:
-                        for (a, c), val in list(n1_data['angles'].items()):
-                            a_orig = graph_image.node[a]['image']
-                            c_orig = graph_image.node[c]['image']
-                            if(a_orig == n2_orig):
-                                copyover = n1_data['angles'].pop((a,c))
-                                n1_data['angles'][(img_n2, c)] = copyover
-                            elif(c_orig == n2_orig):
-                                copyover = n1_data['angles'].pop((a,c))
-                                n1_data['angles'][(a, img_n2)] = copyover
-
-                    except KeyError:
-                        # no angles for n1
-                        pass
-                    # improper check
-                    try:
-                        for (a, c, d), val in list(n1_data['impropers'].items()):
-                            a_orig = graph_image.node[a]['image']
-                            c_orig = graph_image.node[c]['image']
-                            d_orig = graph_image.node[d]['image']
-                            if (a_orig == n2_orig):
-                                copyover = n1_data['impropers'].pop((a, c, d))
-                                n1_data['impropers'][(img_n2, c, d)] = copyover
-
-                            elif (c_orig == n2_orig):
-                                copyover = n1_data['impropers'].pop((a, c, d))
-                                n1_data['impropers'][(a, img_n2, d)] = copyover
-                            
-                            elif (d_orig == n2_orig):
-                                copyover = n1_data['impropers'].pop((a, c, d))
-                                n1_data['impropers'][(a, c, img_n2)] = copyover
-
-                    except KeyError:
-                        # no impropers for n1
-                        pass
-
-                    ### NODE 2
-                    # angle check
-                    try:
-                        for (a, c), val in list(n2_data['angles'].items()):
-                            a_orig = graph_image.node[a]['image']
-                            c_orig = graph_image.node[c]['image']
-
-                            if(a_orig == n1_orig):
-                                copyover = n2_data['angles'].pop((a,c))
-                                n2_data['angles'][(rev_n1_img, c)] = copyover
-                            elif(c_orig == n1_orig):
-                                copyover = n2_data['angles'].pop((a,c))
-                                n2_data['angles'][(a, rev_n1_img)] = copyover
-
-                    except KeyError:
-                        # no angles for n2
-                        pass
-
-                    # improper check
-                    try:
-                        for (a, c, d), val in list(n2_data['impropers'].items()):
-                            a_orig = graph_image.node[a]['image']
-                            c_orig = graph_image.node[c]['image']
-                            d_orig = graph_image.node[d]['image']
-                            if (a_orig == n1_orig):
-                                copyover = n2_data['impropers'].pop((a, c, d))
-                                n2_data['impropers'][(rev_n1_img, c, d)] = copyover
-
-                            elif (c_orig == n1_orig):
-                                copyover = n2_data['impropers'].pop((a, c, d))
-                                n2_data['impropers'][(a, rev_n1_img, d)] = copyover
-                            
-                            elif (d_orig == n1_orig):
-                                copyover = n2_data['impropers'].pop((a, c, d))
-                                n2_data['impropers'][(a, c, rev_n1_img)] = copyover
-
-                    except KeyError:
-                        # no impropers for n2
-                        pass
                 
                     # Update symmetry flag of bond
                     data['symflag'] = self.update_symflag(newcell, data['symflag'], origincell, maxcell)
