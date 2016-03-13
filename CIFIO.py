@@ -154,6 +154,9 @@ class CIF(object):
     def atom_site_fract_z(x):
         return "%10.5f "%(x)
     @staticmethod
+    def atom_type_partial_charge(x):
+        return "%10.5f "%(x)
+    @staticmethod
     def atom_site_label(x):
         return "%-7s "%(x)
     @staticmethod

@@ -1020,6 +1020,8 @@ def write_CIF(graph, cell):
                                 CIF.atom_site_fract_y(fc[1]))
         c.add_data("atoms", _atom_site_fract_z=
                                 CIF.atom_site_fract_z(fc[2]))
+        c.add_data("atoms", _atom_type_partial_charge=
+                                CIF.atom_type_partial_charge(data['charge']))
     # bond block
     # must re-sort them based on bond type (Mat Sudio)
     tosort = [(data['order'], (n1, n2, data)) for n1, n2, data in graph.edges_iter2(data=True)]
