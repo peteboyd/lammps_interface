@@ -790,21 +790,30 @@ class MolecularGraph(nx.Graph):
                     try:
                         for (a, d), val in list(data['dihedrals'].items()):
                             # check to make sure edge between a, n1 is not crossing an image
-                            edge_n1_a = self[n1_orig][a]
+                            edge_n1_a = orig_copy[n1_orig][a]
+                            order_n1_a = graph_image.sorted_edge_dict[(n1, a+offset)]
+                            n1a_symflag = edge_n1_a['symflag']
+
+                            edge_n2_d = orig_copy[n2_orig][d]
+                            order_n2_d = graph_image.sorted_edge_dict[(n2, d+offset)]
+                            n2d_symflag = edge_n2_d['symflag']
+
                             offset_a = offset
+                            if order_n1_a != (n1, a+offset) and edge_n1_a['symflag'] != '.':
+                                n1a_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in edge_n1_a['symflag'][2:]])))
                             if (edge_n1_a['symflag'] != '.'):
-                                offset_a = self.img_offset(cells, newcell, maxcell, edge_n1_a['symflag']) * unitatomlen
+                                offset_a = self.img_offset(cells, newcell, maxcell, n1a_symflag) * unitatomlen
                             # check to make sure edge between n2, c is not crossing an image
-                            edge_n2_d = self[n2_orig][d]
                             offset_d = offset_c
+
+                            if order_n2_d != (n2, d+offset) and edge_n2_d['symflag'] != '.':
+                                n2d_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in edge_n2_d['symflag'][2:]])))
                             if (edge_n2_d['symflag'] != '.'):
-                            
-                                offset_d = self.img_offset(cells, np.array(cells[os_id]).flatten(), maxcell, edge_n2_d['symflag']) * unitatomlen
+                                offset_d = self.img_offset(cells, np.array(cells[os_id]).flatten(), maxcell, n2d_symflag) * unitatomlen
 
                             aid, did = offset_a + a, offset_d + d
                             copyover = data['dihedrals'].pop((a,d))
                             data['dihedrals'][(aid, did)] = copyover
-
                     except KeyError:
                         # no dihedrals here.
                         pass
@@ -818,21 +827,30 @@ class MolecularGraph(nx.Graph):
                     try:
                         for (a, d), val in list(data['dihedrals'].items()):
                             # check to make sure edge between a, n1 is not crossing an image
-                            edge_n1_a = self[n1_orig][a]
+                            edge_n1_a = orig_copy[n1_orig][a] 
+                            order_n1_a = graph_image.sorted_edge_dict[(n1, a+offset)]
+                            n1a_symflag = edge_n1_a['symflag']
+
+                            edge_n2_d = orig_copy[n2_orig][d]
+                            order_n2_d = graph_image.sorted_edge_dict[(n2, d+offset)]
+                            n2d_symflag = edge_n2_d['symflag']
+
                             offset_a = offset
+                            if order_n1_a != (n1, a+offset) and edge_n1_a['symflag'] != '.':
+                                n1a_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in edge_n1_a['symflag'][2:]])))
                             if (edge_n1_a['symflag'] != '.'):
-                                offset_a = self.img_offset(cells, newcell, maxcell, edge_n1_a['symflag']) * unitatomlen
+                                offset_a = self.img_offset(cells, newcell, maxcell, n1a_symflag) * unitatomlen
                             # check to make sure edge between n2, c is not crossing an image
-                            edge_n2_d = self[n2_orig][d]
                             offset_d = offset
+
+                            if order_n2_d != (n2, d+offset) and edge_n2_d['symflag'] != '.':
+                                n2d_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in edge_n2_d['symflag'][2:]])))
                             if (edge_n2_d['symflag'] != '.'):
-                            
-                                offset_d = self.img_offset(cells, newcell, maxcell, edge_n2_d['symflag']) * unitatomlen
+                                offset_d = self.img_offset(cells, newcell, maxcell, n2d_symflag) * unitatomlen
 
                             aid, did = offset_a + a, offset_d + d
                             copyover = data['dihedrals'].pop((a,d))
                             data['dihedrals'][(aid, did)] = copyover
-
                     except KeyError:
                         # no dihedrals here.
                         pass

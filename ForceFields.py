@@ -2063,13 +2063,14 @@ class Dreiding(ForceField):
 
         nb. need connectivity information - this is accessed by self.graph
         """
+
         if (nbpot == 'morse'):
-            potential = PairPotential.HbondDreidingMorse()
+            pass
         elif (nbpot == 'lj'):
             # not yet implemented
             pass
-
         def hbond_pair(node2, graph, flipped=False):
+            potential = PairPotential.HbondDreidingMorse()
             data = graph.node[node]
             data2 = graph.node[node2]
             if(flipped):
@@ -2172,7 +2173,6 @@ class Dreiding(ForceField):
                     else:
                         D0 = 1.25
                         R0 = 3.15 
-            print(ff1, ff2, D0, R0)
             potential.htype = graph.node[hnode]['ff_type_index']
             potential.D0 = D0 
             potential.alpha = 10.0/ 2. / R0

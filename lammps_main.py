@@ -34,18 +34,44 @@ class LammpsSimulation(object):
         self.unique_dihedral_types = {}
         self.unique_improper_types = {}
         self.unique_pair_types = {}
-        self.pair_in_data = True 
+        self.pair_in_data = True
+        self.separate_molecule_types = True
+        self.type_molecules = {}
+        self.no_molecule_pair = True # ensure that h-bonding will not occur between molecules of the same type
 
     def unique_atoms(self):
         """Computes the number of unique atoms in the structure"""
         count = 0
         ff_type = {}
+        fwk_nodes = sorted(self.graph.nodes())
+        molecule_nodes = []
+        for k in sorted(self.molecule_types.keys()):
+            nds = []
+            for m in self.molecule_types[k]:
+            
+                jnodes = sorted(self.subgraphs[m].nodes())
+                nds += jnodes
+
+                for n in jnodes:
+                    del fwk_nodes[fwk_nodes.index(n)]
+            molecule_nodes.append(nds)
+        molecule_nodes.append(fwk_nodes)
+
         for node, data in self.graph.nodes_iter(data=True):
             # add factor for h_bond donors
-            if data['force_field_type'] is None:
-                label = (data['element'], data['h_bond_donor'])
+
+            if self.separate_molecule_types:
+                molid = [j for j,mol in enumerate(molecule_nodes) if node in mol]
+                if(len(molid) != 1):
+                    print("ERROR!")
+                molid = molid[0]
             else:
-                label = (data['force_field_type'], data['h_bond_donor'])
+                molid = 0
+
+            if data['force_field_type'] is None:
+                label = (data['element'], data['h_bond_donor'], molid)
+            else:
+                label = (data['force_field_type'], data['h_bond_donor'], molid)
 
             try:
                 type = ff_type[label]
@@ -53,7 +79,8 @@ class LammpsSimulation(object):
                 count += 1
                 type = count
                 ff_type[label] = type  
-                self.unique_atom_types[type] = node 
+                self.unique_atom_types[type] = node
+                self.type_molecules[type] = molid
             data['ff_type_index'] = type
 
     def unique_bonds(self):
@@ -156,7 +183,6 @@ class LammpsSimulation(object):
         electro_neg_atoms = ["N", "O", "F"]
         for n, data in self.graph.nodes_iter(data=True):
             if data['h_bond_donor']:
-                # derp. can't get the potential.name from a function.
                 pot_names.append('h_bonding')
             pot_names.append(data['pair_potential'].name)
         # mix yourself
@@ -166,17 +192,18 @@ class LammpsSimulation(object):
                 n1, n2 = self.unique_atom_types[i], self.unique_atom_types[j]
                 i_data = self.graph.node[n1]
                 j_data = self.graph.node[n2]
-                # Do not form h-bonds with two donors.. (too restrictive? Water...)
-                if (i_data['h_bond_donor'] and j_data['h_bond_donor']):
-                    pass
-                elif (i_data['h_bond_donor'] and j_data['element'] in electro_neg_atoms):
+                mol1 = self.type_molecules[i]
+                mol2 = self.type_molecules[j]
+                # test to see if h-bonding to occur between molecules
+                pairwise_test = ((mol1 != mol2 and self.no_molecule_pair) or (not self.no_molecule_pair))
+                if (i_data['h_bond_donor'] and j_data['element'] in electro_neg_atoms and pairwise_test):
                     hdata = deepcopy(i_data)
-                    hdata['h_bond_potential'] = hdata['h_bond_function'](n2, self.graph)
-                    self.unique_pair_types[(i,j,'hb')] = deepcopy(hdata)
-                elif (j_data['h_bond_donor'] and i_data['element'] in electro_neg_atoms):
+                    hdata['h_bond_potential'] = hdata['h_bond_function'](n2, self.graph, flipped=False)
+                    self.unique_pair_types[(i,j,'hb')] = hdata
+                if (j_data['h_bond_donor'] and i_data['element'] in electro_neg_atoms and pairwise_test):
                     hdata = deepcopy(j_data)
                     hdata['h_bond_potential'] = hdata['h_bond_function'](n1, self.graph, flipped=True)
-                    self.unique_pair_types[(i,j,'hb')] = deepcopy(hdata) 
+                    self.unique_pair_types[(i,j,'hb')] = hdata 
                 # mix Lorentz-Berthelot rules
                 pair_data = deepcopy(i_data)
 
