@@ -24,6 +24,11 @@ from datetime import datetime
 from InputHandler import Options
 from copy import deepcopy
 
+import os
+import pybel
+import openbabel
+from structure_data import MolecularGraph
+
 class LammpsSimulation(object):
     def __init__(self, options):
         self.name = clean(options.cif_file)
@@ -39,6 +44,7 @@ class LammpsSimulation(object):
         self.unique_improper_types = {}
         self.unique_pair_types = {}
         self.pair_in_data = True 
+        self.supercell_tuple = None
 
     def unique_atoms(self):
         """Computes the number of unique atoms in the structure"""
@@ -355,6 +361,31 @@ class LammpsSimulation(object):
                     for m in self.molecule_types[mtype]:
                         self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True)
             self.cell.update_supercell(supercell)
+
+    def compute_cluster_box_size(self):
+
+        supercell = self.cell.minimum_supercell(self.options.cutoff)
+        # we really need a 3x3x3 grid of supercells to 100% ensure we get all components of cluster accurately
+        supercell = (supercell[0]+2, supercell[1]+2, supercell[2]+2)
+        self.supercell_tuple = (supercell[0], supercell[1], supercell[2])
+        
+        if np.any(np.array(supercell) > 1):
+            print("Warning: unit cell is not large enough to"
+                  +" support a non-bonded cutoff of %.2f Angstroms\n"%self.options.cutoff +
+                   "Re-sizing to a %i x %i x %i supercell. "%(supercell))
+            
+            #TODO(pboyd): apply to subgraphs as well, if requested.
+            self.graph.build_supercell(supercell, self.cell)
+            for mtype in list(self.molecule_types.keys()):
+                # prompt for replication of this molecule in the supercell.
+                rep = self.subgraphs[self.molecule_types[mtype][0]]
+                response = input("Would you like to replicate moleule %i with atoms (%s) in the supercell? [y/n]: "%
+                        (mtype, ", ".join([rep.node[j]['element'] for j in rep.nodes()])))
+                if response in ['y', 'Y', 'yes']:
+                    for m in self.molecule_types[mtype]:
+                        self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True)
+            self.cell.update_supercell(supercell)
+            
 
     def count_dihedrals(self):
         count = 0
@@ -938,8 +969,263 @@ class LammpsSimulation(object):
         return mgraph
 
 
-    def create_cluster_around_point(self, xyz, cutoff):
+
+class Cluster(object):
+
+    def __init__(self, mgraph, xyz, rcut):
+        self.disgraph = mgraph.copy()
+        self.origraph = mgraph.copy()
+
+        # a temporary graph
+        self.temgraph = MolecularGraph()
+
+        # Contracted graph
+        self.congraph = nx.Graph
+
+        self.xyz = xyz
+        self.rcut = rcut
+
+    def cart_dist(self, pts1, pts2):
+
+        return np.linalg.norm(pts1 - pts2)
+
+    def all_building_blocks(self):
+        self.edges_to_cut = set() 
+        for node1,node2,data in self.origraph.edges_iter2(data=True):
+            #print(data.keys())
+            if(data['order'] == 1.0):
+                if(self.origraph.node[node1]['atomic_number'] != 1 and \
+                   self.origraph.node[node2]['atomic_number'] != 1):
+                    if(self.origraph.node[node1]['atomic_number'] in [6,7,8] or \
+                       self.origraph.node[node2]['atomic_number'] in [6,7,8]):
+                            # If all these criteria satsified, then we know how to cap a dangling bond 
+                            edges_to_cut.append((node1, node2))
+
+                            #print("To cut: " + str(node1) + " " + str(node2))
+                            #print("Symm flag:  " + str(data['symflag']))
+                            self.edges_to_cut.append((node1,node2))
+                            self.disgraph.remove_edge(node1, node2)
+                    else:
+                        self.temgraph.add_edge(node1,node2)
+                        self.temgraph.add_node(node1)
+                        self.temgraph.add_node(node2)
+                        
+
+
+    def all_external_building_blocks(self):
+        self.edges_to_cut = set()
+        for node1,node2,data in self.origraph.edges_iter2(data=True):
+            #print(data.keys())
+            if(data['order'] == 1.0):
+                # no point in identifying a Hydrogen bond to cleave only to cap it again right after
+                if(self.origraph.node[node1]['atomic_number'] != 1 and \
+                   self.origraph.node[node2]['atomic_number'] != 1):
+                    if(self.origraph.node[node1]['atomic_number'] in [6,7,8] and \
+                       self.origraph.node[node2]['atomic_number'] in [6,7,8]):
+                            # If all these criteria satsified, then we know how to cap a dangling bond 
+                            cart1, cart2 = self.origraph.node[node1]['cartesian_coordinates'], \
+                                           self.origraph.node[node2]['cartesian_coordinates']
+
+                            if(self.cart_dist(cart1, self.xyz) > self.rcut or \
+                               self.cart_dist(cart2, self.xyz) > self.rcut):  
+                                #print("To cut: " + str(node1) + " " + str(node2))
+                                #print(str(cart1) + " " + str(cart2))
+                                self.edges_to_cut.add((node1, node2))
+                                self.disgraph.remove_edge(node1, node2)
+
+    def identify_symm_of_origraph(self):
+        for node1,node2,data in self.origraph.edges_iter2(data=True):
+            #print(str(node1) + " " + str(node2) + " " + data['symflag'])
+            if(data['symflag'] != '.'):
+                cart1, cart2 = self.origraph.node[node1]['cartesian_coordinates'], \
+                               self.origraph.node[node2]['cartesian_coordinates']
+                #print(str(cart1) + " " + str(cart2))
+                
+        
+
+    def compute_primary_cluster(self):
+        print(self.origraph.node[1].keys())
+        print(self.origraph.node[2].keys())
+        print(self.origraph.node[3].keys())
+        print(self.origraph.node[4].keys())
+       
+        self.components = []
+        for component in nx.connected_components(self.disgraph):
+            self.components.append(component)
+        print("Num disconnected components: "  + str(len(self.components)))
+        
+        self.components_to_keep = []
+        for i in range(len(self.components)):
+            #print(component)
+            print("Comp " + str(i) + ": " + str(len(self.components[i])))
+            for node in self.components[i]:
+                #print("neighbors of " + str(node) + ":")
+                cart1 = self.origraph.node[node]['cartesian_coordinates']
+                if(self.cart_dist(cart1,self.xyz) < self.rcut):
+                    self.components_to_keep.append(i)
+                    break
+                #for nbr in self.origraph[node]:
+                #    pass
+
+        
+        print("Components to keep: "  + str(len(self.components_to_keep)))
+        self.num_keep = 0
+        for i in range(len(self.components_to_keep)):
+            self.num_keep += len(self.components[self.components_to_keep[i]])
+            print("Comp " + str(self.components_to_keep[i]) + ": " + \
+                  str(len(self.components[self.components_to_keep[i]])))
+
+
+    def cap_primary_cluster(self):
+
+        print("Recapping disconnected bonds")
+
+        component_to_add = set()
+        # Loop over every component we want want to keep
+        for i in range(len(self.components_to_keep)):
+            print("Comp " + str(self.components_to_keep[i]) + ": " + \
+                  str(len(self.components[self.components_to_keep[i]])))
+            # loop over every node in that component to get the broken bonds in this 
+            for node in self.components[self.components_to_keep[i]]:
+                # get neighbor of each node in component
+                for nbr in self.origraph[node]:
+                    # by default we attempt to cap
+                    attempt_to_cap = True
+
+                    # if the current edge was previously disconnected, we procede
+                    if (node, nbr) in self.edges_to_cut or (nbr, node) in self.edges_to_cut:
+                        if (node, nbr) in self.edges_to_cut:
+                            print("Cut bond: " + str((node,nbr)))
+                        elif (nbr, node) in self.edges_to_cut:
+                            print("Reverse cut bond: " + str((nbr,node)))
+
+                        # now we need to arduously go back and check that this start/end
+                        # combo doesn't link two components in self.components_to_keep
+                        for j in range(len(self.components_to_keep)):
+                            #if(j != i):
+                            if nbr in self.components[self.components_to_keep[j]]:
+                                attempt_to_cap = False
+                                break
+
+                        if(attempt_to_cap):
+                            bond_start = self.origraph.node[node]['cartesian_coordinates'] 
+                            bond_end =    self.origraph.node[nbr]['cartesian_coordinates']
+                            start_type = self.origraph.node[node]['atomic_number']
+                            print(start_type)
+                            bond_vec_mag = self.cart_dist(bond_start, bond_end)
+                
+                            bond_vec = bond_end - bond_start 
+
+                            if(start_type == 6):
+                                h_dist = 1.09
+                            elif(start_type == 7):
+                                h_dist = 1.00
+                            elif(start_type == 8):
+                                h_dist = 0.96
+                            else:
+                                raise ValueError("ERROR! Trying to cap a bond with " + \
+                                                 self.origraph.node[node]['element'] + " node as start type")
+        
+                            scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
+                
+                            new_bond_end = bond_start + scaled_bond_vec
+
+                        
+                            self.origraph.node[nbr]['cartesian_coordinates'] = new_bond_end
+                            self.origraph.node[nbr]['atomic_number'] = 1
+                            self.origraph.node[nbr]['element'] = 'H'
+                            component_to_add.add(nbr)
+                            self.num_keep += 1
+                        else:
+                            print("No capping because we have two components of self.components_to_keep that were originally connected")
+
+        print(component_to_add)
+        self.components.append(component_to_add)
+        self.components_to_keep.append(len(self.components)-1)
+                        
+                    
+
+                        
+                    
+                    
+        
+        
+
+    def write_cluster_to_xyz(self):
+        struct = 'host'
+        guest = 'guest'
+        filename = struct + '_' + guest + '_' + str(self.rcut) + '.xyz'
+        home = os.path.expanduser('~')
+        outname = home + '/Dropbox/ForceFields/data/MP2_output_files/' + filename
+
+
+        print("Writing cluster to <" + outname + ">")
+        
+        outfile = open(outname, 'w')
+        outfile.write(str(self.num_keep)+'\n')
+        outfile.write('cluster formation of test struct\n')
+        atom = 1
+        for i in range(len(self.components_to_keep)):
+            print("Comp " + str(self.components_to_keep[i]) + ": " + \
+                  str(len(self.components[self.components_to_keep[i]])))
+            for node in self.components[self.components_to_keep[i]]:
+                outfile.write("%s %s %s %s\n"%(self.origraph.node[node]['element'],
+                                               self.origraph.node[node]['cartesian_coordinates'][0],
+                                               self.origraph.node[node]['cartesian_coordinates'][1],
+                                               self.origraph.node[node]['cartesian_coordinates'][2]))
+                atom +=1
+
+        outfile.close()
+
+        #obConversion = openbabel.OBConversion()
+        #obConversion.SetInAndOutFormats("xyz", "xyz")
+
+        #mol = openbabel.OBMol()
+        #obConversion.ReadFile(mol, outname)
+
+        #mol.DeleteHydrogens()
+        #mol.AddHydrogens()
+        #print(mol.NumAtoms())
+
+        
+
+    def cut_cappable_bonds(self):
+        print(type(self.graph))
+        print(self.graph.__dict__.keys())
+
+        print(type(self.graph.edge))
+        print(self.graph.edge.keys())
+        print(self.graph.edge[1].keys())
+        # dictionary data for edge 1-49
+        print(self.graph[1][49])
+        # list of dictionaries of all connections
+        print(self.graph[1][49])
+        # node dictionary data for node1
+        print(self.graph.node[1])
+
+        # iterator for all nodes (ordered to match ) and data for edge
+        for node1,node2,data in self.graph.edges_iter2(data=True):
+            print(str(node1) + str(node2))
+    
+            #print(type(edge))
+            
+            #print(type(self.graph.edge))
+            #print(type(self.graph.graph))
+            #print(self.graph.graph.keys())
+            #print(self.graph.graph['name'])
+            #print(self.graph.edge[1].keys())
+            #print(str(edge) + str(edge.order))
+
+    def custom_dijkstra_stop_criteria(self):
         pass
+
+    def create_cluster_around_point(self):
+        #self.identify_cappable_bonds()
+        #self.identify_symm_of_origraph()
+        self.all_external_building_blocks()
+        self.compute_primary_cluster()
+        self.cap_primary_cluster()
+        self.write_cluster_to_xyz()
 
 
 
@@ -953,9 +1239,46 @@ def main():
     sim.set_graph(graph)
     sim.split_graph()
 
+    xyz = [25.0,25.0,25.0]
+    print("Center of cluster: " + str(xyz))
+
+    abc = np.dot(sim.cell.get_cell_inverse(),xyz)
+    print("Abc coords: " + str(abc))
+
+    abc = sim.cell.mod_to_UC(abc)
+    print("Modded abc coords: " + str(abc))
+
+
+    #sim.compute_simulation_size()
+    sim.compute_cluster_box_size()
+
+    abc = [(abc[0] + int(sim.supercell_tuple[0]/2))/sim.supercell_tuple[0], \
+           (abc[1] + int(sim.supercell_tuple[1]/2))/sim.supercell_tuple[1], \
+           (abc[2] + int(sim.supercell_tuple[2]/2))/sim.supercell_tuple[2]]
+    print("Shifted to middle of cluster: " + str(abc))
+
+    xyz = np.dot(sim.cell.get_cell().T, abc)
+    print("Cluster origin: " + str(xyz))
+           
+           
+    
+
+    cluster = Cluster(sim.graph, xyz = xyz, rcut = options.cutoff)
+
+
+
+
+   
+
 
     #sim.assign_force_fields()
-    #sim.compute_simulation_size()
+    cluster.create_cluster_around_point()
+    print(sim.cell.get_cell())
+    opp_corner = np.dot(sim.cell.get_cell().T, [1,1,1])
+    print(opp_corner)
+    frac = np.dot(sim.cell.get_cell_inverse(),opp_corner)
+    print(frac)
+
     #sim.merge_graphs()
     #if options.output_cif:
     #    print("CIF file requested. Exiting...")
