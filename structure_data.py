@@ -1543,6 +1543,10 @@ class Cell(object):
         """Get the 3x3 vector cell representation."""
         return self._cell
 
+    def get_cell_inverse(self):
+        """Get the 3x3 vector cell representation."""
+        return self._inverse
+
     def set_cell(self, value):
         """Set cell and params from the cell representation."""
         # Class internally expects an array
