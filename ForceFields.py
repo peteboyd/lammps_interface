@@ -39,7 +39,6 @@ class ForceField(object):
     def improper_term(self):
         """Computes the improper dihedral parameters"""
 
-    @abc.abstractmethod
     def compute_force_field_terms(self):
         self.compute_atomic_pair_terms()
         self.compute_bond_terms()
@@ -47,17 +46,14 @@ class ForceField(object):
         self.compute_dihedral_terms()
         self.compute_improper_terms()
 
-    @abc.abstractmethod
     def compute_atomic_pair_terms(self):
         for n, data in self.graph.nodes_iter(data=True):
             self.pair_terms(n, data, self.cutoff)
 
-    @abc.abstractmethod
     def compute_bond_terms(self):
         for n1, n2, data in self.graph.edges_iter2(data=True):
             self.bond_term((n1, n2, data))
-
-    @abc.abstractmethod
+    
     def compute_angle_terms(self):
         for b, data in self.graph.nodes_iter(data=True):
             # compute and store angle terms
@@ -68,7 +64,6 @@ class ForceField(object):
             except KeyError:
                 pass
 
-    @abc.abstractmethod
     def compute_dihedral_terms(self):
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
@@ -78,7 +73,6 @@ class ForceField(object):
             except KeyError:
                 pass
 
-    @abc.abstractmethod
     def compute_improper_terms(self):
         for b, data in self.graph.nodes_iter(data=True):
             try:
