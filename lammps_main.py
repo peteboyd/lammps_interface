@@ -19,6 +19,8 @@ from ccdc import CCDC_BOND_ORDERS
 from datetime import datetime
 from InputHandler import Options
 from copy import deepcopy
+if sys.version_info < (3,0):
+    input = raw_input
 
 class LammpsSimulation(object):
     def __init__(self, options):
@@ -321,15 +323,21 @@ class LammpsSimulation(object):
             self.molecule_types[type] = [j]
 
     def assign_force_fields(self):
-
+        
+        attr = {'graph':self.graph, 'cutoff':self.options.cutoff, 'h_bonding':self.options.h_bonding}
         try:
-            param = getattr(ForceFields, self.options.force_field)(graph=self.graph, 
-                                                           cutoff=self.options.cutoff,
-                                                           h_bonding=self.options.h_bonding)
+            if self.options.force_field.lower() == "uff" or self.options.force_field.lower() == "dreiding":
+                response = input("Would you like to fix the metal geometries to their input values? [y/n]: ")
+                if response.lower() in ['y','yes']:
+                    attr.update({'keep_metal_geometry':True})
+
+            param = getattr(ForceFields, self.options.force_field)(**attr)
             self.special_commands += param.special_commands()
         except AttributeError:
             print("Error: could not find the force field: %s"%self.options.force_field)
             sys.exit()
+
+
         # apply different force fields.
         for mtype in list(self.molecule_types.keys()):
             # prompt for ForceField?

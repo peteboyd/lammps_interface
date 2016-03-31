@@ -186,24 +186,27 @@ class MolecularGraph(nx.Graph):
         return sym
     
     def compute_angle_between(self, l, m, r):
-        coordl = self.nodes[l]['cartesian_coordinates']
-        coordm = self.nodes[m]['cartesian_coordaintes']
-        coordr = self.nodes[r]['cartesian_coordinates']
-
+        coordl = self.node[l]['cartesian_coordinates']
+        coordm = self.node[m]['cartesian_coordinates']
+        coordr = self.node[r]['cartesian_coordinates']
+        
         v1 = self.min_img(coordl - coordm)
         v2 = self.min_img(coordr - coordm)
 
         v1 /= np.linalg.norm(v1)
         v2 /= np.linalg.norm(v2)
 
-        angle = np.acos(np.dot(v1,v2)) / DEG2RAD
+        a = np.arccos(np.dot(v1, v2))
+        if np.isnan(a):
+            a = 0
+        angle = a / DEG2RAD
         return angle
     
     def compute_dihedral_between(self, a, b, c, d):
-        coorda = self.nodes[a]['cartesian_coordinates']
-        coordb = self.nodes[b]['cartesian_coordinates']
-        coordc = self.nodes[c]['cartesian_coordinates']
-        coordd = self.nodes[d]['cartesian_coordinates']
+        coorda = self.node[a]['cartesian_coordinates']
+        coordb = self.node[b]['cartesian_coordinates']
+        coordc = self.node[c]['cartesian_coordinates']
+        coordd = self.node[d]['cartesian_coordinates']
         
         v1 = self.min_img(coorda - coordb)
         v2 = self.min_img(coordc - coordb)
@@ -216,7 +219,10 @@ class MolecularGraph(nx.Graph):
         n1 /= np.linalg.norm(n1)
         n2 /= np.linalg.norm(n2)
 
-        angle = np.acos(np.dot(n1, n2)) / DEG2RAD
+        a = np.arccos(np.dot(n1, n2))
+        if np.isnan(a):
+            a = 0
+        angle = a / DEG2RAD
         return angle
 
     def add_bond_edge(self, **kwargs):

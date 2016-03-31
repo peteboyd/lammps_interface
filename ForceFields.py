@@ -4,6 +4,7 @@ from uff_nonbonded import UFF_DATA_nonbonded
 from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds
 from structure_data import Structure, Atom, Bond, Angle, Dihedral, PairTerm
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
+from atomic import METALS
 import math
 import numpy as np
 from operator import mul
@@ -1363,11 +1364,14 @@ class UFF(ForceField):
     The ammendments mentioned that document are included here
     """
     
-    def __init__(self, graph=None, cutoff=12.5, **kwargs):
+    def __init__(self, cutoff=12.5, **kwargs):
         self.pair_in_data = True
         self.keep_metal_geometry = False
-        if (graph is not None):
-            self.graph = graph
+        self.graph = None 
+        # override existing arguments with kwargs
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        if (self.graph is not None):
             self.detect_ff_terms() 
             self.compute_force_field_terms()
 
@@ -1453,13 +1457,8 @@ class UFF(ForceField):
         bc_bond = self.graph[b][c]
 
         auff, buff, cuff = a_data['force_field_type'], b_data['force_field_type'], c_data['force_field_type']
-        # just check if the central node is a metal, then apply a rigid angle term.
-        # NB: Functional form may change dynamics, but at this point we will not
-        # concern ourselves if the force constants are big.
-        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
-            theta0 = self.graph.compute_angle_between(a, b, c)
-        else:
-            theta0 = UFF_DATA[buff][1]
+        
+        theta0 = UFF_DATA[buff][1]
 
         cosT0 = math.cos(theta0*DEG2RAD)
         sinT0 = math.cos(theta0*DEG2RAD)
@@ -1478,17 +1477,15 @@ class UFF(ForceField):
         beta = 664.12/r_ab/r_bc
         ka = beta*(za*zc /(r_ac**5.))
         ka *= (3.*r_ab*r_bc*(1. - cosT0*cosT0) - r_ac*r_ac*cosT0)
+        # just check if the central node is a metal, then apply a rigid angle term.
+        # NB: Functional form may change dynamics, but at this point we will not
+        # concern ourselves if the force constants are big.
         if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
-            # use the general-non-linear case, 
-            ka*=100.0
-            c2 = 1. / (4.*sinT0*sinT0)
-            c1 = -4.*c2*cosT0
-            c0 = c2*(2.*cosT0*cosT0 + 1)
-            data['potential'] = AnglePotential.Fourier()
-            data['potential'].K = ka
-            data['potential'].C0 = c0
-            data['potential'].C1 = c1
-            data['potential'].C2 = c2
+            theta0 = self.graph.compute_angle_between(a, b, c)
+            # just divide by the number of neighbours?
+            data['potential'] = AnglePotential.Harmonic()
+            data['potential'].K = ka/2.
+            data['potential'].theta0 = theta0
             return
 
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
@@ -1658,8 +1655,7 @@ class UFF(ForceField):
             data['potential'].K = 0.5*V
             data['potential'].d = 180 + nphi0 
             data['potential'].n = n
-            return
-        
+            return 
         data['potential'] = DihedralPotential.Harmonic()
         data['potential'].K = 0.5*V
         data['potential'].d = -math.cos(nphi0*DEG2RAD)
@@ -1761,8 +1757,12 @@ class Dreiding(ForceField):
     def __init__(self, graph=None, cutoff=12.5, h_bonding=False, **kwargs):
         self.cutoff = cutoff
         self.pair_in_data = True
-        self.keep_metal_geometry = False
         self.h_bonding = h_bonding
+        self.keep_metal_geometry = False
+        # override existing arguments with kwargs
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
         if (graph is not None):
             self.graph = graph
             self.detect_ff_terms() 
