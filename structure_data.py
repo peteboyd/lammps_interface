@@ -51,6 +51,7 @@ class MolecularGraph(nx.Graph):
         self.coordinates = None
         self.distance_matrix = None
         self.original_size = 0
+        self.cell = None
         #TODO(pboyd): networkx edges do not store the nodes in order!
         # Have to keep a dictionary lookup to make sure the nodes 
         # are referenced properly (particularly across periodic images)
@@ -183,6 +184,40 @@ class MolecularGraph(nx.Graph):
                 "1_%i%i%i"%(tuple(np.array(supercells[image],dtype=int) +
                                   unit_repr))
         return sym
+    
+    def compute_angle_between(self, l, m, r):
+        coordl = self.nodes[l]['cartesian_coordinates']
+        coordm = self.nodes[m]['cartesian_coordaintes']
+        coordr = self.nodes[r]['cartesian_coordinates']
+
+        v1 = self.min_img(coordl - coordm)
+        v2 = self.min_img(coordr - coordm)
+
+        v1 /= np.linalg.norm(v1)
+        v2 /= np.linalg.norm(v2)
+
+        angle = np.acos(np.dot(v1,v2)) / DEG2RAD
+        return angle
+    
+    def compute_dihedral_between(self, a, b, c, d):
+        coorda = self.nodes[a]['cartesian_coordinates']
+        coordb = self.nodes[b]['cartesian_coordinates']
+        coordc = self.nodes[c]['cartesian_coordinates']
+        coordd = self.nodes[d]['cartesian_coordinates']
+        
+        v1 = self.min_img(coorda - coordb)
+        v2 = self.min_img(coordc - coordb)
+        v3 = self.min_img(coordb - coordc) 
+        v4 = self.min_img(coordd - coordc)
+
+        n1 = np.cross(v1, v2)
+        n2 = np.cross(v3, v4)
+
+        n1 /= np.linalg.norm(n1)
+        n2 /= np.linalg.norm(n2)
+
+        angle = np.acos(np.dot(n1, n2)) / DEG2RAD
+        return angle
 
     def add_bond_edge(self, **kwargs):
         """Add bond edges (weight factor = 1)"""
@@ -253,6 +288,11 @@ class MolecularGraph(nx.Graph):
             self.distance_matrix[id1][id2] = dist
             self.distance_matrix[id2][id1] = dist
     
+    def min_img(self, coord):
+        f = np.dot(self.cell.inverse, coord)
+        f = f%0.5
+        return np.dot(f, self.cell.cell)
+
     def min_img_distance(self, coords1, coords2, cell):
         one = np.dot(cell.inverse, coords1) % 1
         two = np.dot(cell.inverse, coords2) % 1
@@ -969,6 +1009,7 @@ def from_CIF(cifname):
         # catch no bonds
         print("No bonds reported in cif file - computing bonding..")
     mg.store_original_size()
+    mg.cell = cell
     return cell, mg
 
 def write_CIF(graph, cell):

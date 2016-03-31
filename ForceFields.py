@@ -1453,8 +1453,14 @@ class UFF(ForceField):
         bc_bond = self.graph[b][c]
 
         auff, buff, cuff = a_data['force_field_type'], b_data['force_field_type'], c_data['force_field_type']
+        # just check if the central node is a metal, then apply a rigid angle term.
+        # NB: Functional form may change dynamics, but at this point we will not
+        # concern ourselves if the force constants are big.
+        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
+            theta0 = self.graph.compute_angle_between(a, b, c)
+        else:
+            theta0 = UFF_DATA[buff][1]
 
-        theta0 = UFF_DATA[buff][1]
         cosT0 = math.cos(theta0*DEG2RAD)
         sinT0 = math.cos(theta0*DEG2RAD)
 
@@ -1472,6 +1478,19 @@ class UFF(ForceField):
         beta = 664.12/r_ab/r_bc
         ka = beta*(za*zc /(r_ac**5.))
         ka *= (3.*r_ab*r_bc*(1. - cosT0*cosT0) - r_ac*r_ac*cosT0)
+        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
+            # use the general-non-linear case, 
+            ka*=100.0
+            c2 = 1. / (4.*sinT0*sinT0)
+            c1 = -4.*c2*cosT0
+            c0 = c2*(2.*cosT0*cosT0 + 1)
+            data['potential'] = AnglePotential.Fourier()
+            data['potential'].K = ka
+            data['potential'].C0 = c0
+            data['potential'].C1 = c1
+            data['potential'].C2 = c2
+            return
+
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
             if angle_type == 'linear':
                 kappa = ka
@@ -1562,7 +1581,6 @@ class UFF(ForceField):
         M = mul(*coord_bc)
         V = 0
         n = 0
-        #FIXME(pboyd): coord = (4, x) in cases probably copper paddlewheel
         mixed_case = ((b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic') and
                       c_data['hybridization'] == 'sp3') or \
                 (b_data['hybridization'] == 'sp3' and 
@@ -1597,7 +1615,7 @@ class UFF(ForceField):
                 n = 2
                 phi0 = 90.0
 
-            V = (vi*vj)**0.5 # CHECK UNITS!!!!
+            V = (vi*vj)**0.5
 
         elif all_sp2: 
             ui = UFF_DATA[b_data['force_field_type']][7]
@@ -1609,7 +1627,7 @@ class UFF(ForceField):
         elif mixed_case: 
             phi0 = 180.0
             n = 3
-            V = 2.  # CHECK UNITS!!!!
+            V = 2.  
             
             if c_data['hybridization'] == 'sp3':
                 if c_data['atomic_number'] in (8, 16, 34, 52):
@@ -1631,6 +1649,17 @@ class UFF(ForceField):
         if abs(math.sin(nphi0*DEG2RAD)) > 1.0e-3:
             print("WARNING!!! nphi0 = %r" % nphi0)
         
+        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS or 
+            c_data['atomic_number'] in METALS):
+            # must use different potential with minimum at the computed dihedral
+            # angle.
+            nphi0 = n*self.graph.compute_dihedral_between(a, b, c, d)
+            data['potential'] = DihedralPotential.Charmm()
+            data['potential'].K = 0.5*V
+            data['potential'].d = 180 + nphi0 
+            data['potential'].n = n
+            return
+        
         data['potential'] = DihedralPotential.Harmonic()
         data['potential'].K = 0.5*V
         data['potential'].d = -math.cos(nphi0*DEG2RAD)
@@ -1642,6 +1671,7 @@ class UFF(ForceField):
 
         E = K*[C_0 + C_1*cos(w) + C_2*cos(2*w)]
 
+        NB: not sure if keep metal geometry is important here.
         """
         a, b, c, d, data = improper
         b_data = self.graph.node[b]
