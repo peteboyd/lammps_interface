@@ -215,10 +215,11 @@ class AnglePotential(object):
             ----> Ebb = M*(r_ij - r1)*(r_jk - r2) <---- 
             """
             def __init__(self):
-                self.name = "bb"
+                self.name = "class2"
                 self.M = 0.
                 self.r1 = 0.
                 self.r2 = 0.
+                self.reduced = False
 
             def __str__(self):
                 if self.reduced:
@@ -235,11 +236,12 @@ class AnglePotential(object):
             ----> Eba = N1*(r_ij - r1)*(theta - theta0) + N2*(r_jk - r2)*(theta - theta0) <---- 
             """
             def __init__(self):
-                self.name = "ba"
+                self.name = "class2"
                 self.N1 = 0.
                 self.N2 = 0.
                 self.r1 = 0.
                 self.r2 = 0.
+                self.reduced = False
 
             def __str__(self):
                 if self.reduced:
@@ -265,8 +267,6 @@ class AnglePotential(object):
 
         def __str__(self):
             if self.reduced:
-                self.bb.reduced = True
-                self.ba.reduced = True
                 return "%15.6f %15.6f %15.6f %15.6f"%(self.theta0, 
                                                       self.K2, 
                                                       self.K3, 
@@ -326,11 +326,11 @@ class AnglePotential(object):
 
         def __str__(self):
             if self.reduced:
-                return "%15.6f %15i %15i"%(self.K,
+                return "%15.6f %15i %15i"%(self.C,
                                           self.B,
                                           self.n)
             return "%28s %15.6f %15i %15i"%(self.name,
-                                            self.K,
+                                            self.C,
                                             self.B,
                                             self.n)
 
@@ -694,11 +694,6 @@ class DihedralPotential(object):
 
         def __str__(self):
             if self.reduced:
-                self.mbt.reduced=True
-                self.ebt.reduced=True
-                self.at.reduced=True
-                self.aat.reduced=True
-                self.bb13.reduced=True
                 return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.K1,
                                                                     self.phi1,
                                                                     self.K2,
@@ -820,9 +815,16 @@ class DihedralPotential(object):
             self.Ki = []
             self.ni = []
             self.di = []
+            self.reduced = False
 
         def __str__(self):
-            return ""
+            self.m=len(self.Ki)
+            vstr = "%5d"%self.m
+            for k,n,d in zip(self.Ki,self.ni,self.di):
+                vstr+="%15.6f %5d %5d"%(k,n,d)
+            if self.reduced:
+                return vstr
+            return "%28s %s"%(self.name,vstr)
 
     class nHarmonic(object):
         """Potential defined as
