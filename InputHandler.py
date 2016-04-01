@@ -38,11 +38,18 @@ class Options(object):
         force_field_group = parser.add_argument_group("Force Field options")
         force_field_group.add_argument("-ff", "--force_field", action="store", 
                                        type=str, dest="force_field",
-                                       default="UserFF",
+                                       default="UFF",
                                        help="Enter the requested force "+
                                           "field to describe the system."+
-                                          " The default is a user defined "+
-                                          "force field [USER_FF]")
+                                          " The default is the Universal "+
+                                          "Force Field [UFF].")
+        force_field_group.add_argument("--h-bonding", action="store_true", 
+                                       dest="h_bonding",
+                                       default=False,
+                                       help="Add hydrogen bonding potentials "+
+                                          "to the force field characterization."+
+                                          " Currently only applies to Dreiding. "+
+                                          "Default is off.")
 
         simulation_group = parser.add_argument_group("Simulation options")
         simulation_group.add_argument("--minimize", action="store_true",
