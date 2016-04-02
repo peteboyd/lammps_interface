@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 #/usr/bin/env python
 from datetime import date
-=======
-#!/usr/bin/env python
-import os
->>>>>>> 234675946ac56bfb0d1375547f50c965cd8d9c44
 import numpy as np
 from scipy.spatial import distance
 import math

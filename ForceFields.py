@@ -83,7 +83,8 @@ class ForceField(object):
                 for (a, c, d), val in imp_data.items():
                     self.improper_term((a,b,c,d, val))
             except KeyError:
-
+                pass
+                        
 class UserFF(ForceField):
 
     def __init__(self, graph):
@@ -658,71 +659,71 @@ class BTW_FF(ForceField):
         # for each atom determine the ff type if it is None
         BTW_organics = [ "O", "C","H" ]
         BTW_metals = ["Zr","Cu","Zn"]
-        for atom in self.structure.atoms:
-            if atom.force_field_type is None:                                
+        for node, atom in self.graph.nodes_iter(data=True):
+            if atom['force_field_type'] is None:                                
                 type_assigned=False
-                neighbours = [self.structure.atoms[i] for i in atom.neighbours]
-                neighbour_elements = [atom.element for atom in neighbours]
-                if atom.element in BTW_organics:
-                    if (atom.element == "O"):
+                neighbours = [self.graph.node[i] for i in self.graph.neighbors(node)]
+                neighbour_elements = [a['element'] for a in neighbours]
+                if atom['element'] in BTW_organics:
+                    if (atom['element'] == "O"):
                         if (set(neighbour_elements) <= set(BTW_metals + ["H"])):
                             if("H" in neighbour_elements): #O-H
-                                atom.force_field_type="75"
-                                atom.charge=BTW_atoms[atom.force_field_type][6]
+                                atom['force_field_type']="75"
+                                atom['charge']=BTW_atoms[atom['force_field_type']][6]
                             else:     # O-inorganic
-                                atom.force_field_type="171"
-                                atom.charge=BTW_atoms[atom.force_field_type][6]
+                                atom['force_field_type']="171"
+                                atom['charge']=BTW_atoms[atom['force_field_type']][6]
                         elif ("C" in neighbour_elements): # Carboxylate
-                            atom.force_field_type="170"
-                            atom.charge=BTW_atoms[atom.force_field_type][6]
+                            atom['force_field_type']="170"
+                            atom['charge']=BTW_atoms[atom['force_field_type']][6]
                         else:
-                            print("Oxygen number : %i could not be recognized!"%atom.index)
+                            print("Oxygen number : %i could not be recognized!"%node)
                             sys.exit()
         
-                    elif (atom.element == "H"):
+                    elif (atom['element'] == "H"):
                         if ("O" in neighbour_elements):
-                            atom.force_field_type="21"
-                            atom.charge=BTW_atoms[atom.force_field_type][6]
+                            atom['force_field_type']="21"
+                            atom['charge']=BTW_atoms[atom['force_field_type']][6]
                         elif("C" in neighbour_elements):
-                            atom.force_field_type="915"
-                            atom.charge=BTW_atoms[atom.force_field_type][6]
+                            atom['force_field_type']="915"
+                            atom['charge']=BTW_atoms[atom['force_field_type']][6]
                         else:
                             print("Hydrogen number : %i could not be recognized!"%atom.index)            
-                    else:# atom.element=="C"
+                    else:# atom['element']=="C"
                         if ("O" in neighbour_elements):
-                            atom.force_field_type="913" # C-acid
-                            atom.charge=BTW_atoms[atom.force_field_type][6]
+                            atom['force_field_type']="913" # C-acid
+                            atom['charge']=BTW_atoms[atom['force_field_type']][6]
                         elif ("H" in neighbour_elements):
-                            atom.force_field_type="912" # C- benzene we should be careful that in this case C in ligand has also bond with H, but not in the FF
-                            atom.charge=BTW_atoms[atom.force_field_type][6]
+                            atom['force_field_type']="912" # C- benzene we should be careful that in this case C in ligand has also bond with H, but not in the FF
+                            atom['charge']=BTW_atoms[atom['force_field_type']][6]
                         elif (set(neighbour_elements)<=set(["C"])):
                             for i in atom.neighbours:
                                 neighboursofneighbour=[self.structure.atoms[j] for j in self.structure.atoms[i].neighbours]
                                 neighboursofneighbour_elements=[at.element for at in neighboursofneighbour]
                                 if ("O" in neighboursofneighbour_elements):
-                                    atom.force_field_type="902"
-                                    atom.charge=BTW_atoms[atom.force_field_type][6]
+                                    atom['force_field_type']="902"
+                                    atom['charge']=BTW_atoms[atom['force_field_type']][6]
                                     type_assigned=True
 
                             if (type_assigned==False) and (atom.hybridization=="aromatic"):
-                                atom.force_field_type="903"
-                                atom.charge=BTW_atoms[atom.force_field_type][6]
+                                atom['force_field_type']="903"
+                                atom['charge']=BTW_atoms[atom['force_field_type']][6]
                             elif (type_assigned==False):
                                 print("Carbon number : %i could not be recognized! erorr1 %s "%(atom.index, atom.hybridization))
                         
                         else:
                             print("Carbon number : %i could not be recognized! error2"%atom.index)
 
-                elif atom.element in BTW_metals:
-                    if (atom.element == "Zr"):
-                        atom.force_field_type="192"
-                        atom.charge=BTW_atoms[atom.force_field_type][6]
-                    elif (atom.element == "Cu"):
-                        atom.force_field_type="185"
-                        atom.charge=BTW_atoms[atom.force_field_type][6]
+                elif atom['element'] in BTW_metals:
+                    if (atom['element'] == "Zr"):
+                        atom['force_field_type']="192"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    elif (atom['element'] == "Cu"):
+                        atom['force_field_type']="185"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
                     else: # atom type = Zn
-                        atom.force_field_type="172"
-                        atom.charge=BTW_atoms[atom.force_field_type][6]
+                        atom['force_field_type']="172"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
                 else:
                         print('Error!! Cannot detect atom types. Atom type does not exist in BTW-FF!')
                 
@@ -734,68 +735,166 @@ class BTW_FF(ForceField):
 
     def detect_ff_exist(self):
         """
+           checking bonds
+        """
+        nonexisting_bonds=[]
+        missing_labels=[]
+        for a, b, bond in self.graph.edges_iter2(data=True):
+            a_atom = self.graph.node[a]
+            b_atom = self.graph.node[b]
+            atom_a_fflabel, atom_b_fflabel = a_atom['force_field_type'], b_atom['force_field_type']
+            bond1_fflabel=atom_a_fflabel+"_"+atom_b_fflabel
+            bond2_fflabel=atom_b_fflabel+"_"+atom_a_fflabel
+            if bond1_fflabel in BTW_bonds:
+                bond['ff_label']=bond1_fflabel
+            elif bond2_fflabel in BTW_bonds:
+                bond.ff_label=bond2_fflabel
+            else:
+                nonexisting_bonds.append(bond.index)
+                missing_labels.append(bond1_fflabel)
+
+#        for ii , NE_bond in enumerate(nonexisting_bonds):
+#            del self.structure.bonds[NE_bond-ii]
+#
+#        for ff_label in set(missing_labels):
+#                print ("%s bond does not exist in FF!"%(ff_label))
+        """
            checking angles
         """
         nonexisting_angles=[]
         missing_labels=[]
-        for angle in self.structure.angles:
-            a_atom, b_atom, c_atom = angle.atoms
-            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel = a_atom.force_field_type, b_atom.force_field_type, c_atom.force_field_type
-            angle_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
+        for b , data in self.graph.nodes_iter(data=True):
+            # compute and store angle terms
+            try:
+                ang_data = data['angles']
+                for (a, c), val in ang_data.items():
+                    a_atom = self.graph.node[a]
+                    b_atom = data 
+                    c_atom = self.graph.node[c]
+                    atom_a_fflabel = a_atom['force_field_type']
+                    atom_b_fflabel = b_atom['force_field_type']
+                    atom_c_fflabel = c_atom['force_field_type']
+                    angle1_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
+                    angle2_fflabel=atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
+                    if (angle1_fflabel=="167_165_167"):
+                        val['ff_label']=angle1_fflabel
+                    elif (angle1_fflabel=="103_101_106") or (angle1_fflabel=="106_101_103"):
+                        val['ff_label']="103_101_106"
+                    elif (angle1_fflabel=="106_101_106"):
+                        val['ff_label']=angle1_fflabel
+                    elif angle1_fflabel in BTW_angles:
+                        val['ff_label']=angle1_fflabel
+                    elif angle2_fflabel in BTW_angles:
+                        val['ff_label']=angle2_fflabel
+                    else:
+                        nonexisting_angles.append(angle.index)
+                        missing_labels.append(angle1_fflabel)
 
-            if not angle_fflabel in BTW_angles:
-                nonexisting_angles.append(angle.index)
-                missing_labels.append(angle_fflabel)
+            except KeyError:
+                pass
 
-        for ii , NE_angle in enumerate(nonexisting_angles):
-            del self.structure.angles[NE_angle-ii]
-
-        for ff_label in set(missing_labels):
-                print ("%s angle does not exist in FF!"%(ff_label))
+#        for ii , NE_angle in enumerate(nonexisting_angles):
+#            del self.structure.angles[NE_angle-ii]
+#
+#        for ff_label in set(missing_labels):
+#                print ("%s angle does not exist in FF!"%(ff_label))
         """
            checking dihedrals 
         """
         missing_labels=[]
         nonexisting_dihedral=[]
-        for dihedral in self.structure.dihedrals:
-            atom_a = dihedral.a_atom
-            atom_b = dihedral.b_atom
-            atom_c = dihedral.c_atom
-            atom_d = dihedral.d_atom
-            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
-            dihedral_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+        for b, c, data in self.graph.edges_iter2(data=True):
+            try:
+                dihed_data = data['dihedrals']
+                for (a, d), val in dihed_data.items():
+                    a_atom = self.graph.node[a]
+                    b_atom = self.graph.node[b]
+                    c_atom = self.graph.node[c] 
+                    d_atom = self.graph.node[d]
+                    atom_a_fflabel = a_atom['force_field_type']
+                    atom_b_fflabel = b_atom['force_field_type']
+                    atom_c_fflabel = c_atom['force_field_type']
+                    atom_d_fflabel = d_atom['force_field_type']
+                    dihedral1_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+                    dihedral2_fflabel=atom_d_fflabel+"_"+atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
 
-            if not dihedral_fflabel in BTW_dihedrals:
-                nonexisting_dihedral.append(dihedral.index)
-                missing_labels.append(dihedral_fflabel)
+                    if dihedral1_fflabel in BTW_dihedrals:
+                        dihedral.ff_label=dihedral1_fflabel     
+                    elif dihedral2_fflabel in BTW_dihedrals:
+                        dihedral.ff_label=dihedral2_fflabel     
+                    else:
+                        nonexisting_dihedral.append(dihedral.index)
+                        missing_labels.append(dihedral1_fflabel)
 
-        for ii , NE_dihedral in enumerate(nonexisting_dihedral):
-            del self.structure.dihedrals[NE_dihedral-ii]
+            except KeyError:
+                pass
 
-        for ff_label in set(missing_labels):
-                print ("%s dihedral does not exist in FF!"%(ff_label))
+#        for ii , NE_dihedral in enumerate(nonexisting_dihedral):
+#            del self.structure.dihedrals[NE_dihedral-ii]
+#
+#        for ff_label in set(missing_labels):
+#                print ("%s dihedral does not exist in FF!"%(ff_label))
 
+
+        """
+           checking impropers
+        """
         missing_labels=[]
         nonexisting_improper=[]
-        for improper in self.structure.impropers:
-            atom_a, atom_b, atom_c, atom_d = improper.atoms
-            atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
-            improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+        for b, data in self.graph.nodes_iter(data=True):
+            try:
+                imp_data = data['impropers']
+                for (a, c, d), val in imp_data.items():
+                    a_atom = self.graph.node[a]
+                    b_atom = self.graph.node[b]
+                    c_atom = self.graph.node[c] 
+                    d_atom = self.graph.node[d]
+                    atom_a_fflabel = a_atom['force_field_type']
+                    atom_b_fflabel = b_atom['force_field_type']
+                    atom_c_fflabel = c_atom['force_field_type']
+                    atom_d_fflabel = d_atom['force_field_type']
+                    improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
 
-            if not improper_fflabel in BTW_opbends:
-                nonexisting_improper.append(improper.index)
-                missing_labels.append(improper_fflabel)
+                    if not improper_fflabel in BTW_opbends:
+                        nonexisting_improper.append(improper.index)
+                        missing_labels.append(improper_fflabel)
 
-        for ii , NE_improper in enumerate(nonexisting_improper):
-            del self.structure.impropers[NE_improper-ii]
-       
-        for ff_label in set(missing_labels):
-                print ("%s improper does not exist in FF!"%(ff_label))
+#        for ii , NE_improper in enumerate(nonexisting_improper):
+#            del self.structure.impropers[NE_improper-ii]
+#       
+#        for ff_label in set(missing_labels):
+#                print ("%s improper does not exist in FF!"%(ff_label))
          
+            except KeyError:
+                pass
 
  
         return None
 
+    def bond_term(self, edge):
+        """Harmonic assumed"""
+        n1, n2, data = edge
+        n1_data, n2_data = self.graph.node[n1], self.graph.node[n2]
+        fflabel1, fflabel2 = n1_data['force_field_type'], n2_data['force_field_type']
+        r_1 = UFF_DATA[fflabel1][0]
+        r_2 = UFF_DATA[fflabel2][0]
+        chi_1 = UFF_DATA[fflabel1][8]
+        chi_2 = UFF_DATA[fflabel2][8]
+
+        rbo = -0.1332*(r_1 + r_2)*math.log(data['order'])
+        ren = r_1*r_2*(((math.sqrt(chi_1) - math.sqrt(chi_2))**2))/(chi_1*r_1 + chi_2*r_2)
+        r0 = (r_1 + r_2 + rbo - ren)
+        # The values for K in the UFF paper were set such that in the final
+        # harmonic function, they would be divided by '2' to satisfy the
+        # form K/2(R-Req)**2
+        # in Lammps, the value for K is already assumed to be divided by '2'
+        K = 664.12*(UFF_DATA[fflabel1][5]*UFF_DATA[fflabel2][5])/(r0**3) / 2.
+        if (self.keep_metal_geometry) and (n1_data['atomic_number'] in METALS
+            or n2_data['atomic_number'] in METALS):
+            r0 = data['length']
+        data['potential'] = BondPotential.Harmonic()
+        data['potential'].K = K
+        data['potential'].R0 = r0
 
         
     def bond_term(self, edge):
@@ -810,12 +909,6 @@ class BTW_FF(ForceField):
         Es=71.94*Ks*(l-l0)^2[1-2.55(l-l0)+(7/12)*2.55*(l-l0)^2]
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """
-        """ 
-        K2=71.94*Ks
-        bond.potential = BondPotential.Harmonic()
-        bond.potential.K = K2
-        bond.potential.R0 = l0
-        """
          
         ### MM3
         K2=71.94*Ks
@@ -828,17 +921,6 @@ class BTW_FF(ForceField):
         bond.potential.R0 = l0
         
          
-        """ 
-        ### SM1
-        K2=66.64*Ks
-        K3=-141.1*Ks
-        K4=127.9*Ks
-        bond.potential = BondPotential.Class2()
-        bond.potential.K2 = K2
-        bond.potential.K3 = K3
-        bond.potential.K4 = K4
-        bond.potential.R0 = l0
-        """
     def angle_term(self, angle):
         """
         Be careful that the 5and6 order terms are vanished here since they are not implemented in LAMMPS!!
