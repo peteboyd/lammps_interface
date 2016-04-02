@@ -643,17 +643,23 @@ class OverwriteFF(ForceField):
 
 
 class BTW_FF(ForceField):
+    def __init__(self, cutoff=12.5, **kwargs):
+        self.pair_in_data = False 
+        self.dielectric = 1.5 
+        self.keep_metal_geometry = False
+        self.graph = None 
+        # override existing arguments with kwargs
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        if (self.graph is not None):
+            self.detect_ff_terms() 
+            self.compute_force_field_terms()
+
+    def insert_graph(self, graph):
+        self.graph = graph
+        self.detect_ff_terms() 
+        self.compute_force_field_terms()
     
-    def __init__(self, struct):
-        self.pair_in_data = False
-        self.structure = struct
-        self.unique_atom_types = {}
-        self.unique_bond_types = {}
-        self.unique_angle_types = {}
-        self.unique_dihedral_types = {}
-        self.unique_improper_types = {}
-        self.unique_pair_types = {}
-        self.dielectric = 1.5
 
     def detect_ff_terms(self):
         # for each atom determine the ff type if it is None
@@ -750,7 +756,8 @@ class BTW_FF(ForceField):
             elif bond2_fflabel in BTW_bonds:
                 bond.ff_label=bond2_fflabel
             else:
-                nonexisting_bonds.append(bond.index)
+#                nonexisting_bonds.append(bond.index)
+                del bond     # !!! ask pete
                 missing_labels.append(bond1_fflabel)
 
 #        for ii , NE_bond in enumerate(nonexisting_bonds):
@@ -787,7 +794,8 @@ class BTW_FF(ForceField):
                     elif angle2_fflabel in BTW_angles:
                         val['ff_label']=angle2_fflabel
                     else:
-                        nonexisting_angles.append(angle.index)
+#                        nonexisting_angles.append(angle.index)
+                        del val ## !!!??? ask pete
                         missing_labels.append(angle1_fflabel)
 
             except KeyError:
@@ -871,97 +879,99 @@ class BTW_FF(ForceField):
  
         return None
 
-    def bond_term(self, edge):
-        """Harmonic assumed"""
-        n1, n2, data = edge
-        n1_data, n2_data = self.graph.node[n1], self.graph.node[n2]
-        fflabel1, fflabel2 = n1_data['force_field_type'], n2_data['force_field_type']
-        r_1 = UFF_DATA[fflabel1][0]
-        r_2 = UFF_DATA[fflabel2][0]
-        chi_1 = UFF_DATA[fflabel1][8]
-        chi_2 = UFF_DATA[fflabel2][8]
-
-        rbo = -0.1332*(r_1 + r_2)*math.log(data['order'])
-        ren = r_1*r_2*(((math.sqrt(chi_1) - math.sqrt(chi_2))**2))/(chi_1*r_1 + chi_2*r_2)
-        r0 = (r_1 + r_2 + rbo - ren)
-        # The values for K in the UFF paper were set such that in the final
-        # harmonic function, they would be divided by '2' to satisfy the
-        # form K/2(R-Req)**2
-        # in Lammps, the value for K is already assumed to be divided by '2'
-        K = 664.12*(UFF_DATA[fflabel1][5]*UFF_DATA[fflabel2][5])/(r0**3) / 2.
-        if (self.keep_metal_geometry) and (n1_data['atomic_number'] in METALS
-            or n2_data['atomic_number'] in METALS):
-            r0 = data['length']
-        data['potential'] = BondPotential.Harmonic()
-        data['potential'].K = K
-        data['potential'].R0 = r0
 
         
     def bond_term(self, edge):
         """class2 assumed"""
-        atom1, atom2 = bond.atoms
-        fflabel1, fflabel2 = atom1.force_field_type, atom2.force_field_type
-        bond_fflabel=fflabel1+"_"+fflabel2
-        Ks =  BTW_bonds[bond_fflabel][0] # the value should be in kcal/mol
-        l0 = BTW_bonds[bond_fflabel][1] # the value should be in Angstrom
+        n1, n2, data = edge
+        Ks =  BTW_bonds[data['fflabel'][0] 
+        l0 = BTW_bonds[data['fflabel'][1] 
         
         """
         Es=71.94*Ks*(l-l0)^2[1-2.55(l-l0)+(7/12)*2.55*(l-l0)^2]
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """
-         
-        ### MM3
-        K2=71.94*Ks
+        K2=71.94*Ks   # mdyne to kcal *(1/2)
         K3=-2.55*K2
         K4=3.793125*K2
-        bond.potential = BondPotential.Class2()
-        bond.potential.K2 = K2
-        bond.potential.K3 = K3
-        bond.potential.K4 = K4
-        bond.potential.R0 = l0
-        
+        data['potential'] = BondPotential.Class2()
+        data['potential'].K2 = K2
+        data['potential'].K3 = K3
+        data['potential'].K4 = K4
+        data['potential'].R0 = l0
+
          
     def angle_term(self, angle):
         """
         Be careful that the 5and6 order terms are vanished here since they are not implemented in LAMMPS!!
-
-
         Etheta = 0.021914*Ktheta*(theta-theta0)^2[1-0.014(theta-theta0)+5.6(10^-5)*(theta-theta0)^2-7.0*(10^-7)*(theta-theta0)^3+9.0*(10^-10)*(theta-theta0)^4]        
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """
-        a_atom, b_atom, c_atom = angle.atoms
-
-        atom_a_fflabel, atom_b_fflabel, atom_c_fflabel = a_atom.force_field_type, b_atom.force_field_type, c_atom.force_field_type
-        angle_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
-        theta0 = BTW_angles[angle_fflabel][1]
-        Ktheta =  BTW_angles[angle_fflabel][0]
-
-        N1 = BTW_angles[angle_fflabel][2]*(2.51118)#/(DEG2RAD)
-        N2 = BTW_angles[angle_fflabel][3]*(2.51118)#/(DEG2RAD)
-        r1 = BTW_angles[angle_fflabel][4]
-        r2 = BTW_angles[angle_fflabel][5]
+        a, b, c, data = angle
         
+        a_data = self.graph.node[a]
+        b_data = self.graph.node[b]
+        c_data = self.graph.node[c]
+        ab_bond = self.graph[a][b]
+        bc_bond = self.graph[b][c]
+        atom_a_fflabel = a_data['force_field_type']
+        atom_b_fflabel = b_data['force_field_type']
+        atom_c_fflabel = c_data['force_field_type']
+        ang_ff_tmp = atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
+
+        Ktheta = BTW_angles[data['force_field_type']][0]
+        theta0 = BTW_angles[data['force_field_type']][1]
+        ### BondBond ###
+        bbM   = BTW_angles[data['force_field_type']][6]
+        ### BondAngle ###
+        baN1 = BTW_angles[data['force_field_type']][4]
+        baN2 = BTW_angles[data['force_field_type']][5]
+
+        if not (ang_ff_tmp == angle['force_field_type']):  # to be sure that the label matches with the angle in the system for the cross terms!
+            buf1 = atom_a_fflabel
+            atom_a_fflabel = atom_c_fflabel
+            atom_c_fflabel = buf1
+            buf2 = baN1
+            baN1=baN2
+            baN2=buf2
+
+        bond1_label = atom_a_fflabel+"_"+atom_b_fflabel
+        bond2_label = atom_b_fflabel+"_"+atom_c_fflabel
+        if (bond1_label) in BTW_bonds:
+            r1 = BTW_bonds[bond1_label][1]
+        else:
+            bond1_label = atom_b_fflabel+"_"+atom_a_fflabel
+            r1 = BTW_bonds[bond1_label][1]
+
+        if (bond2_label) in BTW_bonds:
+            r2 = BTW_bonds[bond2_label][1]
+        else:
+            bond2_label = atom_c_fflabel+"_"+atom_b_fflabel
+            r2 = BTW_bonds[bond2_label][1]
+        ### Unit conversion ###
+        bbM = bbM *71.94 #* 143.93    # (TODO) maybe is wrong! 
+        baN1 = 2.51118 * baN1 / (DEG2RAD) 
+        baN2 = 2.51118 * baN2/ (DEG2RAD) 
         K2 = 0.021914*Ktheta/(DEG2RAD**2)
         K3 = -0.014*K2/(DEG2RAD**1)
         K4 = 5.6e-5*K2/(DEG2RAD**2)
 
-
         if (angle_fflabel=="170_185_170"):
-            angle.potential = AnglePotential.CosinePeriodic()
-            angle.potential.C = 100  # from MOF-FF
-            angle.potential.B = 1
-            angle.potential.n = 4
+            data['potential'] = AnglePotential.CosinePeriodic()
+            data['potential'].C = 100 #  Need to be parameterized!  
+            data['potential'].B = 1
+            data['potential'].n = 4
             return
 
-        angle.potential = AnglePotential.Class2()
-        angle.potential.theta0 = theta0 
-        angle.potential.K2 = K2
-        angle.potential.K3 = K3 
-        angle.potential.K4 = K4 
-        angle.potential.ba.N1 = N1 
-        angle.potential.ba.N2 = N2 
-        angle.potential.ba.r1 = r1 
-        angle.potential.ba.r2 = r2 
+        data['potential'] = AnglePotential.Class2()
+        data['potential'].theta0 = theta0 
+        data['potential'].K2 = K2
+        data['potential'].K3 = K3 
+        data['potential'].K4 = K4 
+        data['potential'].ba.N1 = N1 
+        data['potential'].ba.N2 = N2 
+        data['potential'].ba.r1 = r1 
+        data['potential'].ba.r2 = r2 
 
 
     def dihedral_term(self, dihedral):
@@ -969,27 +979,30 @@ class BTW_FF(ForceField):
         Ew = (V1/2)(1 + cos w) + (V2/2)(1 - cos 2*w) (V3/2)(1 + cos 3*w)
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """        
-        atom_a = dihedral.a_atom
-        atom_b = dihedral.b_atom
-        atom_c = dihedral.c_atom
-        atom_d = dihedral.d_atom
-        
-        atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
-        dihedral_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
-        kt1 = 0.5 * BTW_dihedrals[dihedral_fflabel][0]        
-        kt2 = 0.5 * BTW_dihedrals[dihedral_fflabel][3]        
-        kt3 = 0.5 * BTW_dihedrals[dihedral_fflabel][6]        
-        phi1 = BTW_dihedrals[dihedral_fflabel][1] + 180       
-        phi2 = BTW_dihedrals[dihedral_fflabel][4] + 180        
-        phi3 = BTW_dihedrals[dihedral_fflabel][7] + 180        
+        a,b,c,d, data = dihedral
 
-        dihedral.potential = DihedralPotential.Class2()
-        dihedral.potential.K1=kt1
-        dihedral.potential.phi1=phi1
-        dihedral.potential.K2=kt2
-        dihedral.potential.phi2=phi2
-        dihedral.potential.K3=kt3
-        dihedral.potential.phi3=phi3
+        kt1 = 0.5 * BTW_dihedrals[dihedral.ff_label][0]        
+        kt2 = 0.5 * BTW_dihedrals[dihedral.ff_label][3]        
+        kt3 = 0.5 * BTW_dihedrals[dihedral.ff_label][6]        
+        kt4 = 0.5 * BTW_dihedrals[dihedral.ff_label][9]        
+        n1 = BTW_dihedrals[dihedral.ff_label][2]        
+        n2 = BTW_dihedrals[dihedral.ff_label][5]        
+        n3 = BTW_dihedrals[dihedral.ff_label][8]        
+        n4 = BTW_dihedrals[dihedral.ff_label][11]        
+        d1 = -1.0 * BTW_dihedrals[dihedral.ff_label][1]        
+        d2 = -1.0 * BTW_dihedrals[dihedral.ff_label][4]        
+        d3 = -1.0 * BTW_dihedrals[dihedral.ff_label][7]         
+        d4 = -1.0 * BTW_dihedrals[dihedral.ff_label][10]         
+
+        ki = [kt1,kt2,kt3,kt4]
+        ni = [n1,n2,n3,n4]
+        di = [d1,d2,d3,d4]
+        
+        data['potential'] = DihedralPotential.Fourier()
+        data['potential'].Ki = ki
+        data['potential'].ni = ni
+        data['potential'].di = di
+        
 
     def improper_term(self, improper):
         """
@@ -998,21 +1011,24 @@ class BTW_FF(ForceField):
         E = K*[C_0 + C_1*cos(w) + C_2*cos(2*w)
 
         """
-        atom_a, atom_b, atom_c, atom_d = improper.atoms
-        atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
-        improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
-        Kopb = BTW_opbends[improper_fflabel][0]/(DEG2RAD**2)*0.02191418
+        a,b,c,d, data = improper 
+        a_data = self.graph.node[a]
+        b_data = self.graph.node[b]
+        c_data = self.graph.node[c]
+        d_data = self.graph.node[d]
+        atom_a_fflabel=a_data['force_field_type']
+        atom_b_fflabel=b_data['force_field_type']
+        atom_c_fflabel=c_data['force_field_type']
+        atom_d_fflabel=d_data['force_field_type']
 
-        c0 =  BTW_opbends[improper_fflabel][1]
+        Kopb = BTW_opbends[data['force_field_type']][0]/(DEG2RAD**2)*0.02191418
+        c0 =  BTW_opbends[data['force_field_type']][1]
         """
         Angle-Angle term
         """
-        M1 = BTW_opbends[improper_fflabel][2]/(DEG2RAD**2)*0.02191418*(-1)/3. 
-        M2 = BTW_opbends[improper_fflabel][3]/(DEG2RAD**2)*0.02191418*(-1)/3. 
-        M3 = BTW_opbends[improper_fflabel][4]/(DEG2RAD**2)*0.02191418*(-1)/3. 
-#        Theta1 =  BTW_opbends[improper_fflabel][2]
-#        Theta2 =  BTW_opbends[improper_fflabel][3]
-#        Theta3 =  BTW_opbends[improper_fflabel][4]
+        M1 = BTW_opbends[data['force_field_type']][2]/(DEG2RAD**2)*0.02191418*(-1)/3. 
+        M2 = BTW_opbends[data['force_field_type']][3]/(DEG2RAD**2)*0.02191418*(-1)/3. 
+        M3 = BTW_opbends[data['force_field_type']][4]/(DEG2RAD**2)*0.02191418*(-1)/3. 
         ang1_ff_label = atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
         ang2_ff_label = atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_d_fflabel
         ang3_ff_label = atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_d_fflabel
