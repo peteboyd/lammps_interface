@@ -296,7 +296,7 @@ class MolecularGraph(nx.Graph):
     
     def min_img(self, coord):
         f = np.dot(self.cell.inverse, coord)
-        f = f%0.5
+        f -= np.around(f)
         return np.dot(f, self.cell.cell)
 
     def min_img_distance(self, coords1, coords2, cell):

@@ -92,5 +92,78 @@ InorganicCluster['Cu']['Cu Paddlewheel'].add_nodes_from([
         )
     ])
 
+InorganicCluster['Zn']['Zn Paddlewheel'].add_nodes_from([
+    (1, {'element':'O',
+         'special_flag': 'O1',
+         'cartesian_coordinates':np.array([-1.398, -1.339, 1.417])
+         }
+        ),
+    (2, {'element':'O',
+         'special_flag': 'O2',
+         'cartesian_coordinates':np.array([-1.398, 0.853, -1.417])
+         }
+        ),
+    (3, {'element':'O',
+         'special_flag': 'O1',
+         'cartesian_coordinates':np.array([-1.398, 0.853, 1.417])
+         }
+        ),
+    (4, {'element':'O', 
+         'special_flag':'O2',
+         'cartesian_coordinates':np.array([-1.398, -1.339, -1.417])
+         }
+        ),
+    (5, {'element':'O',
+         'special_flag':'O1', 
+         'cartesian_coordinates':np.array([1.398, -1.339, -1.417])
+         }
+        ),
+    (6, {'element':'O',
+         'special_flag':'O2', 
+         'cartesian_coordinates':np.array([1.398, 0.853, 1.417])
+         }
+        ),
+    (7, {'element':'O',
+         'special_flag':'O1',
+         'cartesian_coordinates':np.array([1.398, 0.853, -1.417])
+         }
+        ),
+    (8, {'element':'O',
+         'special_flag':'O2',
+         'cartesian_coordinates':np.array([1.398, -1.339, 1.417])
+         }
+        ),
+    (9, {'element':'Zn',
+         'special_flag':'Zn2+', 
+         'cartesian_coordinates':np.array([0.000, -1.717, 0.000])
+         }
+        ),
+    (10, {'element':'Zn',
+          'special_flag':'Zn2+',
+          'cartesian_coordinates':np.array([0.000, 1.230, 0.000])
+          }
+        ),
+    (11, {'element':'C', 
+          'special_flag':'sp2',
+          'cartesian_coordinates':np.array([-1.761, -0.243, 1.837])
+          }
+        ),
+    (12, {'element':'C', 
+          'special_flag':'sp2',
+          'cartesian_coordinates':np.array([-1.761, -0.243, -1.837])
+          }
+        ),
+    (13, {'element':'C', 
+          'special_flag':'sp2',
+          'cartesian_coordinates':np.array([1.761, -0.243, 1.837])
+          }
+        ),
+    (14, {'element':'C', 
+          'special_flag':'sp2',
+          'cartesian_coordinates':np.array([1.761, -0.243, -1.837])
+          }
+        )
+    ])
 # compute the distance matrix
 add_distance_matrix(InorganicCluster['Cu']['Cu Paddlewheel'])
+add_distance_matrix(InorganicCluster['Zn']['Zn Paddlewheel'])
