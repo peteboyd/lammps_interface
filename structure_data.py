@@ -10,6 +10,7 @@ from copy import copy
 from mof_sbus import InorganicCluster
 from copy import deepcopy
 import itertools
+import os
 
 try:
     import networkx as nx

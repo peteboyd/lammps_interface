@@ -1108,6 +1108,8 @@ class PairPotential(object):
         """
         def __init__(self):
             self.name = "buck/coul/long"
+            self.sig = 0.0
+            self.eps = 0.0
             self.A = 0.0
             self.rho = 0.0
             self.C = 0.0

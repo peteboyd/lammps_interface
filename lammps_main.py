@@ -189,7 +189,8 @@ class LammpsSimulation(object):
                 pot_names.append('h_bonding')
             pot_names.append(data['pair_potential'].name)
         # mix yourself
-        if len(list(set(pot_names))) > 1:
+	
+        if len(list(set(pot_names))) > 1 or ('buck/coul/long' in list(set(pot_names))):
             self.pair_in_data = False
             for (i, j) in itertools.combinations_with_replacement(nodes_list, 2):
                 n1, n2 = self.unique_atom_types[i], self.unique_atom_types[j]
@@ -209,10 +210,28 @@ class LammpsSimulation(object):
                     self.unique_pair_types[(i,j,'hb')] = hdata 
                 # mix Lorentz-Berthelot rules
                 pair_data = deepcopy(i_data)
+                if i_data['pair_potential'].name == 'buck/coul/long' and j_data['pair_potential'].name == 'buck/coul/long':
+                    eps1 = i_data['pair_potential'].eps 
+                    eps2 = j_data['pair_potential'].eps 
+                    sig1 = i_data['pair_potential'].sig 
+                    sig2 = j_data['pair_potential'].sig 
 
-                pair_data['pair_potential'].eps = np.sqrt(i_data['pair_potential'].eps*j_data['pair_potential'].eps)
-                pair_data['pair_potential'].sig = (i_data['pair_potential'].sig + j_data['pair_potential'].sig)/2.
-                self.unique_pair_types[(i,j)] = pair_data
+                    eps = np.sqrt(eps1*eps2)
+                    Rv = (sig1 + sig2)
+                    Rho = Rv/12.0
+                    A = 1.84e5 * eps
+                    C=2.25*(Rv)**6*eps
+
+                    pair_data['pair_potential'].A = A 
+                    pair_data['pair_potential'].rho = Rho
+                    pair_data['pair_potential'].C = C
+                    self.unique_pair_types[(i,j)] = pair_data
+
+                else:
+
+                    pair_data['pair_potential'].eps = np.sqrt(i_data['pair_potential'].eps*j_data['pair_potential'].eps)
+                    pair_data['pair_potential'].sig = (i_data['pair_potential'].sig + j_data['pair_potential'].sig)/2.
+                    self.unique_pair_types[(i,j)] = pair_data
         # can be mixed by lammps
         else:
             for b in sorted(list(self.unique_atom_types.keys())):
@@ -240,6 +259,10 @@ class LammpsSimulation(object):
             self.angle_style = "%s"%list(angles)[0]
             for a,b,c,ang in list(self.unique_angle_types.values()):
                 ang['potential'].reduced = True
+                if (ang['potential'].name == "class2"):
+                    ang['potential'].bb.reduced=True
+                    ang['potential'].ba.reduced=True
+
 
         dihedrals = set([j['potential'].name for a,b,c,d,j in list(self.unique_dihedral_types.values())])
         if len(list(dihedrals)) > 1:
@@ -248,6 +271,12 @@ class LammpsSimulation(object):
             self.dihedral_style = "%s"%list(dihedrals)[0]
             for a,b,c,d, di in list(self.unique_dihedral_types.values()):
                 di['potential'].reduced = True
+                if (di['potential'].name == "class2"):
+                    di['potential'].mbt.reduced=True
+                    di['potential'].ebt.reduced=True
+                    di['potential'].at.reduced=True
+                    di['potential'].aat.reduced=True
+                    di['potential'].bb13.reduced=True
 
         impropers = set([j['potential'].name for a,b,c,d,j in list(self.unique_improper_types.values())])
         if len(list(impropers)) > 1:
@@ -256,6 +285,8 @@ class LammpsSimulation(object):
             self.improper_style = "%s"%list(impropers)[0]
             for a,b,c,d,i in list(self.unique_improper_types.values()):
                 i['potential'].reduced = True
+                if (i['potential'].name == "class2"):
+                    i['potential'].aa.reduced=True
         else:
             self.improper_style = "" 
         pairs = set(["%r"%(j['pair_potential']) for j in list(self.unique_pair_types.values())]) | \
@@ -326,18 +357,18 @@ class LammpsSimulation(object):
     def assign_force_fields(self):
         
         attr = {'graph':self.graph, 'cutoff':self.options.cutoff, 'h_bonding':self.options.h_bonding}
-        try:
-            if self.options.force_field.lower() == "uff" or self.options.force_field.lower() == "dreiding":
-                response = input("Would you like to fix the metal geometries to their input values? [y/n]: ")
-                if response.lower() in ['y','yes']:
-                    attr.update({'keep_metal_geometry':True})
+        #try:
+        if self.options.force_field.lower() == "uff" or self.options.force_field.lower() == "dreiding":
+            response = input("Would you like to fix the metal geometries to their input values? [y/n]: ")
+            if response.lower() in ['y','yes']:
+                attr.update({'keep_metal_geometry':True})
 
-            param = getattr(ForceFields, self.options.force_field)(**attr)
-            self.special_commands += param.special_commands()
-        except AttributeError:
-            print("Error: could not find the force field: %s"%self.options.force_field)
-            sys.exit()
-
+        param = getattr(ForceFields, self.options.force_field)(**attr)
+        self.special_commands += param.special_commands()
+        #except AttributeError:
+        #    print("Error: could not find the force field: %s"%self.options.force_field)
+        #    sys.exit()
+	     
 
         # apply different force fields.
         for mtype in list(self.molecule_types.keys()):
@@ -535,14 +566,19 @@ class LammpsSimulation(object):
                 atom_a, atom_b, atom_c = self.graph.node[a], \
                                          self.graph.node[b], \
                                          self.graph.node[c]
-
-                try:
-                    string += "%5i %s "%(key, angle['potential'].bb)
+                if (angle['potential'].name!="class2"):
+                    string += "%5i skip "%(key)
                     string += "# %s %s %s\n"%(atom_a['force_field_type'], 
                                               atom_b['force_field_type'], 
                                               atom_c['force_field_type'])
-                except AttributeError:
-                    pass
+                else:
+                    try:
+                        string += "%5i %s "%(key, angle['potential'].bb)
+                        string += "# %s %s %s\n"%(atom_a['force_field_type'], 
+                                                  atom_b['force_field_type'], 
+                                                  atom_c['force_field_type'])
+                    except AttributeError:
+                        pass
         
             string += "\nBondAngle Coeffs\n\n"
             for key in sorted(self.unique_angle_types.keys()):
@@ -550,13 +586,19 @@ class LammpsSimulation(object):
                 atom_a, atom_b, atom_c = self.graph.node[a],\
                                          self.graph.node[b],\
                                          self.graph.node[c]
-                try:
-                    string += "%5i %s "%(key, angle['potential'].ba)
+                if (angle['potential'].name!="class2"):
+                    string += "%5i skip  "%(key)
                     string += "# %s %s %s\n"%(atom_a['force_field_type'], 
                                               atom_b['force_field_type'], 
                                               atom_c['force_field_type'])
-                except AttributeError:
-                    pass   
+                else:
+                    try:
+                        string += "%5i %s "%(key, angle['potential'].ba)
+                        string += "# %s %s %s\n"%(atom_a['force_field_type'], 
+                                                  atom_b['force_field_type'], 
+                                                  atom_c['force_field_type'])
+                    except AttributeError:
+                        pass   
     
         class2dihed = False
         if(len(self.unique_dihedral_types.keys()) > 0):
@@ -591,14 +633,21 @@ class LammpsSimulation(object):
                                                  self.graph.node[c], \
                                                  self.graph.node[d]
 
-                try:
-                    string += "%5i %s "%(key, dihedral['potential'].mbt) 
+                if (dihedral['potential'].name!="class2"):
+                    string += "%5i skip "%(key)
                     string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
                                               atom_b['force_field_type'], 
                                               atom_c['force_field_type'],
                                               atom_d['force_field_type'])
-                except AttributeError:
-                    pass
+                else:
+                    try:
+                        string += "%5i %s "%(key, dihedral['potential'].mbt) 
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                                  atom_b['force_field_type'], 
+                                                  atom_c['force_field_type'],
+                                                  atom_d['force_field_type'])
+                    except AttributeError:
+                        pass
             string += "\nEndBondTorsion Coeffs\n\n"
             for key in sorted(self.unique_dihedral_types.keys()):
                 a, b, c, d, dihedral = self.unique_dihedral_types[key]
@@ -606,14 +655,21 @@ class LammpsSimulation(object):
                                                  self.graph.node[b], \
                                                  self.graph.node[c], \
                                                  self.graph.node[d]
-                try:
-                    string += "%5i %s "%(key, dihedral['potential'].ebt) 
+                if (dihedral['potential'].name!="class2"):
+                    string += "%5i skip "%(key)
                     string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
                                               atom_b['force_field_type'], 
                                               atom_c['force_field_type'],
                                               atom_d['force_field_type'])
-                except AttributeError:
-                    pass
+                else:
+                    try:
+                        string += "%5i %s "%(key, dihedral['potential'].ebt) 
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                                  atom_b['force_field_type'], 
+                                                  atom_c['force_field_type'],
+                                                  atom_d['force_field_type'])
+                    except AttributeError:
+                        pass
             string += "\nAngleTorsion Coeffs\n\n"
             for key in sorted(self.unique_dihedral_types.keys()):
                 a, b, c, d, dihedral = self.unique_dihedral_types[key]
@@ -621,14 +677,21 @@ class LammpsSimulation(object):
                                                  self.graph.node[b], \
                                                  self.graph.node[c], \
                                                  self.graph.node[d]
-                try:
-                    string += "%5i %s "%(key, dihedral['potential'].at) 
+                if (dihedral['potential'].name!="class2"):
+                    string += "%5i skip "%(key)
                     string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
                                               atom_b['force_field_type'], 
                                               atom_c['force_field_type'],
                                               atom_d['force_field_type'])
-                except AttributeError:
-                    pass
+                else:
+                    try:
+                        string += "%5i %s "%(key, dihedral['potential'].at) 
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                                  atom_b['force_field_type'], 
+                                                  atom_c['force_field_type'],
+                                                  atom_d['force_field_type'])
+                    except AttributeError:
+                        pass
             string += "\nAngleAngleTorsion Coeffs\n\n"
             for key in sorted(self.unique_dihedral_types.keys()):
                 a, b, c, d, dihedral = self.unique_dihedral_types[key]
@@ -636,14 +699,21 @@ class LammpsSimulation(object):
                                                  self.graph.node[b], \
                                                  self.graph.node[c], \
                                                  self.graph.node[d]
-                try:
-                    string += "%5i %s "%(key, dihedral['potential'].aat) 
+                if (dihedral['potential'].name!="class2"):
+                    string += "%5i skip "%(key)
                     string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
                                               atom_b['force_field_type'], 
                                               atom_c['force_field_type'],
                                               atom_d['force_field_type'])
-                except AttributeError:
-                    pass
+                else:
+                    try:
+                        string += "%5i %s "%(key, dihedral['potential'].aat) 
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                                  atom_b['force_field_type'], 
+                                                  atom_c['force_field_type'],
+                                                  atom_d['force_field_type'])
+                    except AttributeError:
+                        pass
             string += "\nBondBond13 Coeffs\n\n"
             for key in sorted(self.unique_dihedral_types.keys()):
                 a, b, c, d, dihedral = self.unique_dihedral_types[key]
@@ -651,14 +721,21 @@ class LammpsSimulation(object):
                                                  self.graph.node[b], \
                                                  self.graph.node[c], \
                                                  self.graph.node[d]
-                try:
-                    string += "%5i %s "%(key, dihedral['potential'].bb13) 
+                if (dihedral['potential'].name!="class2"):
+                    string += "%5i skip "%(key)
                     string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                                 atom_b['force_field_type'], 
-                                                 atom_c['force_field_type'],
-                                                 atom_d['force_field_type'])
-                except AttributeError:
-                    pass
+                                              atom_b['force_field_type'], 
+                                              atom_c['force_field_type'],
+                                              atom_d['force_field_type'])
+                else:
+                    try:
+                        string += "%5i %s "%(key, dihedral['potential'].bb13) 
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                                     atom_b['force_field_type'], 
+                                                     atom_c['force_field_type'],
+                                                     atom_d['force_field_type'])
+                    except AttributeError:
+                        pass
         
         
         class2improper = False 
@@ -693,14 +770,21 @@ class LammpsSimulation(object):
                                                  self.graph.node[b], \
                                                  self.graph.node[c], \
                                                  self.graph.node[d]
-                try:
-                    string += "%5i %s "%(key, improper['potential'].aa)
+                if (improper['potential'].name!="class2"):
+                    string += "%5i skip "%(key)
                     string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
                                                  atom_b['force_field_type'], 
                                                  atom_c['force_field_type'], 
                                                  atom_d['force_field_type'])
-                except AttributeError:
-                    pass
+                else:
+                    try:
+                        string += "%5i %s "%(key, improper['potential'].aa)
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
+                                                     atom_b['force_field_type'], 
+                                                     atom_c['force_field_type'], 
+                                                     atom_d['force_field_type'])
+                    except AttributeError:
+                        pass
     
         if((len(self.unique_pair_types.keys()) > 0) and (self.pair_in_data)):
             string += "\nPair Coeffs\n\n"
