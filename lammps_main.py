@@ -36,7 +36,7 @@ class LammpsSimulation(object):
         self.unique_dihedral_types = {}
         self.unique_improper_types = {}
         self.unique_pair_types = {}
-        self.dielectric = 1.0
+        self.dielectric = 1.5
         self.pair_in_data = True
         self.separate_molecule_types = True
         self.type_molecules = {}
@@ -1009,11 +1009,15 @@ class LammpsSimulation(object):
                                  " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
                                             for key in sorted(self.unique_atom_types.keys())])))
         inp_str += "%-15s %s\n"%("min_style","cg")
-        inp_str += "%-15s %s\n"%("minimize","1.0e-4 1.0e-4 10000 100000")
+        inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
         inp_str += "%-15s %s\n"%("fix","1 all box/relax tri 0.0 vmax 0.01")
-        inp_str += "%-15s %s\n"%("minimize","1.0e-4 1.0e-4 10000 100000")
+        inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
         inp_str += "%-15s %s\n"%("unfix", "1")
-        inp_str += "%-15s %s\n"%("minimize","1.0e-4 1.0e-4 10000 100000")
+        inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
+        inp_str += "%-15s %s\n"%("fix","2 all box/relax tri 0.0 vmax 0.01")
+        inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
+        inp_str += "%-15s %s\n"%("unfix", "2")
+        inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
         inp_str += "%-15s %s\n"%("undump","%s_mov"%self.name)
     
     #    inp_str += "thermo_style custom step temp etotal ebond eangle edihed eimp\n thermo 1 \n timestep 0.5 \n fix   2 all nvt temp 300.0 300  100\n run  50000"

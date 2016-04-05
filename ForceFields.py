@@ -21,7 +21,6 @@ class ForceField(object):
     __metaclass__ = abc.ABCMeta
 
     cutoff = 12.5
-    dielectric = 1.0
     @abc.abstractmethod
     def detect_ff_exist(self):
         """detects if all of the interactions are defined in the FF; for BTW_FF now!"""
@@ -795,17 +794,13 @@ class BTW_FF(ForceField):
                         nonexisting_angles.append((a,c))
                         missing_labels.append(angle1_fflabel)
                 for key in nonexisting_angles:
-                    print ("%s angle does not exist in FF!"%(angle1_fflabel))
                     del ang_data[key]
+
+                for ff_label in set(missing_labels):
+                    print ("%s angle does not exist in FF!"%(ff_label))
 
             except KeyError:
                 pass
-
-#        for ii , NE_angle in enumerate(nonexisting_angles):
-#            del self.structure.angles[NE_angle-ii]
-#
-#        for ff_label in set(missing_labels):
-#                print ("%s angle does not exist in FF!"%(ff_label))
         """
            checking dihedrals 
         """
@@ -834,8 +829,10 @@ class BTW_FF(ForceField):
                         nonexisting_dihedral.append((a,d))
                         missing_labels.append(dihedral1_fflabel)
                 for key in nonexisting_dihedral:
-                    print ("%s dihedral does not exist in FF!"%(dihedral1_fflabel))
                     del dihed_data[key]
+
+                for ff_label in set(missing_labels):
+                    print ("%s dihedral does not exist in FF!"%(ff_label))
 
             except KeyError:
                 pass
@@ -864,8 +861,10 @@ class BTW_FF(ForceField):
                     else:
                         val['force_field_type']=improper_fflabel
                 for key in nonexisting_improper:
-                    print ("%s improper does not exist in FF!"%(improper_fflabel))
                     del imp_data[key]
+                for ff_label in set(missing_labels):
+                    print ("%s improper does not exist in FF!"%(ff_label))
+
          
             except KeyError:
                 pass
