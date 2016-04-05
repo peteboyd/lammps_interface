@@ -1367,7 +1367,7 @@ class MOF_FF(ForceField):
             print ("%s improper does not exist in FF!"%(ff_label))
 
 
-    def bond_term(self, bond):
+    def bond_term(self, edge):
         """class2 bond"""
         """
         Es=71.94*Ks*(l-l0)^2[1-2.55(l-l0)+(7/12)*2.55*(l-l0)^2]
@@ -1402,6 +1402,7 @@ class MOF_FF(ForceField):
         Etheta = 0.021914*Ktheta*(theta-theta0)^2[1-0.014(theta-theta0)+5.6(10^-5)*(theta-theta0)^2-7.0*(10^-7)*(theta-theta0)^3+9.0*(10^-10)*(theta-theta0)^4]        
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """
+        a, b, c, data = angle
         if (data['force_field_type']=="167_165_167"):   ### in the case of square planar coordination of Cu-paddle-wheel, fourier angle must be used
             data['potential'] = AnglePotential.CosinePeriodic()
             data['potential'].C = 100 #  Need to be parameterized!  
@@ -1421,7 +1422,6 @@ class MOF_FF(ForceField):
             data['potential'].n = 4
             return
         
-        a, b, c, data = angle
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
         c_data = self.graph.node[c]
@@ -1480,118 +1480,110 @@ class MOF_FF(ForceField):
         data['potential'].ba.r1 = r1 
         data['potential'].ba.r2 = r2 
 
-       
     def dihedral_term(self, dihedral):
+        """fourier diherdral"""
         """
+        Ew = (V1/2)(1 + cos w) + (V2/2)(1 - cos 2*w)+(V3/2)(1 + cos 3*w)+(V4/2)(1 + cos 4*w)
+        (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """        
-#        atom_a = dihedral.a_atom
-#        atom_b = dihedral.b_atom
-#        atom_c = dihedral.c_atom
-#        atom_d = dihedral.d_atom
-#        
-#        atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
-#        dihedral_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
-        
-        kt1 = 0.5 * MOFFF_dihedrals[dihedral.ff_label][0]        
-        kt2 = 0.5 * MOFFF_dihedrals[dihedral.ff_label][3]        
-        kt3 = 0.5 * MOFFF_dihedrals[dihedral.ff_label][6]        
-        kt4 = 0.5 * MOFFF_dihedrals[dihedral.ff_label][9]        
-        n1 = MOFFF_dihedrals[dihedral.ff_label][2]        
-        n2 = MOFFF_dihedrals[dihedral.ff_label][5]        
-        n3 = MOFFF_dihedrals[dihedral.ff_label][8]        
-        n4 = MOFFF_dihedrals[dihedral.ff_label][11]        
-        d1 = -1.0 * MOFFF_dihedrals[dihedral.ff_label][1]        
-        d2 = -1.0 * MOFFF_dihedrals[dihedral.ff_label][4]        
-        d3 = -1.0 * MOFFF_dihedrals[dihedral.ff_label][7]         
-        d4 = -1.0 * MOFFF_dihedrals[dihedral.ff_label][10]         
+        a,b,c,d, data = dihedral
+
+        kt1 = 0.5 * MOFFF_dihedrals[data['force_field_type']][0]        
+        kt2 = 0.5 * MOFFF_dihedrals[data['force_field_type']][3]        
+        kt3 = 0.5 * MOFFF_dihedrals[data['force_field_type']][6]        
+        kt4 = 0.5 * MOFFF_dihedrals[data['force_field_type']][9]        
+        n1 = MOFFF_dihedrals[data['force_field_type']][2]        
+        n2 = MOFFF_dihedrals[data['force_field_type']][5]        
+        n3 = MOFFF_dihedrals[data['force_field_type']][8]        
+        n4 = MOFFF_dihedrals[data['force_field_type']][11]        
+        d1 = -1.0 * MOFFF_dihedrals[data['force_field_type']][1]        
+        d2 = -1.0 * MOFFF_dihedrals[data['force_field_type']][4]        
+        d3 = -1.0 * MOFFF_dihedrals[data['force_field_type']][7]         
+        d4 = -1.0 * MOFFF_dihedrals[data['force_field_type']][10]         
 
         ki = [kt1,kt2,kt3,kt4]
         ni = [n1,n2,n3,n4]
         di = [d1,d2,d3,d4]
         
-        dihedral.potential = DihedralPotential.Fourier()
-        dihedral.potential.Ki = ki
-        dihedral.potential.ni = ni
-        dihedral.potential.di = di
+        data['potential'] = DihedralPotential.Fourier()
+        data['potential'].Ki = ki
+        data['potential'].ni = ni
+        data['potential'].di = di
+
 
 
     def improper_term(self, improper):
+        """class2 diherdral"""
+        a,b,c,d, data = improper
+        a_data = self.graph.node[a]
+        b_data = self.graph.node[b]
+        c_data = self.graph.node[c]
+        d_data = self.graph.node[d]
+        atom_a_fflabel=a_data['force_field_type']
+        atom_b_fflabel=b_data['force_field_type']
+        atom_c_fflabel=c_data['force_field_type']
+        atom_d_fflabel=d_data['force_field_type']
+        Kopb = BTW_opbends[data['force_field_type']][0]/(DEG2RAD**2)*0.02191418
+        c0 =  BTW_opbends[data['force_field_type']][1]
         """
-        The improper function can be described with a fourier function
-
-        E = K*[C_0 + C_1*cos(w) + C_2*cos(2*w)
-
+        Angle-Angle term
         """
-        atom_a, atom_b, atom_c, atom_d = improper.atoms
-        atom_a_fflabel, atom_b_fflabel, atom_c_fflabel,atom_d_fflabel = atom_a.force_field_type, atom_b.force_field_type, atom_c.force_field_type, atom_d.force_field_type
-        improper.ff_label=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
-         
-        Kopb = MOFFF_opbends[improper.ff_label][0]/(DEG2RAD**2)*0.02191418
-        c0 =  MOFFF_opbends[improper.ff_label][1]
-         
+        M1 = BTW_opbends[data['force_field_type']][2]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
+        M2 = BTW_opbends[data['force_field_type']][3]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
+        M3 = BTW_opbends[data['force_field_type']][4]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
+        ang1_ff_label = atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
+        ang2_ff_label = atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_d_fflabel
+        ang3_ff_label = atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_d_fflabel
+        if (ang1_ff_label) in BTW_angles:
+            Theta1 =  BTW_angles[ang1_ff_label][1]
+        else:
+            ang1_ff_label = atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
+            Theta1 =  BTW_angles[ang1_ff_label][1]
+        if (ang2_ff_label) in BTW_angles:
+            Theta1 =  BTW_angles[ang2_ff_label][1]
+        else:
+            ang2_ff_label = atom_d_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
+            Theta1 =  BTW_angles[ang2_ff_label][1]
+        if (ang3_ff_label) in BTW_angles:
+            Theta1 =  BTW_angles[ang3_ff_label][1]
+        else:
+            ang3_ff_label = atom_d_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
+            Theta1 =  BTW_angles[ang3_ff_label][1]
+                
+        data['potential'] =  ImproperPotential.Class2() 
+        data['potential'].K = Kopb 
+        data['potential'].chi0 = c0
+        data['potential'].aa.M1 = M1 
+        data['potential'].aa.M2 = M2 
+        data['potential'].aa.M3 = M3 
+        data['potential'].aa.theta1 = Theta1
+        data['potential'].aa.theta2 = Theta2
+        data['potential'].aa.theta3 = Theta3
+
+    def improper_term(self, improper):
+        """Harmonic improper"""
+        a,b,c,d, data = improper
+        Kopb = BTW_opbends[data['force_field_type']][0]/(DEG2RAD**2)*0.02191418
+        c0 =  BTW_opbends[data['force_field_type']][1]
                 
         improper.potential = ImproperPotential.Harmonic()
         improper.potential.K = Kopb 
         improper.potential.chi0 = c0
 
-    def unique_pair_terms(self):  
-        """This is force field dependent."""
-        count = 0 
-        pair_type = {}
-        atom_types = list(self.unique_atom_types.keys())
-        for at1 in sorted(atom_types):
-            for at2 in sorted(atom_types[at1-1:]):
-                atom1=self.unique_atom_types[at1]
-                atom2=self.unique_atom_types[at2]
-                
-                p1 = (atom1.ff_type_index , atom2.ff_type_index)
-                pair=PairTerm(atom1,atom2)
-
-                if p1 in pair_type.keys():  # why we have this here?
-                    type = pair_type[p1]
-                else:
-                    count += 1
-                    type = count
-                    pair_type[p1] = type
-                    self.pair_term(pair)
-                    self.unique_pair_types[type] = pair
-                pair.ff_type_index = type
-       
-        return
-
-
-
-    def pair_term(self, pair):
+    def pair_terms( self, node , data, cutoff):
         """
         Buckingham equation in MM3 type is used!
-        (TODO) check the units!
-
         """
-        atom1 = pair.atoms[0]
-        atom2 = pair.atoms[1]
-        eps1 = MOFFF_atoms[atom1.force_field_type][4]
-        sig1 = MOFFF_atoms[atom1.force_field_type][3]
-        eps2 = MOFFF_atoms[atom2.force_field_type][4]
-        sig2 = MOFFF_atoms[atom2.force_field_type][3]
-        # MM3 mixing rules: Arithmetic mean for radii
-        #                   Geometric mean for epsilon 
-        eps = np.sqrt(eps1*eps2)
-        Rv =( sig1 + sig2 )/2.0
-        Rho = Rv/12.0
-        A = 1.84e5 * eps
-        C=2.25*(Rv)**6*eps
-        
-        pot = PairPotential.BuckCoulLong()
-        pot.A = A
-        pot.cutoff = self.cutoff
-        pot.rho = Rho
-        pot.C = C
-        pair.potential = pot
+        eps = MOFFF_atoms[data['force_field_type']][4]
+        sig = MOFFF_atoms[data['force_field_type']][3]
 
+        data['pair_potential']=PairPotential.BuckCoulLong()
+        data['pair_potential'].cutoff= cutoff
+        data['pair_potential'].eps = eps 
+        data['pair_potential'].sig = sig
 
-    def special_commands(self):  # TODO (MOHAMAD) Gaussian charges!!
-        st = ""
-        st += "%-15s %s\n"%("pair_modify", "tail yes \nspecial_bonds lj 0.0 0.0 1 coul 1 1 1 # MOF-FF has inculded 1-2 and 1-3 coulomb interactions!!")
+    def special_commands(self):
+        st = ["%-15s %s"%("pair_modify", "tail yes"), 'special_bonds lj 1 1 1 coul 0.6 0.6 1 #!!! Note: Gaussian charges have to be used!', 'dielectric      1.0']
         return st
 
 class FMOFCu(ForceField):
