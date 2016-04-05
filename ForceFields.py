@@ -22,10 +22,6 @@ class ForceField(object):
 
     cutoff = 12.5
     @abc.abstractmethod
-    def detect_ff_exist(self):
-        """detects if all of the interactions are defined in the FF; for BTW_FF now!"""
-
-    @abc.abstractmethod
     def bond_term(self):
         """Computes the bond parameters"""
 
@@ -42,10 +38,8 @@ class ForceField(object):
         """Computes the improper dihedral parameters"""
 
     def compute_force_field_terms(self):
-        self.detect_ff_exist()
         self.compute_atomic_pair_terms()
         self.compute_bond_terms()
-        self.detect_ff_exist()
         self.compute_angle_terms()
         self.compute_dihedral_terms()
         self.compute_improper_terms()
@@ -646,7 +640,6 @@ class OverwriteFF(ForceField):
 class BTW_FF(ForceField):
     def __init__(self, cutoff=12.5, **kwargs):
         self.pair_in_data = False 
-        self.dielectric = 1.5 
         self.keep_metal_geometry = False
         self.graph = None 
         # override existing arguments with kwargs
@@ -663,7 +656,9 @@ class BTW_FF(ForceField):
     
 
     def detect_ff_terms(self):
-        # for each atom determine the ff type if it is None
+        """ """  """  """ """  
+        Assigning force field type of atoms 
+        """ """  """  """ """  
         BTW_organics = [ "O", "C","H" ]
         BTW_metals = ["Zr","Cu","Zn"]
         for node, atom in self.graph.nodes_iter(data=True):
@@ -695,8 +690,10 @@ class BTW_FF(ForceField):
                             atom['force_field_type']="915"
                             atom['charge']=BTW_atoms[atom['force_field_type']][6]
                         else:
-                            print("Hydrogen number : %i could not be recognized!"%atom.index)            
-                    else:# atom['element']=="C"
+                            print("Hydrogen number : %i could not be recognized!"%node)            
+                            sys.exit()
+
+                    elif (atom['element']=="C"):
                         if ("O" in neighbour_elements):
                             atom['force_field_type']="913" # C-acid
                             atom['charge']=BTW_atoms[atom['force_field_type']][6]
@@ -706,21 +703,22 @@ class BTW_FF(ForceField):
                         elif (set(neighbour_elements)<=set(["C"])):
                             for i in self.graph.neighbors(node):
                                 neighboursofneighbour=[self.graph.node[j] for j in self.graph.neighbors(i)]
-#                                neighboursofneighbour=[self.structure.atoms[j] for j in self.structure.atoms[i].neighbours]
                                 neighboursofneighbour_elements=[at['element'] for at in neighboursofneighbour]
                                 if ("O" in neighboursofneighbour_elements):
                                     atom['force_field_type']="902"
                                     atom['charge']=BTW_atoms[atom['force_field_type']][6]
                                     type_assigned=True
 
-                            if (type_assigned==False) and (atom.hybridization=="aromatic"):
+                            if (type_assigned==False) and (atom['hybridization']=="aromatic"):
                                 atom['force_field_type']="903"
                                 atom['charge']=BTW_atoms[atom['force_field_type']][6]
                             elif (type_assigned==False):
-                                print("Carbon number : %i could not be recognized! erorr1 %s "%(atom.index, atom.hybridization))
+                                print("Carbon number : %i could not be recognized! erorr1 %s "%(node, atom['hybridization']))
+                                sys.exit()
                         
                         else:
-                            print("Carbon number : %i could not be recognized! error2"%atom.index)
+                            print("Carbon number : %i could not be recognized! error2"%node)
+                            sys.exit()
 
                 elif atom['element'] in BTW_metals:
                     if (atom['element'] == "Zr"):
@@ -729,24 +727,19 @@ class BTW_FF(ForceField):
                     elif (atom['element'] == "Cu"):
                         atom['force_field_type']="185"
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                    else: # atom type = Zn
+                    elif(atom['element'])== "Zn":
                         atom['force_field_type']="172"
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
                 else:
                         print('Error!! Cannot detect atom types. Atom type does not exist in BTW-FF!')
-                
-               # atom.charge=0
+                        sys.exit()
             else:
                 print('FFtype is already assigned!')
+                sys.exit()
 
-
-
-    def detect_ff_exist(self):
-        """
-           checking bonds
-        """
-        nonexisting_bonds=[]
-        missing_labels=[]
+        """ """  """  """ """  
+        Assigning force field type of bonds
+        """ """  """  """ """          
         for a, b, bond in self.graph.edges_iter2(data=True):
             a_atom = self.graph.node[a]
             b_atom = self.graph.node[b]
@@ -761,10 +754,9 @@ class BTW_FF(ForceField):
                 print ("%s bond does not exist in FF!"%(bond1_fflabel))
                 exit()
 
-
-        """
-           checking angles
-        """
+        """ """  """  """ """  
+        Assigning force field type of angles
+        """ """  """  """ """          
         missing_labels=[]
         for b , data in self.graph.nodes_iter(data=True):
             # compute and store angle terms
@@ -795,19 +787,19 @@ class BTW_FF(ForceField):
                         missing_labels.append(angle1_fflabel)
                 for key in nonexisting_angles:
                     del ang_data[key]
-
-                for ff_label in set(missing_labels):
-                    print ("%s angle does not exist in FF!"%(ff_label))
-
             except KeyError:
                 pass
-        """
-           checking dihedrals 
-        """
+
+        for ff_label in set(missing_labels):
+            print ("%s angle does not exist in FF!"%(ff_label))
+
+        """ """  """  """ """  
+        Assigning force field type of dihedrals 
+        """ """  """  """ """          
         missing_labels=[]
-        nonexisting_dihedral=[]
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
+                nonexisting_dihedral=[]
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
                     a_atom = self.graph.node[a]
@@ -830,20 +822,18 @@ class BTW_FF(ForceField):
                         missing_labels.append(dihedral1_fflabel)
                 for key in nonexisting_dihedral:
                     del dihed_data[key]
-
-                for ff_label in set(missing_labels):
-                    print ("%s dihedral does not exist in FF!"%(ff_label))
-
             except KeyError:
                 pass
+        for ff_label in set(missing_labels):
+            print ("%s dihedral does not exist in FF!"%(ff_label))
 
-        """
-           checking impropers
-        """
+        """ """  """  """ """  
+        Assigning force field type of impropers 
+        """ """  """  """ """          
         missing_labels=[]
-        nonexisting_improper=[]
         for b, data in self.graph.nodes_iter(data=True):
             try:
+                nonexisting_improper=[]
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
                     a_atom = self.graph.node[a]
@@ -855,46 +845,39 @@ class BTW_FF(ForceField):
                     atom_c_fflabel = c_atom['force_field_type']
                     atom_d_fflabel = d_atom['force_field_type']
                     improper_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
-                    if not improper_fflabel in BTW_opbends:
+                    if improper_fflabel in BTW_opbends:
+                        val['force_field_type']=improper_fflabel
+                    else:
                         nonexisting_improper.append((a,c,d))
                         missing_labels.append(improper_fflabel)
-                    else:
-                        val['force_field_type']=improper_fflabel
                 for key in nonexisting_improper:
                     del imp_data[key]
-                for ff_label in set(missing_labels):
-                    print ("%s improper does not exist in FF!"%(ff_label))
-
-         
             except KeyError:
                 pass
 
- 
-        return None
-
-
+        for ff_label in set(missing_labels):
+            print ("%s improper does not exist in FF!"%(ff_label))
         
     def bond_term(self, edge):
-        """class2 assumed"""
-        n1, n2, data = edge
-        Ks =  BTW_bonds[data['force_field_type']][0] 
-        l0 = BTW_bonds[data['force_field_type']][1] 
-        
+        """class2 bond"""
         """
         Es=71.94*Ks*(l-l0)^2[1-2.55(l-l0)+(7/12)*2.55*(l-l0)^2]
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """
-        K2=71.94*Ks   # mdyne to kcal *(1/2)
-        K3=-2.55*K2
-        K4=3.793125*K2
+        n1, n2, data = edge
+        Ks =  BTW_bonds[data['force_field_type']][0] 
+        l0 =  BTW_bonds[data['force_field_type']][1] 
+        K2= 71.94*Ks   # mdyne to kcal *(1/2)
+        K3= -2.55*K2
+        K4= 3.793125*K2
         data['potential'] = BondPotential.Class2()
         data['potential'].K2 = K2
         data['potential'].K3 = K3
         data['potential'].K4 = K4
         data['potential'].R0 = l0
-
          
     def angle_term(self, angle):
+        """class2 angle"""
         """
         Be careful that the 5and6 order terms are vanished here since they are not implemented in LAMMPS!!
         Etheta = 0.021914*Ktheta*(theta-theta0)^2[1-0.014(theta-theta0)+5.6(10^-5)*(theta-theta0)^2-7.0*(10^-7)*(theta-theta0)^3+9.0*(10^-10)*(theta-theta0)^4]        
@@ -914,20 +897,20 @@ class BTW_FF(ForceField):
 
         Ktheta = BTW_angles[data['force_field_type']][0]
         theta0 = BTW_angles[data['force_field_type']][1]
-        ### BondBond ###
-        bbM   = BTW_angles[data['force_field_type']][6]
         ### BondAngle ###
         baN1 = BTW_angles[data['force_field_type']][4]
         baN2 = BTW_angles[data['force_field_type']][5]
+        ### BondBond ###
+        bbM  = BTW_angles[data['force_field_type']][6]
 
-        if not (ang_ff_tmp == data['force_field_type']):  # to be sure that the label matches with the angle in the system for the cross terms!
+        if not (ang_ff_tmp == data['force_field_type']):  # switching the force constants in the case of assigning swaped angle_ff_label
             buf1 = atom_a_fflabel
             atom_a_fflabel = atom_c_fflabel
             atom_c_fflabel = buf1
             buf2 = baN1
             baN1=baN2
             baN2=buf2
-
+        ### assingning the equilibrium distance of each bond from FF
         bond1_label = atom_a_fflabel+"_"+atom_b_fflabel
         bond2_label = atom_b_fflabel+"_"+atom_c_fflabel
         if (bond1_label) in BTW_bonds:
@@ -942,14 +925,14 @@ class BTW_FF(ForceField):
             bond2_label = atom_c_fflabel+"_"+atom_b_fflabel
             r2 = BTW_bonds[bond2_label][1]
         ### Unit conversion ###
-        bbM = bbM *71.94 #* 143.93    # (TODO) maybe is wrong! 
+        bbM = bbM *71.94 # (TODO) maybe is wrong! 
         baN1 = 2.51118 * baN1 / (DEG2RAD) 
         baN2 = 2.51118 * baN2/ (DEG2RAD) 
         K2 = 0.021914*Ktheta/(DEG2RAD**2)
         K3 = -0.014*K2/(DEG2RAD**1)
         K4 = 5.6e-5*K2/(DEG2RAD**2)
 
-        if (data['force_field_type']=="170_185_170"):
+        if (data['force_field_type']=="170_185_170"):   ### in the case of square planar coordination of Cu-paddle-wheel, fourier angle must be used
             data['potential'] = AnglePotential.CosinePeriodic()
             data['potential'].C = 100 #  Need to be parameterized!  
             data['potential'].B = 1
@@ -968,8 +951,9 @@ class BTW_FF(ForceField):
 
 
     def dihedral_term(self, dihedral):
+        """fourier diherdral"""
         """
-        Ew = (V1/2)(1 + cos w) + (V2/2)(1 - cos 2*w) (V3/2)(1 + cos 3*w)
+        Ew = (V1/2)(1 + cos w) + (V2/2)(1 - cos 2*w)+(V3/2)(1 + cos 3*w)+(V4/2)(1 + cos 4*w)
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """        
         a,b,c,d, data = dihedral
@@ -998,12 +982,7 @@ class BTW_FF(ForceField):
         
 
     def improper_term(self, improper):
-        """
-        The improper function can be described with a fourier function
-
-        E = K*[C_0 + C_1*cos(w) + C_2*cos(2*w)
-
-        """
+        """class2 diherdral"""
         a,b,c,d, data = improper
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
@@ -1018,15 +997,27 @@ class BTW_FF(ForceField):
         """
         Angle-Angle term
         """
-        M1 = BTW_opbends[data['force_field_type']][2]/(DEG2RAD**2)*0.02191418*(-1)/3. 
-        M2 = BTW_opbends[data['force_field_type']][3]/(DEG2RAD**2)*0.02191418*(-1)/3. 
-        M3 = BTW_opbends[data['force_field_type']][4]/(DEG2RAD**2)*0.02191418*(-1)/3. 
+        M1 = BTW_opbends[data['force_field_type']][2]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
+        M2 = BTW_opbends[data['force_field_type']][3]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
+        M3 = BTW_opbends[data['force_field_type']][4]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
         ang1_ff_label = atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
         ang2_ff_label = atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_d_fflabel
         ang3_ff_label = atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_d_fflabel
-        Theta1 =  BTW_angles[ang1_ff_label][1]
-        Theta2 =  BTW_angles[ang2_ff_label][1]
-        Theta3 =  BTW_angles[ang3_ff_label][1]
+        if (ang1_ff_label) in BTW_angles:
+            Theta1 =  BTW_angles[ang1_ff_label][1]
+        else:
+            ang1_ff_label = atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
+            Theta1 =  BTW_angles[ang1_ff_label][1]
+        if (ang2_ff_label) in BTW_angles:
+            Theta1 =  BTW_angles[ang2_ff_label][1]
+        else:
+            ang2_ff_label = atom_d_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
+            Theta1 =  BTW_angles[ang2_ff_label][1]
+        if (ang3_ff_label) in BTW_angles:
+            Theta1 =  BTW_angles[ang3_ff_label][1]
+        else:
+            ang3_ff_label = atom_d_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
+            Theta1 =  BTW_angles[ang3_ff_label][1]
                 
         data['potential'] =  ImproperPotential.Class2() #does not work now!
         data['potential'].K = Kopb 
@@ -1037,32 +1028,6 @@ class BTW_FF(ForceField):
         data['potential'].aa.theta1 = Theta1
         data['potential'].aa.theta2 = Theta2
         data['potential'].aa.theta3 = Theta3
-#    def unique_pair_terms(self):  
-#        """This is force field dependent."""
-#        count = 0 
-#        pair_type = {}
-#        atom_types = list(self.unique_atom_types.keys())
-#        for at1 in sorted(atom_types):
-#            for at2 in sorted(atom_types[at1-1:]):
-#                atom1=self.unique_atom_types[at1]
-#                atom2=self.unique_atom_types[at2]
-#                
-#                p1 = (atom1.ff_type_index , atom2.ff_type_index)
-#                pair=PairTerm(atom1,atom2)
-#
-#                if p1 in pair_type.keys(): 
-#                    type = pair_type[p1]
-#                else:
-#                    count += 1
-#                    type = count
-#                    pair_type[p1] = type
-#                    self.pair_term(pair)
-#                    self.unique_pair_types[type] = pair
-#                pair.ff_type_index = type
-#       
-#        return
-
-
 
     def pair_terms( self, node , data, cutoff):
         """
@@ -1070,15 +1035,7 @@ class BTW_FF(ForceField):
         """
         eps = BTW_atoms[data['force_field_type']][4]
         sig = BTW_atoms[data['force_field_type']][3]
-        #eps2 = BTW_atoms[atom2.force_field_type][4]
-        #sig2 = BTW_atoms[atom2.force_field_type][3]
-        # MM3 mixing rules: Arithmetic mean for radii
-        #                   Geometric mean for epsilon 
-#        eps = np.sqrt(eps1*eps2)
-#        Rv = (sig1 + sig2)
-#        Rho = Rv/12.0
-#        A = 1.84e5 * eps
-#        C=2.25*(Rv)**6*eps
+
         data['pair_potential']=PairPotential.BuckCoulLong()
         data['pair_potential'].cutoff= cutoff
         data['pair_potential'].eps = eps 
@@ -1086,7 +1043,7 @@ class BTW_FF(ForceField):
 
 
     def special_commands(self):
-        st = ["%-15s %s"%("pair_modify", "tail yes"), 'special_bonds lj/coul 0.0 0.0 1']
+        st = ["%-15s %s"%("pair_modify", "tail yes"), 'special_bonds lj/coul 0.0 0.0 1', 'dielectric      1.50']
         return st
 
 
@@ -1101,7 +1058,6 @@ class FMOFCu(ForceField):
         self.unique_dihedral_types = {}
         self.unique_improper_types = {}
         self.unique_pair_types = {}
-        self.dielectric = 1.5
 
     def detect_ff_terms(self):
         # for each atom determine the ff type if it is None
@@ -1497,7 +1453,6 @@ class MOF_FF(ForceField):
         self.unique_dihedral_types = {}
         self.unique_improper_types = {}
         self.unique_pair_types = {}
-        self.dielectric = 1.0
 
 
     def detect_ff_terms(self):
@@ -2035,10 +1990,6 @@ class UFF(ForceField):
         self.detect_ff_terms() 
         self.compute_force_field_terms()
 
-
-    def detect_ff_exist(self):
-        return None
-
     def pair_terms(self, node, data, cutoff):
         """Add L-J term to atom"""
         data['pair_potential'] = PairPotential.LjCutCoulLong()
@@ -2368,7 +2319,7 @@ class UFF(ForceField):
         data['potential'].C2 = c2
     
     def special_commands(self):
-        st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic")]
+        st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"), 'dielectric      1.0']
         return st
 
     def detect_ff_terms(self):
@@ -2428,8 +2379,6 @@ class Dreiding(ForceField):
         self.detect_ff_terms() 
         self.compute_force_field_terms()
     
-    def detect_ff_exist(self):
-        return None
    
     def bond_term(self, edge, type='harmonic'):
         """The DREIDING Force Field contains two possible bond terms, harmonic and Morse.
@@ -2867,7 +2816,7 @@ class Dreiding(ForceField):
 
     def special_commands(self):
         st = ["%-15s %s"%("pair_modify", "tail yes"),
-              "%-15s %s"%("special_bonds", "dreiding")] # equivalent to 'special_bonds lj 0.0 0.0 1.0'
+              "%-15s %s"%("special_bonds", "dreiding"), 'dielectric      1.0'] # equivalent to 'special_bonds lj 0.0 0.0 1.0'
         return st
 
     def detect_ff_terms(self):

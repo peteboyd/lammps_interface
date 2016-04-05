@@ -36,7 +36,6 @@ class LammpsSimulation(object):
         self.unique_dihedral_types = {}
         self.unique_improper_types = {}
         self.unique_pair_types = {}
-        self.dielectric = 1.5
         self.pair_in_data = True
         self.separate_molecule_types = True
         self.type_molecules = {}
@@ -907,7 +906,6 @@ class LammpsSimulation(object):
         inp_str += "%-15s %s\n"%("units","real")
         inp_str += "%-15s %s\n"%("atom_style","full")
         inp_str += "%-15s %s\n"%("boundary","p p p")
-        inp_str += "%-15s %2.2f\n"%("dielectric",self.dielectric)
         inp_str += "\n"
         if(len(self.unique_pair_types.keys()) > 0):
             inp_str += "%-15s %s\n"%("pair_style", self.pair_style)
