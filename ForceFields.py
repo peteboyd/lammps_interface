@@ -2,7 +2,7 @@ from uff import UFF_DATA
 from dreiding import DREIDING_DATA
 from uff_nonbonded import UFF_DATA_nonbonded
 from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds
-from FMOFCu import FMOF_angles, FMOF_dihedrals, FMOF_opbends, FMOF_atoms, FMOF_bonds
+#from FMOFCu import FMOF_angles, FMOF_dihedrals, FMOF_opbends, FMOF_atoms, FMOF_bonds
 from MOFFF import MOFFF_angles, MOFFF_dihedrals, MOFFF_opbends, MOFFF_atoms, MOFFF_bonds 
 from structure_data import Structure, Atom, Bond, Angle, Dihedral, PairTerm
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
