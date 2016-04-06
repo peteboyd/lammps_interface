@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-import os
+#/usr/bin/env python
+from datetime import date
 import numpy as np
 from scipy.spatial import distance
 import math
@@ -10,6 +10,7 @@ from copy import copy
 from mof_sbus import InorganicCluster
 from copy import deepcopy
 import itertools
+import os
 
 try:
     import networkx as nx
@@ -1206,6 +1207,7 @@ class Bond(object):
         self.midpoint = np.array([0., 0., 0.])
         self.potential = None
         Bond.__ID += 1
+        self.ff_label = None
 
     def compute_length(self, coord1, coord2):
         return np.linalg.norm(np.array(coord2) - np.array(coord1))
@@ -1249,6 +1251,7 @@ class Angle(object):
         self._angle = 0.
         self.index = self.__ID
         Angle.__ID += 1
+        self.ff_label = None
 
     def set_bonds(self, bonds):
         """order is assumed (ab_bond, bc_bond)"""
@@ -1324,6 +1327,7 @@ class Dihedral(object):
         self.index = self.__ID
         self.potential = None
         Dihedral.__ID += 1
+        self.ff_label = None
 
     def set_angles(self, angles):
         angle1, angle2 = angles
@@ -1453,7 +1457,8 @@ class ImproperDihedral(object):
         self.potential = None
         self.index = self.__ID
         ImproperDihedral.__ID += 1
-    
+        self.ff_label = None
+
     def set_bonds(self, bonds):
         self._angles = bonds
         bond1, bond2, bond3 = bonds
