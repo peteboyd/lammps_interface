@@ -1047,10 +1047,6 @@ class BTW_FF(ForceField):
         return st
 
 
-
-
-
-
 class MOF_FF(ForceField):
     
     def __init__(self, cutoff=12.5, **kwargs):
@@ -1070,18 +1066,16 @@ class MOF_FF(ForceField):
         self.compute_force_field_terms()
 
     def detect_ff_terms(self):
-        # for each atom determine the ff type if it is None
-        MOF_FF_organics = [ "O", "C","H"  ]
-        MOF_FF_metals = ["Zr","Cu","Zn"]
-        """
-        Detecting the thre different SBUs in MOF-FF:
+        """ MOF-FF contains force field descriptions for three different
+        inorganic SBUs:
         Cu-paddle-wheel
         Zn cluster --> IRMOF series
         Zr cluster --> UiO series
         """
-        """ """  """  """ """  
-        Detecting the inorganic cluster type 
-        """ """  """  """ """  
+
+        # for each atom determine the ff type if it is None
+        MOF_FF_organics = [ "O", "C","H"  ]
+        MOF_FF_metals = ["Zr","Cu","Zn"]
         for node, atom in self.graph.nodes_iter(data=True):
             if atom['element']=="Cu":
                 SBU="Cu_paddle_wheel"
