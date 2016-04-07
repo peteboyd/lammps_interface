@@ -655,9 +655,9 @@ class BTW_FF(ForceField):
     
 
     def detect_ff_terms(self):
-        """ """  """  """ """  
+        """
         Assigning force field type of atoms 
-        """ """  """  """ """  
+        """
         BTW_organics = [ "O", "C","H" ]
         BTW_metals = ["Zr","Cu","Zn"]
         for node, atom in self.graph.nodes_iter(data=True):
@@ -736,9 +736,7 @@ class BTW_FF(ForceField):
                 print('FFtype is already assigned!')
                 sys.exit()
 
-        """ """  """  """ """  
-        Assigning force field type of bonds
-        """ """  """  """ """          
+        #Assigning force field type of bonds
         for a, b, bond in self.graph.edges_iter2(data=True):
             a_atom = self.graph.node[a]
             b_atom = self.graph.node[b]
@@ -753,9 +751,7 @@ class BTW_FF(ForceField):
                 print ("%s bond does not exist in FF!"%(bond1_fflabel))
                 exit()
 
-        """ """  """  """ """  
-        Assigning force field type of angles
-        """ """  """  """ """          
+        #Assigning force field type of angles
         missing_labels=[]
         for b , data in self.graph.nodes_iter(data=True):
             # compute and store angle terms
@@ -792,9 +788,7 @@ class BTW_FF(ForceField):
         for ff_label in set(missing_labels):
             print ("%s angle does not exist in FF!"%(ff_label))
 
-        """ """  """  """ """  
-        Assigning force field type of dihedrals 
-        """ """  """  """ """          
+        #Assigning force field type of dihedrals 
         missing_labels=[]
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
@@ -825,10 +819,8 @@ class BTW_FF(ForceField):
                 pass
         for ff_label in set(missing_labels):
             print ("%s dihedral does not exist in FF!"%(ff_label))
-
-        """ """  """  """ """  
-        Assigning force field type of impropers 
-        """ """  """  """ """          
+        
+        #Assigning force field type of impropers 
         missing_labels=[]
         for b, data in self.graph.nodes_iter(data=True):
             try:
@@ -858,8 +850,7 @@ class BTW_FF(ForceField):
             print ("%s improper does not exist in FF!"%(ff_label))
         
     def bond_term(self, edge):
-        """class2 bond"""
-        """
+        """class2 bond
         Es=71.94*Ks*(l-l0)^2[1-2.55(l-l0)+(7/12)*2.55*(l-l0)^2]
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """
@@ -876,8 +867,7 @@ class BTW_FF(ForceField):
         data['potential'].R0 = l0
          
     def angle_term(self, angle):
-        """class2 angle"""
-        """
+        """class2 angle
         Be careful that the 5and6 order terms are vanished here since they are not implemented in LAMMPS!!
         Etheta = 0.021914*Ktheta*(theta-theta0)^2[1-0.014(theta-theta0)+5.6(10^-5)*(theta-theta0)^2-7.0*(10^-7)*(theta-theta0)^3+9.0*(10^-10)*(theta-theta0)^4]        
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
@@ -950,8 +940,7 @@ class BTW_FF(ForceField):
 
 
     def dihedral_term(self, dihedral):
-        """fourier diherdral"""
-        """
+        """fourier diherdral
         Ew = (V1/2)(1 + cos w) + (V2/2)(1 - cos 2*w)+(V3/2)(1 + cos 3*w)+(V4/2)(1 + cos 4*w)
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """        
@@ -993,9 +982,7 @@ class BTW_FF(ForceField):
         atom_d_fflabel=d_data['force_field_type']
         Kopb = BTW_opbends[data['force_field_type']][0]/(DEG2RAD**2)*0.02191418
         c0 =  BTW_opbends[data['force_field_type']][1]
-        """
-        Angle-Angle term
-        """
+        #Angle-Angle term
         M1 = BTW_opbends[data['force_field_type']][2]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
         M2 = BTW_opbends[data['force_field_type']][3]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
         M3 = BTW_opbends[data['force_field_type']][4]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
@@ -1075,6 +1062,7 @@ class MOF_FF(ForceField):
         # for each atom determine the ff type if it is None
         MOF_FF_organics = [ "O", "C","H"  ]
         MOF_FF_metals = ["Zr","Cu","Zn"]
+        # change to cluster detection.
         for node, atom in self.graph.nodes_iter(data=True):
             if atom['element']=="Cu":
                 SBU="Cu_paddle_wheel"
