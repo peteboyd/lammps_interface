@@ -1,4 +1,5 @@
 from uff import UFF_DATA
+from uff4mof import UFF4MOF_DATA
 from dreiding import DREIDING_DATA
 from uff_nonbonded import UFF_DATA_nonbonded
 from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds
@@ -2803,6 +2804,388 @@ class Dreiding(ForceField):
                 print('Error: %s is not a force field type in DREIDING.'%(data['force_field_type']))
                 sys.exit()
 
+            if data['force_field_type'] is None:
+                print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
+                        " with element: '%s'"%(data['element']))
+                sys.exit()
+
+class UFF4MOF(ForceField):
+    """Parameterize the periodic material with the UFF4MOF parameters.
+    """
+    
+    def __init__(self, cutoff=12.5, **kwargs):
+        self.pair_in_data = True
+        self.keep_metal_geometry = False
+        self.graph = None 
+        # override existing arguments with kwargs
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        if (self.graph is not None):
+            self.detect_ff_terms() 
+            self.compute_force_field_terms()
+
+    def pair_terms(self, node, data, cutoff):
+        """Add L-J term to atom"""
+        data['pair_potential'] = PairPotential.LjCutCoulLong()
+        data['pair_potential'].eps = UFF4MOF_DATA[data['force_field_type']][3] 
+        data['pair_potential'].sig = UFF4MOF_DATA[data['force_field_type']][2]*(2**(-1./6.))
+        data['pair_potential'].cutoff = cutoff
+
+    def bond_term(self, edge):
+        """Harmonic assumed"""
+        n1, n2, data = edge
+        n1_data, n2_data = self.graph.node[n1], self.graph.node[n2]
+        fflabel1, fflabel2 = n1_data['force_field_type'], n2_data['force_field_type']
+        r_1 = UFF4MOF_DATA[fflabel1][0]
+        r_2 = UFF4MOF_DATA[fflabel2][0]
+        chi_1 = UFF4MOF_DATA[fflabel1][8]
+        chi_2 = UFF4MOF_DATA[fflabel2][8]
+
+        rbo = -0.1332*(r_1 + r_2)*math.log(data['order'])
+        ren = r_1*r_2*(((math.sqrt(chi_1) - math.sqrt(chi_2))**2))/(chi_1*r_1 + chi_2*r_2)
+        r0 = (r_1 + r_2 + rbo - ren)
+        # The values for K in the UFF paper were set such that in the final
+        # harmonic function, they would be divided by '2' to satisfy the
+        # form K/2(R-Req)**2
+        # in Lammps, the value for K is already assumed to be divided by '2'
+        K = 664.12*(UFF4MOF_DATA[fflabel1][5]*UFF4MOF_DATA[fflabel2][5])/(r0**3) / 2.
+        if (self.keep_metal_geometry) and (n1_data['atomic_number'] in METALS
+            or n2_data['atomic_number'] in METALS):
+            r0 = data['length']
+        data['potential'] = BondPotential.Harmonic()
+        data['potential'].K = K
+        data['potential'].R0 = r0
+
+    def angle_term(self, angle):
+        """several cases exist where the type of atom in a particular environment is considered
+        in both the parameters and the functional form of the term.
+
+
+        A small cosine fourier expansion in (theta)
+        E_0 = K_{IJK} * {sum^{m}_{n=0}}C_{n} * cos(n*theta)
+
+        Linear, trigonal-planar, square-planar, and octahedral:
+        two-term expansion of the above equation, n=0 as well as
+        n=1, n=3, n=4, and n=4 for the above geometries.
+        E_0 = K_{IJK}/n^2 * [1 - cos(n*theta)]
+
+        in Lammps, the angle syle called 'fourier/simple' can be used
+        to describe this functional form.
+        
+        general non-linear case:
+        three-term Fourier expansion
+        E_0 = K_{IJK} * [C_0 + C_1*cos(theta) + C_2*cos(2*theta)]
+        
+        in Lammps, the angle style called 'fourier' can be used to
+        describe this functional form.
+
+        Both 'fourier/simple' and 'fourier' are available from the 
+        USER_MISC package in Lammps, so be sure to compile Lammps with
+        this package.
+
+        """
+
+        # fourier/simple
+        sf = ['linear', 'trigonal-planar', 'square-planar', 'octahedral']
+        a, b, c, data = angle
+        angle_type = self.uff_angle_type(b)
+        
+        a_data = self.graph.node[a]
+        b_data = self.graph.node[b]
+        c_data = self.graph.node[c]
+        ab_bond = self.graph[a][b]
+        bc_bond = self.graph[b][c]
+
+        auff, buff, cuff = a_data['force_field_type'], b_data['force_field_type'], c_data['force_field_type']
+        
+        theta0 = UFF4MOF_DATA[buff][1]
+
+        cosT0 = math.cos(theta0*DEG2RAD)
+        sinT0 = math.cos(theta0*DEG2RAD)
+
+        c2 = 1.0 / (4.0*sinT0*sinT0)
+        c1 = -4.0 * c2 * cosT0
+        c0 = c2 * (2.0*cosT0*cosT0 + 1.0)
+
+        za = UFF4MOF_DATA[auff][5]
+        zc = UFF4MOF_DATA[cuff][5]
+        
+        r_ab = ab_bond['potential'].R0
+        r_bc = bc_bond['potential'].R0
+        r_ac = math.sqrt(r_ab*r_ab + r_bc*r_bc - 2.*r_ab*r_bc*cosT0)
+
+        beta = 664.12/r_ab/r_bc
+        ka = beta*(za*zc /(r_ac**5.))
+        ka *= (3.*r_ab*r_bc*(1. - cosT0*cosT0) - r_ac*r_ac*cosT0)
+        # just check if the central node is a metal, then apply a rigid angle term.
+        # NB: Functional form may change dynamics, but at this point we will not
+        # concern ourselves if the force constants are big.
+        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
+            theta0 = self.graph.compute_angle_between(a, b, c)
+            # just divide by the number of neighbours?
+            data['potential'] = AnglePotential.Harmonic()
+            data['potential'].K = ka/2.
+            data['potential'].theta0 = theta0
+            return
+
+        if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
+            if angle_type == 'linear':
+                kappa = ka
+                c0 = 1.
+                c1 = 1.
+            # the description of the actual parameters for 'n' are not obvious
+            # for the tetrahedral special case from the UFF paper or the write up in TOWHEE.
+            # The values were found in the TOWHEE source code (eg. Bi3+3).
+            if angle_type == 'tetrahedral': 
+                kappa = ka/4.
+                c0 = 1.
+                c1 = 2.
+
+            if angle_type == 'trigonal-planar':
+                kappa = ka/9.
+                c0 = -1.
+                c1 = 3.
+
+            if angle_type == 'square-planar' or angle_type == 'octahedral':
+                kappa = ka/16.
+                c0 = -1.
+                c1 = 4.
+
+            data['potential'] = AnglePotential.FourierSimple()
+            data['potential'].K = kappa
+            data['potential'].c = c0
+            data['potential'].n = c1
+        # general-nonlinear
+        else:
+
+            #TODO: a bunch of special cases which require molecular recognition here..
+            # water, for example has it's own theta0 angle.
+
+            c2 = 1. / (4.*sinT0*sinT0)
+            c1 = -4.*c2*cosT0
+            c0 = c2*(2.*cosT0*cosT0 + 1)
+            kappa = ka
+            data['potential'] = AnglePotential.Fourier()
+            data['potential'].K = kappa
+            data['potential'].C0 = c0
+            data['potential'].C1 = c1
+            data['potential'].C2 = c2
+
+    def uff_angle_type(self, b):
+        name = self.graph.node[b]['force_field_type']
+        try:
+            coord_type = name[2]
+        except IndexError:
+            # eg, H_, F_
+            return 'linear'
+        if coord_type == "1":
+            return 'linear'
+        elif coord_type in ["R", "2"]:
+            return 'trigonal-planar'
+        elif coord_type == "3":
+            return 'tetrahedral'
+        elif coord_type == "4":
+            return 'square-planar'
+        elif coord_type == "5":
+            return 'trigonal-bipyrimidal'
+        elif coord_type == "6":
+            return 'octahedral'
+        else:
+            print("ERROR: Cannot find coordination type for %s"%name)
+            sys.exit()
+
+    def dihedral_term(self, dihedral):
+        """Use a small cosine Fourier expansion
+
+        E_phi = 1/2*V_phi * [1 - cos(n*phi0)*cos(n*phi)]
+
+
+        this is available in Lammps in the form of a harmonic potential
+        E = K * [1 + d*cos(n*phi)]
+
+        NB: the d term must be negated to recover the UFF potential.
+        """
+        a,b,c,d, data = dihedral
+        a_data = self.graph.node[a]
+        b_data = self.graph.node[b]
+        c_data = self.graph.node[c]
+        d_data = self.graph.node[d]
+
+        torsiontype = self.graph[b][c]['order']
+        
+        coord_bc = (self.graph.degree(b), self.graph.degree(c))
+        bc = (b_data['force_field_type'], c_data['force_field_type'])
+        M = mul(*coord_bc)
+        V = 0
+        n = 0
+        mixed_case = ((b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic') and
+                      c_data['hybridization'] == 'sp3') or \
+                (b_data['hybridization'] == 'sp3' and 
+                (c_data['hybridization'] == 'sp2' or c_data['hybridization'] == 'aromatic')) 
+        all_sp2 = ((b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic') and
+                   c_data['hybridization'] == 'sp2' or c_data['hybridization'] == 'aromatic')
+        all_sp3 = (b_data['hybridization'] == 'sp3' and 
+                   c_data['hybridization'] == 'sp3')
+
+        phi0 = 0
+        if all_sp3:
+            phi0 = 60.0
+            n = 3
+            vi = UFF4MOF_DATA[b_data['force_field_type']][6]
+            vj = UFF4MOF_DATA[c_data['force_field_type']][6]
+            
+            if b_data['atomic_number'] == 8:
+                vi = 2.
+                n = 2
+                phi0 = 90.
+            elif b_data['atomic_number'] in (16, 34, 52, 84):
+                vi = 6.8
+                n = 2
+                phi0 = 90.0
+            if c_data['atomic_number'] == 8:
+                vj = 2.
+                n = 2
+                phi0 = 90.0
+
+            elif c_data['atomic_number'] in (16, 34, 52, 84):
+                vj = 6.8
+                n = 2
+                phi0 = 90.0
+
+            V = (vi*vj)**0.5
+
+        elif all_sp2: 
+            ui = UFF4MOF_DATA[b_data['force_field_type']][7]
+            uj = UFF4MOF_DATA[c_data['force_field_type']][7]
+            phi0 = 180.0
+            n = 2
+            V = 5.0 * (ui*uj)**0.5 * (1. + 4.18*math.log(torsiontype))
+
+        elif mixed_case: 
+            phi0 = 180.0
+            n = 3
+            V = 2.  
+            
+            if c_data['hybridization'] == 'sp3':
+                if c_data['atomic_number'] in (8, 16, 34, 52):
+                    n = 2
+                    phi0 = 90.
+            elif b_data['hybridization'] == 'sp3': 
+                if b_data['atomic_number'] in (8, 16, 34, 52):
+                    n = 2
+                    phi0 = 90.0
+            # special case group 6 elements
+            if n==2: 
+                ui = UFF4MOF_DATA[b_data['force_field_type']][7]
+                uj = UFF4MOF_DATA[c_data['force_field_type']][7]
+                V = 5.0 * (ui*uj)**0.5 * (1. + 4.18*math.log(torsiontype))
+
+        V /= float(M)
+        nphi0 = n*phi0
+
+        if abs(math.sin(nphi0*DEG2RAD)) > 1.0e-3:
+            print("WARNING!!! nphi0 = %r" % nphi0)
+        
+        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS or 
+            c_data['atomic_number'] in METALS):
+            # must use different potential with minimum at the computed dihedral
+            # angle.
+            nphi0 = n*self.graph.compute_dihedral_between(a, b, c, d)
+            data['potential'] = DihedralPotential.Charmm()
+            data['potential'].K = 0.5*V
+            data['potential'].d = 180 + nphi0 
+            data['potential'].n = n
+            return 
+        data['potential'] = DihedralPotential.Harmonic()
+        data['potential'].K = 0.5*V
+        data['potential'].d = -math.cos(nphi0*DEG2RAD)
+        data['potential'].n = n
+
+    def improper_term(self, improper):
+        """
+        The improper function can be described with a fourier function
+
+        E = K*[C_0 + C_1*cos(w) + C_2*cos(2*w)]
+
+        """
+        a, b, c, d, data = improper
+        b_data = self.graph.node[b]
+        a_ff = self.graph.node[a]['force_field_type']
+        c_ff = self.graph.node[c]['force_field_type']
+        d_ff = self.graph.node[d]['force_field_type']
+        if not b_data['atomic_number'] in (6, 7, 8, 15, 33, 51, 83):
+            return
+        if b_data['force_field_type'] in ('N_3', 'N_2', 'N_R', 'O_2', 'O_R'):
+            c0 = 1.0
+            c1 = -1.0
+            c2 = 0.0
+            koop = 6.0 
+        elif b_data['force_field_type'] in ('P_3+3', 'As3+3', 'Sb3+3', 'Bi3+3'):
+            if b_data['force_field_type'] == 'P_3+3':
+                phi = 84.4339 * DEG2RAD
+            elif b_data['force_field_type'] == 'As3+3':
+                phi = 86.9735 * DEG2RAD
+            elif b_data['force_field_type'] == 'Sb3+3':
+                phi = 87.7047 * DEG2RAD
+            else:
+                phi = 90.0 * DEG2RAD
+            c1 = -4.0 * math.cos(phi)
+            c2 = 1.0
+            c0 = -1.0*c1*math.cos(phi) + c2*math.cos(2.0*phi)
+            koop = 22.0 
+        elif b_data['force_field_type'] in ('C_2', 'C_R'):
+            c0 = 1.0
+            c1 = -1.0
+            c2 = 0.0
+            koop = 6.0 
+            if 'O_2' in (a_ff, c_ff, d_ff):
+                koop = 50.0 
+        else:
+            return 
+        
+        koop /= 3. 
+
+        data['potential'] = ImproperPotential.Fourier()
+        data['potential'].K = koop
+        data['potential'].C0 = c0
+        data['potential'].C1 = c1
+        data['potential'].C2 = c2
+    
+    def special_commands(self):
+        st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"), "%-15s %.1f"%('dielectric', 1.0)]
+        return st
+
+    def detect_ff_terms(self):
+        # for each atom determine the ff type if it is None
+        organics = ["C", "N", "O", "S"]
+        halides = ["F", "Cl", "Br", "I"]
+        for node, data in self.graph.nodes_iter(data=True):
+            if data['force_field_type'] is None:
+                if data['element'] in organics:
+                    if data['hybridization'] == "sp3":
+                        data['force_field_type'] = "%s_3"%data['element']
+                        if data['element'] == "O" and self.graph.degree(node) >= 2:
+                            neigh_elem = set([self.graph.node[i]['element'] for i in self.graph.neighbors(node)])
+                            if not neigh_elem <= set(organics) | set(halides):
+                                data['force_field_type'] = "O_3_z"
+
+                    elif data['hybridization'] == "aromatic":
+                        data['force_field_type'] = "%s_R"%data['element']
+                    elif data['hybridization'] == "sp2":
+                        data['force_field_type'] = "%s_2"%data['element']
+                    elif data['hybridization'] == "sp":
+                        data['force_field_type'] = "%s_1"%data['element']
+                elif data['element'] == "H":
+                    data['force_field_type'] = "H_"
+                elif data['element'] in halides:
+                    data['force_field_type'] = data['element']
+                    if data['element'] == "F":
+                        data['force_field_type'] += "_"
+                else:
+                    ffs = list(UFF4MOF_DATA.keys())
+                    for j in ffs:
+                        if data['element'] == j[:2].strip("_"):
+                            data['force_field_type'] = j
             if data['force_field_type'] is None:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
