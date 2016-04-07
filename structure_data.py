@@ -688,7 +688,7 @@ class MolecularGraph(nx.Graph):
                         pass
                 cluster_found = False
                 for name, cluster in possible_clusters.items():
-                    cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node], tol=0.9)
+                    cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node], tol=0.4)
                     cliques = nx.find_cliques(cg)
                     for clique in cliques:
                         if len(clique) == cluster.number_of_nodes():

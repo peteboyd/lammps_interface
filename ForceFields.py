@@ -712,24 +712,24 @@ class BTW_FF(ForceField):
                 if (atom['element'] == "O") and special:
                     # Zn4O cases
                     if atom['special_flag'] == "O_z_Zn4O":
-                        atom['force_field_type']="171"
+                        atom['force_field_type'] = "171"
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
                     elif atom['special_flag'] == "O_c_Zn4O":
-                        atom['force_field_type']="170"
+                        atom['force_field_type'] = "170"
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
                     # Zr_UiO cases
                     elif atom['special_flag'] == "O_z_Zr_UiO":
-                        atom['force_field_type']="171"
+                        atom['force_field_type'] = "171"
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
                     elif atom['special_flag'] == "O_h_Zr_UiO":
-                        atom['force_field_type']="75"
+                        atom['force_field_type'] = "75"
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
                     elif atom['special_flag'] == "O_c_Zr_UiO": 
-                        atom['force_field_type']="170"
+                        atom['force_field_type'] = "170"
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
                     # Cu Paddlewheel case
                     elif (atom['special_flag'] == "O1_Cu_pdw") or (atom['special_flag'] == "O2_Cu_pdw"):
-                        atom['force_field_type']="170"
+                        atom['force_field_type'] = "170"
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
                     else:
                         print("Oxygen number %i type cannot be detected!"%node)
@@ -737,15 +737,15 @@ class BTW_FF(ForceField):
                 elif (atom['element'] == "C") and special:
                     # Zn4O case
                     if atom['special_flag'] == "C_Zn4O":
-                        atom['force_field_type']="913" # C-acid
+                        atom['force_field_type'] = "913" # C-acid
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
                     # Zr_UiO case
                     elif atom['special_flag'] == "C_Zr_UiO":
-                        atom['force_field_type']="913" # C-acid
+                        atom['force_field_type'] = "913" # C-acid
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
                     # Cu Paddlewheel case
                     elif atom['special_flag'] == "C_Cu_pdw":
-                        atom['force_field_type']="913" # C-acid
+                        atom['force_field_type'] = "913" # C-acid
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
                     else:
                         print("Carbon number %i type cannot be detected!"%node)
@@ -776,6 +776,7 @@ class BTW_FF(ForceField):
                             atom['force_field_type'] = "902"
                         else:
                             atom['force_field_type'] = "903"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
                     else:
                         print("Carbon number %i type cannot be detected!"%node)
                         sys.exit() 
@@ -1123,7 +1124,7 @@ class MOF_FF(ForceField):
             if atom['element'] == "Cu":
                 try:
                     if atom['special_flag'] == 'Cu_pdw':
-                        atom['force_field_type']="165"
+                        atom['force_field_type'] = "165"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     else:
                         print("ERROR: Cu %i is not assigned to a Cu Paddlewheel! exiting"%(node))
@@ -1135,7 +1136,7 @@ class MOF_FF(ForceField):
             elif atom['element'] == "Zn":
                 try:
                     if atom['special_flag'] == 'Zn4O':
-                        atom['force_field_type']="166"
+                        atom['force_field_type'] = "166"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
 
                     else:
@@ -1149,7 +1150,7 @@ class MOF_FF(ForceField):
             elif atom['element'] == "Zr":
                 try:
                     if atom['special_flag'] == 'Zr_UiO':
-                        atom['force_field_type']="101"
+                        atom['force_field_type'] = "101"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
 
                     else:
@@ -1170,24 +1171,24 @@ class MOF_FF(ForceField):
                 if (atom['element'] == "O") and special:
                     # Zn4O cases
                     if atom['special_flag'] == "O_z_Zn4O":
-                        atom['force_field_type']="165"
+                        atom['force_field_type'] = "165"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     elif atom['special_flag'] == "O_c_Zn4O":
-                        atom['force_field_type']="167"
+                        atom['force_field_type'] = "167"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     # Zr_UiO cases
                     elif atom['special_flag'] == "O_z_Zr_UiO":
-                        atom['force_field_type']="102"
+                        atom['force_field_type'] = "102"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     elif atom['special_flag'] == "O_h_Zr_UiO":
-                        atom['force_field_type']="103"
+                        atom['force_field_type'] = "103"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     elif atom['special_flag'] == "O_c_Zr_UiO": 
-                        atom['force_field_type']="106"
+                        atom['force_field_type'] = "106"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     # Cu Paddlewheel case
                     elif (atom['special_flag'] == "O1_Cu_pdw") or (atom['special_flag'] == "O2_Cu_pdw"):
-                        atom['force_field_type']="167"
+                        atom['force_field_type'] = "167"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     else:
                         print("Oxygen number %i type cannot be detected!"%node)
@@ -1195,15 +1196,15 @@ class MOF_FF(ForceField):
                 elif (atom['element'] == "C") and special:
                     # Zn4O case
                     if atom['special_flag'] == "C_Zn4O":
-                        atom['force_field_type']="168"
+                        atom['force_field_type'] = "168"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     # Zr_UiO case
                     elif atom['special_flag'] == "C_Zr_UiO":
-                        atom['force_field_type']="104"
+                        atom['force_field_type'] = "104"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     # Cu Paddlewheel case
                     elif atom['special_flag'] == "C_Cu_pdw":
-                        atom['force_field_type']="168"
+                        atom['force_field_type'] = "168"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     else:
                         print("Carbon number %i type cannot be detected!"%node)
@@ -1212,7 +1213,7 @@ class MOF_FF(ForceField):
                 elif (atom['element'] == "H") and special:
                     # only UiO case
                     if atom['special_flag'] == "H_o_Zr_UiO":
-                        atom['force_field_type']="105"
+                        atom['force_field_type'] = "105"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     else:
                         print("Hydrogen number %i type cannot be detected!"%node)
@@ -1226,10 +1227,10 @@ class MOF_FF(ForceField):
                 elif (atom['element'] == "C") and not special:
                     # all organic SBUs have the same types..
                     if set(neighbour_elements) == set(["C","H"]):
-                        atom['force_field_type']="2"
+                        atom['force_field_type'] = "2"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     elif set(neighbour_elements) == set(["C"]):
-                        atom['force_field_type']="2"
+                        atom['force_field_type'] = "2"
                         # check if Zn4O, UiO, or Cu pdw
                         if mof_sbus == set(['Zn4O']):
                             atom['charge']=  0.18   #special charge for C_ph - C_carb
@@ -1243,7 +1244,7 @@ class MOF_FF(ForceField):
 
                 elif (atom['element'] == "H") and not special:
                     if set(neighbour_elements)<=set(["C"]):
-                        atom['force_field_type']="5"
+                        atom['force_field_type'] = "5"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     else:
                         print("Hydrogen number %i type cannot be detected!"%node)
