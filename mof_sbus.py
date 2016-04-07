@@ -15,6 +15,8 @@ InorganicCluster = {
               },
         'Zn':{'Zn4O': nx.Graph(name='Zn4O'), # taken from doi:
               'Zn Paddlewheel': nx.Graph(name='Zn Paddlewheel') # taken from doi:
+              },
+        'Zr':{'Zr_UiO': nx.Graph(name='Zr_UiO') # taken from doi:
               }
         }
 

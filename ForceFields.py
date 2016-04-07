@@ -1198,14 +1198,6 @@ class MOF_FF(ForceField):
                         print("Hydrogen number %i type cannot be detected in IRMOF!"%node)
                         sys.exit() 
                  
-                elif atom['element'] in MOF_FF_metals:
-                else:
-                        print('Error!! Cannot detect atom types. Atom type does not exist in MOF-FF!')
-                        sys.exit() 
-            else:
-                print('FFtype already assigned!')
-                sys.exit()
-
         # THE REST OF THIS SHOULD BE IN SEPARATE FUNCTIONS AS PER OTHER FF's DESCRIBED HERE
         # TODO(Mohammad): make this easier to read.
         #Assigning force field type of bonds
@@ -1468,10 +1460,9 @@ class MOF_FF(ForceField):
         a,b,c,d, data = improper
         Kopb = MOFFF_opbends[data['force_field_type']][0]/(DEG2RAD**2)*0.02191418
         c0 =  MOFFF_opbends[data['force_field_type']][1]
-                
-        improper.potential = ImproperPotential.Harmonic()
-        improper.potential.K = Kopb 
-        improper.potential.chi0 = c0
+        data['potential'] = ImproperPotential.Harmonic()
+        data['potential'].K = Kopb 
+        data['potential'].chi0 = c0
 
     def pair_terms( self, node , data, cutoff):
         """

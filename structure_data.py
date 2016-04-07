@@ -94,7 +94,7 @@ class MolecularGraph(nx.Graph):
         n = kwargs.pop('_atom_site_label')
         kwargs.update({'ciflabel':n})
         # to identify Cu paddlewheels, etc.
-        kwargs.update({'special_flag':None})
+        #kwargs.update({'special_flag':None})
         self.add_node(idx, **kwargs)
    
     def compute_bonding(self, cell, scale_factor = 0.9):
@@ -688,7 +688,7 @@ class MolecularGraph(nx.Graph):
                         pass
                 cluster_found = False
                 for name, cluster in possible_clusters.items():
-                    cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node])
+                    cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node], tol=0.9)
                     cliques = nx.find_cliques(cg)
                     for clique in cliques:
                         if len(clique) == cluster.number_of_nodes():
@@ -698,7 +698,7 @@ class MolecularGraph(nx.Graph):
                                 self.node[i]['special_flag'] = cluster.node[j]['special_flag']
                             cluster_found = True
                             print("Found %s"%(name))
-                            self.inorganic_sbus.set_default(name, []).append([i for (i,j) in clique])
+                            self.inorganic_sbus.setdefault(name, []).append([i for (i,j) in clique])
                             break
 
                     if(cluster_found):
