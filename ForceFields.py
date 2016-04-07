@@ -646,12 +646,6 @@ class BTW_FF(ForceField):
             self.detect_ff_terms() 
             self.compute_force_field_terms()
 
-    def insert_graph(self, graph):
-        self.graph = graph
-        self.detect_ff_terms() 
-        self.compute_force_field_terms()
-    
-
     def detect_ff_terms(self):
         """
         Assigning force field type of atoms 
@@ -1043,11 +1037,6 @@ class MOF_FF(ForceField):
         if (self.graph is not None):
             self.detect_ff_terms() 
             self.compute_force_field_terms()
-
-    def insert_graph(self, graph):
-        self.graph = graph
-        self.detect_ff_terms() 
-        self.compute_force_field_terms()
 
     def detect_ff_terms(self):
         """ MOF-FF contains force field descriptions for three different
@@ -1888,11 +1877,6 @@ class UFF(ForceField):
             self.detect_ff_terms() 
             self.compute_force_field_terms()
 
-    def insert_graph(self, graph):
-        self.graph = graph
-        self.detect_ff_terms() 
-        self.compute_force_field_terms()
-
     def pair_terms(self, node, data, cutoff):
         """Add L-J term to atom"""
         data['pair_potential'] = PairPotential.LjCutCoulLong()
@@ -2277,12 +2261,6 @@ class Dreiding(ForceField):
             self.detect_ff_terms() 
             self.compute_force_field_terms()
 
-    def insert_graph(self, graph):
-        self.graph = graph
-        self.detect_ff_terms() 
-        self.compute_force_field_terms()
-    
-   
     def bond_term(self, edge, type='harmonic'):
         """The DREIDING Force Field contains two possible bond terms, harmonic and Morse.
         The authors recommend using harmonic as a default, and Morse potentials for more
