@@ -52,6 +52,7 @@ class MolecularGraph(nx.Graph):
         self.coordinates = None
         self.distance_matrix = None
         self.original_size = 0
+        self.inorganic_sbus = {}
         self.cell = None
         #TODO(pboyd): networkx edges do not store the nodes in order!
         # Have to keep a dictionary lookup to make sure the nodes 
@@ -697,6 +698,7 @@ class MolecularGraph(nx.Graph):
                                 self.node[i]['special_flag'] = cluster.node[j]['special_flag']
                             cluster_found = True
                             print("Found %s"%(name))
+                            self.inorganic_sbus.set_default(name, []).append([i for (i,j) in clique])
                             break
 
                     if(cluster_found):
@@ -709,6 +711,7 @@ class MolecularGraph(nx.Graph):
 
         for j in set(no_cluster):
             print ("No recognizable metal clusters for element %s"%(j))
+
 
     def build_supercell(self, sc, lattice, track_molecule=False):
         """Construct a graph with nodes supporting the size of the 
