@@ -993,15 +993,15 @@ class BTW_FF(ForceField):
             ang1_ff_label = atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
             Theta1 =  BTW_angles[ang1_ff_label][1]
         if (ang2_ff_label) in BTW_angles:
-            Theta1 =  BTW_angles[ang2_ff_label][1]
+            Theta2 =  BTW_angles[ang2_ff_label][1]
         else:
             ang2_ff_label = atom_d_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
-            Theta1 =  BTW_angles[ang2_ff_label][1]
+            Theta2 =  BTW_angles[ang2_ff_label][1]
         if (ang3_ff_label) in BTW_angles:
-            Theta1 =  BTW_angles[ang3_ff_label][1]
+            Theta3 =  BTW_angles[ang3_ff_label][1]
         else:
             ang3_ff_label = atom_d_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
-            Theta1 =  BTW_angles[ang3_ff_label][1]
+            Theta3 =  BTW_angles[ang3_ff_label][1]
                 
         data['potential'] =  ImproperPotential.Class2() #does not work now!
         data['potential'].K = Kopb 
