@@ -650,84 +650,146 @@ class BTW_FF(ForceField):
         """
         Assigning force field type of atoms 
         """
-        BTW_organics = [ "O", "C","H" ]
-        BTW_metals = ["Zr","Cu","Zn"]
+
+        # for each atom determine the ff type if it is None
+        BTW_organics = ["O", "C", "H"]
+        mof_sbus = set(self.graph.inorganic_sbus.keys())
+        BTW_sbus = set(["Cu Paddlewheel", "Zn4O", "Zr_UiO"])
+        if not (mof_sbus <= BTW_sbus):
+            print("The system cannot be simulated with BTW-FF!")
+            sys.exit()
+            
+        #Assigning force field type of atoms 
         for node, atom in self.graph.nodes_iter(data=True):
-            if atom['force_field_type'] is None:                                
-                type_assigned=False
-                neighbours = [self.graph.node[i] for i in self.graph.neighbors(node)]
-                neighbour_elements = [a['element'] for a in neighbours]
-                if atom['element'] in BTW_organics:
-                    if (atom['element'] == "O"):
-                        if (set(neighbour_elements) <= set(BTW_metals + ["H"])):
-                            if("H" in neighbour_elements): #O-H
-                                atom['force_field_type']="75"
-                                atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                            else:     # O-inorganic
-                                atom['force_field_type']="171"
-                                atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                        elif ("C" in neighbour_elements): # Carboxylate
-                            atom['force_field_type']="170"
-                            atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                        else:
-                            print("Oxygen number : %i could not be recognized!"%node)
-                            sys.exit()
-        
-                    elif (atom['element'] == "H"):
-                        if ("O" in neighbour_elements):
-                            atom['force_field_type']="21"
-                            atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                        elif("C" in neighbour_elements):
-                            atom['force_field_type']="915"
-                            atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                        else:
-                            print("Hydrogen number : %i could not be recognized!"%node)            
-                            sys.exit()
-
-                    elif (atom['element']=="C"):
-                        if ("O" in neighbour_elements):
-                            atom['force_field_type']="913" # C-acid
-                            atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                        elif ("H" in neighbour_elements):
-                            atom['force_field_type']="912" # C- benzene we should be careful that in this case C in ligand has also bond with H, but not in the FF
-                            atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                        elif (set(neighbour_elements)<=set(["C"])):
-                            for i in self.graph.neighbors(node):
-                                neighboursofneighbour=[self.graph.node[j] for j in self.graph.neighbors(i)]
-                                neighboursofneighbour_elements=[at['element'] for at in neighboursofneighbour]
-                                if ("O" in neighboursofneighbour_elements):
-                                    atom['force_field_type']="902"
-                                    atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                                    type_assigned=True
-
-                            if (type_assigned==False) and (atom['hybridization']=="aromatic"):
-                                atom['force_field_type']="903"
-                                atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                            elif (type_assigned==False):
-                                print("Carbon number : %i could not be recognized! erorr1 %s "%(node, atom['hybridization']))
-                                sys.exit()
-                        
-                        else:
-                            print("Carbon number : %i could not be recognized! error2"%node)
-                            sys.exit()
-
-                elif atom['element'] in BTW_metals:
-                    if (atom['element'] == "Zr"):
-                        atom['force_field_type']="192"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                    elif (atom['element'] == "Cu"):
+            # check if element not in one of the SBUS
+            if atom['element'] == "Cu":
+                try:
+                    if atom['special_flag'] == 'Cu_pdw':
                         atom['force_field_type']="185"
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                    elif(atom['element'])== "Zn":
+                    else:
+                        print("ERROR: Cu %i is not assigned to a Cu Paddlewheel! exiting"%(node))
+                        sys.exit()
+                except KeyError:
+                    print("ERROR: Cu %i is not assigned to a Cu Paddlewheel! exiting"%(node))
+                    sys.exit()
+
+            elif atom['element'] == "Zn":
+                try:
+                    if atom['special_flag'] == 'Zn4O':
                         atom['force_field_type']="172"
                         atom['charge']=BTW_atoms[atom['force_field_type']][6]
-                else:
-                        print('Error!! Cannot detect atom types. Atom type does not exist in BTW-FF!')
-                        sys.exit()
-            else:
-                print('FFtype is already assigned!')
-                sys.exit()
 
+                    else:
+                        print("ERROR: Zn %i is not assigned to a Zn4O! exiting"%(node))
+                        sys.exit()
+                except KeyError:
+                    print("ERROR: Zn %i is not assigned to a Zn4O! exiting"%(node))
+                    sys.exit()
+
+
+            elif atom['element'] == "Zr":
+                try:
+                    if atom['special_flag'] == 'Zr_UiO':
+                        atom['force_field_type']="192"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+
+                    else:
+                        print("ERROR: Zr %i is not assigned to a Zr_UiO! exiting"%(node))
+                        sys.exit()
+                except KeyError:
+                    print("ERROR: Zr %i is not assigned to a Zr_UiO! exiting"%(node))
+                    sys.exit()
+
+
+            if atom['force_field_type'] is None:
+                type_assigned = False
+                neighbours = [self.graph.node[i] for i in self.graph.neighbors(node)]
+                neighbour_elements = [a['element'] for a in neighbours]
+                special = False
+                if 'special_flag' in atom:
+                    special = True
+                if (atom['element'] == "O") and special:
+                    # Zn4O cases
+                    if atom['special_flag'] == "O_z_Zn4O":
+                        atom['force_field_type']="171"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    elif atom['special_flag'] == "O_c_Zn4O":
+                        atom['force_field_type']="170"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    # Zr_UiO cases
+                    elif atom['special_flag'] == "O_z_Zr_UiO":
+                        atom['force_field_type']="171"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    elif atom['special_flag'] == "O_h_Zr_UiO":
+                        atom['force_field_type']="75"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    elif atom['special_flag'] == "O_c_Zr_UiO": 
+                        atom['force_field_type']="170"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    # Cu Paddlewheel case
+                    elif (atom['special_flag'] == "O1_Cu_pdw") or (atom['special_flag'] == "O2_Cu_pdw"):
+                        atom['force_field_type']="170"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    else:
+                        print("Oxygen number %i type cannot be detected!"%node)
+                        sys.exit()
+                elif (atom['element'] == "C") and special:
+                    # Zn4O case
+                    if atom['special_flag'] == "C_Zn4O":
+                        atom['force_field_type']="913" # C-acid
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    # Zr_UiO case
+                    elif atom['special_flag'] == "C_Zr_UiO":
+                        atom['force_field_type']="913" # C-acid
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    # Cu Paddlewheel case
+                    elif atom['special_flag'] == "C_Cu_pdw":
+                        atom['force_field_type']="913" # C-acid
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    else:
+                        print("Carbon number %i type cannot be detected!"%node)
+                        sys.exit()
+
+                elif (atom['element'] == "H") and special:
+                    # only UiO case
+                    if atom['special_flag'] == "H_o_Zr_UiO":
+                        atom['force_field_type'] = "21"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    else:
+                        print("Hydrogen number %i type cannot be detected!"%node)
+                        sys.exit()
+                
+                # currently no oxygens assigned types outside of metal SBUs
+                elif (atom['element'] == "O") and not special:
+                    print("Oxygen number %i type cannot be detected!"%node)
+                    sys.exit() 
+
+                elif (atom['element'] == "C") and not special:
+                    # all organic SBUs have the same types..
+                    if set(neighbour_elements) == set(["C","H"]):
+                        atom['force_field_type'] = "912" # C- benzene we should be careful that in this case C in ligand has also bond with H, but not in the FF
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    elif set(neighbour_elements) == set(["C"]):
+                        # check if carbon adjacent to metal SBU (signified by the key 'special_flag')
+                        if any(['special_flag' in at for at in neighbours]):
+                            atom['force_field_type'] = "902"
+                        else:
+                            atom['force_field_type'] = "903"
+                    else:
+                        print("Carbon number %i type cannot be detected!"%node)
+                        sys.exit() 
+
+                elif (atom['element'] == "H") and not special:
+                    if set(neighbour_elements)<=set(["C"]):
+                        atom['force_field_type'] = "915"
+                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                    else:
+                        print("Hydrogen number %i type cannot be detected!"%node)
+                        sys.exit() 
+                 
+        # THE REST OF THIS SHOULD BE IN SEPARATE FUNCTIONS AS PER OTHER FF's DESCRIBED HERE
+        # TODO(Mohammad): make this easier to read.
         #Assigning force field type of bonds
         for a, b, bond in self.graph.edges_iter2(data=True):
             a_atom = self.graph.node[a]
@@ -1047,7 +1109,7 @@ class MOF_FF(ForceField):
         """
 
         # for each atom determine the ff type if it is None
-        MOF_FF_organics = [ "O", "C","H"  ]
+        MOF_FF_organics = ["O", "C", "H"]
         # change to cluster detection.
         mof_sbus = set(self.graph.inorganic_sbus.keys())
         MOF_FF_sbus = set(["Cu Paddlewheel", "Zn4O", "Zr_UiO"])
@@ -1184,7 +1246,7 @@ class MOF_FF(ForceField):
                         atom['force_field_type']="5"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     else:
-                        print("Hydrogen number %i type cannot be detected in IRMOF!"%node)
+                        print("Hydrogen number %i type cannot be detected!"%node)
                         sys.exit() 
                  
         # THE REST OF THIS SHOULD BE IN SEPARATE FUNCTIONS AS PER OTHER FF's DESCRIBED HERE
