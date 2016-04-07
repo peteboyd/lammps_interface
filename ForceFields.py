@@ -3156,12 +3156,65 @@ class UFF4MOF(ForceField):
         return st
 
     def detect_ff_terms(self):
+        """All new terms are associated with inorganic clusters, and the number of cases are extensive.
+        Implementation of all of the metal types would require a bit of effort, but should be done
+        in the near future.
+
+        """
         # for each atom determine the ff type if it is None
         organics = ["C", "N", "O", "S"]
         halides = ["F", "Cl", "Br", "I"]
         for node, data in self.graph.nodes_iter(data=True):
+            special = 'special_flag' in data
+
+
             if data['force_field_type'] is None:
-                if data['element'] in organics:
+                if special:
+                    # Zn4O case TODO(pboyd): generalize these cases...
+                    if data['special_flag'] == "O_z_Zn4O":
+                        data['force_field_type'] = "O_3_f"
+                    elif data['special_flag'] == "Zn4O":
+                        data['force_field_type'] = "Zn3f2"
+                        # change the bond orders to 0.5 as per the paper
+                        for n in self.graph.neighbors(node):
+                            self.graph[node][n]['order'] = 0.5
+                    elif data['special_flag'] == "C_Zn4O":
+                        data['force_field_type'] = "C_R"
+                        oxy_neighbours = [n for n in self.graph.neighbors(node) if 
+                                            self.graph.node[n]['element'] == "O"]
+                        for n in oxy_neighbours:
+                            self.graph[node][n]['order'] = 1.5
+                    elif data['special_flag'] == "O_c_Zn4O":
+                        data['force_field_type'] = 'O_2'
+                    
+                    # Copper Paddlewheel TODO(pboyd): generalize these cases...
+                    elif data['special_flag'] == "O1_Cu_pdw" or data['special_flag'] == "O2_Cu_pdw":
+                        data['force_field_type'] = 'O_2'
+                    elif data['special_flag'] == "Cu_pdw":
+                        data['force_field_type'] = 'Cu4+2'
+                        for n in self.graph.neighbors(node):
+                            if self.graph.node[n]['element'] == "Cu":
+                                self.graph[node][n]['order'] = 0.25
+                            else:
+                                self.graph[node][n]['order'] = 0.5
+                    elif data['special_flag'] == "C_Cu_pdw":
+                        data['force_field_type'] = 'C_R'
+
+                    # Zn Paddlewheel TODO(pboyd): generalize these cases...
+                    elif data['special_flag'] == "O1_Zn_pdw" or data['special_flag'] == "O2_Zn_pdw":
+                        data['force_field_type'] = 'O_2'
+                    elif data['special_flag'] == "Zn_pdw":
+                        data['force_field_type'] = 'Cu4+2'
+                        for n in self.graph.neighbors(node):
+                            if self.graph.node[n]['element'] == "Zn":
+                                self.graph[node][n]['order'] = 0.25
+                            else:
+                                self.graph[node][n]['order'] = 0.5
+                    elif data['special_flag'] == "C_Zn_pdw":
+                        data['force_field_type'] = 'C_R'
+
+
+                elif data['element'] in organics:
                     if data['hybridization'] == "sp3":
                         data['force_field_type'] = "%s_3"%data['element']
                         if data['element'] == "O" and self.graph.degree(node) >= 2:
@@ -3181,6 +3234,7 @@ class UFF4MOF(ForceField):
                     data['force_field_type'] = data['element']
                     if data['element'] == "F":
                         data['force_field_type'] += "_"
+                # WARNING, the following else statement will do unknown things to the system.
                 else:
                     ffs = list(UFF4MOF_DATA.keys())
                     for j in ffs:
