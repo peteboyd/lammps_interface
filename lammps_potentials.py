@@ -1085,7 +1085,7 @@ class PairPotential(object):
             self.name = "table"
             self.style = None
             self.N = 0
-            self.keyword = None
+            self.keyword = "" 
             self.filename = ""
             self.entry = ""
             self.cutoff = 0.0
@@ -1096,7 +1096,7 @@ class PairPotential(object):
                 return "%s %s %.2f"%(self.filename, self.entry, self.cutoff)
             return "%28s %s %s %.2f"%(self.name, self.filename, self.entry, self.cutoff)
         def __repr__(self):
-            return "%s %s %i %s"%(self.name, self.style, self.N, self.entry)
+            return "%s %s %i %s"%(self.name, self.style, self.N, self.keyword)
 
 
     class LjCutCoulLong(object):

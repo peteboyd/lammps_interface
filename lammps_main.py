@@ -238,7 +238,7 @@ class LammpsSimulation(object):
                     table_pot = deepcopy(i_data)
                     table_str += table_pot['table_function'](i,j, table_pot)
                     table_pot['table_potential'].filename = "table." + self.name 
-                    self.unique_pair_types((i, j, 'table')) = table_pot
+                    self.unique_pair_types[(i, j, 'table')] = table_pot
 
         # can be mixed by lammps
         else:
@@ -948,11 +948,17 @@ class LammpsSimulation(object):
             for pair,data in sorted(self.unique_pair_types.items()):
                 n1, n2 = self.unique_atom_types[pair[0]], self.unique_atom_types[pair[1]]
                 try:
-                    pair[2]
-                    inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
-                        pair[0], pair[1], data['h_bond_potential'],
-                        self.graph.node[n1]['force_field_type'],
-                        self.graph.node[n2]['force_field_type'])
+                    if pair[2] == 'hb':
+                        inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
+                            pair[0], pair[1], data['h_bond_potential'],
+                            self.graph.node[n1]['force_field_type'],
+                            self.graph.node[n2]['force_field_type'])
+                    elif pair[2] == 'table':
+                        inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff",
+                            pair[0], pair[1], data['table_potential'],
+                            self.graph.node[n1]['force_field_type'],
+                            self.graph.node[n2]['force_field_type'])
+
                 except IndexError:
                     pass
                 inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 

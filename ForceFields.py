@@ -1526,13 +1526,13 @@ class MOF_FF(ForceField):
         eps = MOFFF_atoms[data['force_field_type']][4]
         sig = MOFFF_atoms[data['force_field_type']][3]
 
-        data['pair_potential'] = PairPotential.BuckCoulLong()
+        data['pair_potential'] = PairPotential.Buck()
         data['pair_potential'].cutoff = cutoff
         data['pair_potential'].eps = eps 
         data['pair_potential'].sig = sig
 
         data['tabulated_potential'] = True
-        data['table_funciton'] = self.pair_coul_term
+        data['table_function'] = self.pair_coul_term
         data['table_potential'] = PairPotential.Table()
     
     def pair_coul_term(self, node1, node2, data):
@@ -1555,7 +1555,7 @@ class MOF_FF(ForceField):
         K = 332.063711
 
         n = 1000 
-        R = np.linspace(0., self.cutoff, n)
+        R = np.linspace(0.001, self.cutoff, n)
         ff1 = self.graph.node[node1]['force_field_type']
         ff2 = self.graph.node[node2]['force_field_type']
 
@@ -1566,7 +1566,7 @@ class MOF_FF(ForceField):
         F_coeff = - K*qi*qj * 2/(math.sqrt(math.pi) * sigij)
         str += "# damped coulomb potential for %s - %s\n"%(ff1, ff2)
         str += "GAUSS_%s_%s\n"%(ff1, ff2)
-        str += "N %i\n"
+        str += "N %i\n"%(n)
         data['table_potential'].style = 'linear'
         data['table_potential'].N = n
         data['table_potential'].keyword = 'ewald'
@@ -1582,7 +1582,7 @@ class MOF_FF(ForceField):
         return(str)
 
     def special_commands(self):
-        st = ["%-15s %s"%("pair_modify", "tail yes"), 'special_bonds lj 1 1 1 coul 0.6 0.6 1 #!!! Note: Gaussian charges have to be used!', "%-15s %.1f"%('dielectric', 1.0)]
+        st = ["%-15s %s"%("pair_modify", "tail yes"), 'special_bonds lj 0 0 1 coul 1 1 1 #!!! Note: Gaussian charges have to be used!', "%-15s %.1f"%('dielectric', 1.0)]
         return st
 
 class FMOFCu(ForceField):
