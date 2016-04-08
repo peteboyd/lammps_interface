@@ -236,7 +236,7 @@ class LammpsSimulation(object):
 
                 if i_data['tabulated_potential'] and j_data['tabulated_potential']:
                     table_pot = deepcopy(i_data)
-                    table_str += table_pot['table_function'](i,j, table_pot)
+                    table_str += table_pot['table_function'](i_data,j_data, table_pot)
                     table_pot['table_potential'].filename = "table." + self.name 
                     self.unique_pair_types[(i, j, 'table')] = table_pot
 
@@ -304,7 +304,7 @@ class LammpsSimulation(object):
             self.improper_style = "" 
         pairs = set(["%r"%(j['pair_potential']) for j in list(self.unique_pair_types.values())]) | \
                 set(["%r"%(j['h_bond_potential']) for j in list(self.unique_pair_types.values()) if j['h_bond_potential'] is not None]) | \
-                set(["%r"%(j['table_potential']) for j in list(self.unique_pair_types.values()) if j['table_potential'] is not None]) 
+                set(["%r"%(j['table_potential']) for j in list(self.unique_pair_types.values()) if j['tabulated_potential']]) 
 
         if len(list(pairs)) > 1:
             self.pair_style = "hybrid/overlay %s"%(" ".join(list(pairs)))
@@ -958,13 +958,13 @@ class LammpsSimulation(object):
                             pair[0], pair[1], data['table_potential'],
                             self.graph.node[n1]['force_field_type'],
                             self.graph.node[n2]['force_field_type'])
-
+                    else:
+                        inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
+                            pair[0], pair[1], data['pair_potential'],
+                            self.graph.node[n1]['force_field_type'],
+                            self.graph.node[n2]['force_field_type'])
                 except IndexError:
                     pass
-                inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
-                    pair[0], pair[1], data['pair_potential'],
-                    self.graph.node[n1]['force_field_type'],
-                    self.graph.node[n2]['force_field_type'])
             inp_str += "#### END Pair Coefficients ####\n\n"
    
         
@@ -1033,10 +1033,6 @@ class LammpsSimulation(object):
         inp_str += "%-15s %s\n"%("fix","1 all box/relax tri 0.0 vmax 0.01")
         inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
         inp_str += "%-15s %s\n"%("unfix", "1")
-        inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
-        inp_str += "%-15s %s\n"%("fix","2 all box/relax tri 0.0 vmax 0.01")
-        inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
-        inp_str += "%-15s %s\n"%("unfix", "2")
         inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
         inp_str += "%-15s %s\n"%("undump","%s_mov"%self.name)
     

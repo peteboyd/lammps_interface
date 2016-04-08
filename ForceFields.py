@@ -1556,11 +1556,11 @@ class MOF_FF(ForceField):
 
         n = 1000 
         R = np.linspace(0.001, self.cutoff, n)
-        ff1 = self.graph.node[node1]['force_field_type']
-        ff2 = self.graph.node[node2]['force_field_type']
+        ff1 = node1['force_field_type']
+        ff2 = node2['force_field_type']
 
-        qi = self.graph.node[node1]['charge']
-        qj = self.graph.node[node2]['charge']
+        qi = node1['charge']
+        qj = node2['charge']
         sigij = math.sqrt(MOFFF_atoms[ff1][7] * MOFFF_atoms[ff2][7])
         E_coeff = K*qi*qj
         F_coeff = - K*qi*qj * 2/(math.sqrt(math.pi) * sigij)
