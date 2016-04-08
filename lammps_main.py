@@ -1037,7 +1037,8 @@ class LammpsSimulation(object):
     def cut_molecule(self, nodes):
         mgraph = self.graph.subgraph(nodes).copy()
         self.graph.remove_nodes_from(nodes)
-        indices = np.array(nodes) - 1
+        indices = np.array(list(nodes)) 
+        indices -= 1
         mgraph.coordinates = self.graph.coordinates[indices,:].copy()
         mgraph.sorted_edge_dict = self.graph.sorted_edge_dict.copy()
         mgraph.distance_matrix = self.graph.distance_matrix.copy()
