@@ -154,7 +154,12 @@ class MolecularGraph(nx.Graph):
             i1,i2 = node1['index']-1, node2['index']-1
             rad = (COVALENT_RADII[e1] + COVALENT_RADII[e2])
             dist = self.distance_matrix[i1,i2]
-            if dist*scale_factor < rad:
+            tempsf = scale_factor
+            # probably a better way to fix these kinds of issues..
+            if ("F" in [e1, e2]) and ("Cu" in [e1, e2]):
+                tempsf = 0.8
+            if dist*tempsf < rad:
+
                 flag = self.compute_bond_image_flag(n1, n2, cell)
                 self.sorted_edge_dict.update({(n1,n2): (n1, n2), (n2, n1):(n1, n2)})
                 self.add_edge(n1, n2, key=self.number_of_edges() + 1, 
