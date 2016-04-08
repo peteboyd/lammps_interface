@@ -1517,17 +1517,69 @@ class MOF_FF(ForceField):
         data['potential'].K = Kopb 
         data['potential'].chi0 = c0
 
-    def pair_terms( self, node , data, cutoff):
+    def pair_terms(self, node, data, cutoff):
         """
         Buckingham equation in MM3 type is used!
+        
+        Also, Table for short range coulombic interactions
         """
         eps = MOFFF_atoms[data['force_field_type']][4]
         sig = MOFFF_atoms[data['force_field_type']][3]
 
-        data['pair_potential']=PairPotential.BuckCoulLong()
-        data['pair_potential'].cutoff= cutoff
+        data['pair_potential'] = PairPotential.BuckCoulLong()
+        data['pair_potential'].cutoff = cutoff
         data['pair_potential'].eps = eps 
         data['pair_potential'].sig = sig
+
+        data['tabulated_potential'] = True
+        data['table_funciton'] = self.pair_coul_term
+        data['table_potential'] = PairPotential.Table()
+    
+    def pair_coul_term(self, node1, node2, data):
+        """MOF-FF uses a damped gaussian for close-range interactions.
+        This is added in a tabulated form.
+        
+        k = 332.063711 kcal*angstroms/e^2
+
+        E_ij = k*qi*qj*erf(r_ij/sig_ij)/r_ij
+
+        --- From Wolfram Alpha ---
+        F_ij = - (K*qi*qj) * (2/(pi^(.5) * sig_ij)) * [ e^(-r_ij^2/sig_ij^2) / r_ij - erf(r_ij/sig_ij)/r_ij^2 ]
+        ---
+
+        N is set to 1000 by default
+
+        """
+        str = ""
+        # kcal/mol energy units assumed...
+        K = 332.063711
+
+        n = 1000 
+        R = np.linspace(0., self.cutoff, n)
+        ff1 = self.graph.node[node1]['force_field_type']
+        ff2 = self.graph.node[node2]['force_field_type']
+
+        qi = self.graph.node[node1]['charge']
+        qj = self.graph.node[node2]['charge']
+        sigij = math.sqrt(MOFFF_atoms[ff1][7] * MOFFF_atoms[ff2][7])
+        E_coeff = K*qi*qj
+        F_coeff = - K*qi*qj * 2/(math.sqrt(math.pi) * sigij)
+        str += "# damped coulomb potential for %s - %s\n"%(ff1, ff2)
+        str += "GAUSS_%s_%s\n"%(ff1, ff2)
+        str += "N %i\n"
+        data['table_potential'].style = 'linear'
+        data['table_potential'].N = n
+        data['table_potential'].keyword = 'ewald'
+        data['table_potential'].cutoff = self.cutoff
+        data['table_potential'].entry = "GAUSS_%s_%s"%(ff1, ff2)
+        data['table_potential'].N = n
+
+        for i, r in enumerate(R):
+            rsq = r**2
+            e = E_coeff*math.erf(r/sigij)/r 
+            f = F_coeff * (math.exp(-(rsq)/(sigij**2))/ r - math.erf(r/sigij)/(rsq))
+            str += "%i %.3f %f %f\n"%(i, r, e, f)
+        return(str)
 
     def special_commands(self):
         st = ["%-15s %s"%("pair_modify", "tail yes"), 'special_bonds lj 1 1 1 coul 0.6 0.6 1 #!!! Note: Gaussian charges have to be used!', "%-15s %.1f"%('dielectric', 1.0)]

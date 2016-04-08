@@ -78,6 +78,8 @@ class MolecularGraph(nx.Graph):
         kwargs.update({'pair_potential':None})
         kwargs.update({'h_bond_donor':False})
         kwargs.update({'h_bond_potential':None})
+        kwargs.update({'tabulated_potential':False})
+        kwargs.update({'table_potential':None})
         try:
             kwargs['charge'] = float(kwargs['_atom_type_partial_charge'])
         except KeyError:

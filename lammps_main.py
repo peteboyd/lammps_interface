@@ -188,8 +188,9 @@ class LammpsSimulation(object):
                 pot_names.append('h_bonding')
             pot_names.append(data['pair_potential'].name)
         # mix yourself
-	
-        if len(list(set(pot_names))) > 1 or ('buck/coul/long' in list(set(pot_names))):
+
+        table_str = ""
+        if len(list(set(pot_names))) > 1 or (any(['buck' in i for i in list(set(pot_names))])):
             self.pair_in_data = False
             for (i, j) in itertools.combinations_with_replacement(nodes_list, 2):
                 n1, n2 = self.unique_atom_types[i], self.unique_atom_types[j]
@@ -209,7 +210,7 @@ class LammpsSimulation(object):
                     self.unique_pair_types[(i,j,'hb')] = hdata 
                 # mix Lorentz-Berthelot rules
                 pair_data = deepcopy(i_data)
-                if i_data['pair_potential'].name == 'buck/coul/long' and j_data['pair_potential'].name == 'buck/coul/long':
+                if 'buck' in i_data['pair_potential'].name and 'buck' in j_data['pair_potential'].name:
                     eps1 = i_data['pair_potential'].eps 
                     eps2 = j_data['pair_potential'].eps 
                     sig1 = i_data['pair_potential'].sig 
@@ -224,13 +225,21 @@ class LammpsSimulation(object):
                     pair_data['pair_potential'].A = A 
                     pair_data['pair_potential'].rho = Rho
                     pair_data['pair_potential'].C = C
-                    self.unique_pair_types[(i,j)] = pair_data
+                    # assuming i_data has the same pair_potential name as j_data
+                    self.unique_pair_types[(i,j, i_data['pair_potential'].name)] = pair_data
 
-                else:
+                elif 'lj' in i_data['pair_potential'].name and 'lj' in j_data['pair_potential'].name:
 
                     pair_data['pair_potential'].eps = np.sqrt(i_data['pair_potential'].eps*j_data['pair_potential'].eps)
                     pair_data['pair_potential'].sig = (i_data['pair_potential'].sig + j_data['pair_potential'].sig)/2.
                     self.unique_pair_types[(i,j)] = pair_data
+
+                if i_data['tabulated_potential'] and j_data['tabulated_potential']:
+                    table_pot = deepcopy(i_data)
+                    table_str += table_pot['table_function'](i,j, table_pot)
+                    table_pot['table_potential'].filename = "table." + self.name 
+                    self.unique_pair_types((i, j, 'table')) = table_pot
+
         # can be mixed by lammps
         else:
             for b in sorted(list(self.unique_atom_types.keys())):
@@ -238,6 +247,11 @@ class LammpsSimulation(object):
                 # compute and store angle terms
                 pot = data['pair_potential']
                 self.unique_pair_types[b] = data
+
+        if (table_str):
+            f = open('table.'+self.name, 'w')
+            f.writelines(table_str)
+            f.close()
         return
 
     def define_styles(self):
@@ -289,7 +303,9 @@ class LammpsSimulation(object):
         else:
             self.improper_style = "" 
         pairs = set(["%r"%(j['pair_potential']) for j in list(self.unique_pair_types.values())]) | \
-                set(["%r"%(j['h_bond_potential']) for j in list(self.unique_pair_types.values()) if j['h_bond_potential'] is not None])
+                set(["%r"%(j['h_bond_potential']) for j in list(self.unique_pair_types.values()) if j['h_bond_potential'] is not None]) | \
+                set(["%r"%(j['table_potential']) for j in list(self.unique_pair_types.values()) if j['table_potential'] is not None]) 
+
         if len(list(pairs)) > 1:
             self.pair_style = "hybrid/overlay %s"%(" ".join(list(pairs)))
         else:
