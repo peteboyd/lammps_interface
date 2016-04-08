@@ -591,7 +591,7 @@ class MolecularGraph(nx.Graph):
         self.compute_bonding(cell)
         self.compute_init_typing()
         self.compute_bond_typing()
-        self.detect_inorganic_clusters(num_neighbors=5) # num neighbors determines how many nodes from the metal element to cut out for comparison 
+        self.detect_inorganic_clusters(num_neighbors=5, tol=0.8) # num neighbors determines how many nodes from the metal element to cut out for comparison 
         self.compute_angles()
         self.compute_dihedrals()
         self.compute_improper_dihedrals()
@@ -653,7 +653,7 @@ class MolecularGraph(nx.Graph):
                 cg.add_edge((a1,b1), (a2,b2))
         return cg
 
-    def detect_inorganic_clusters(self, num_neighbors=5):
+    def detect_inorganic_clusters(self, num_neighbors=5, tol=0.1):
         """Detect clusters such as the copper paddlewheel using
         maximum clique detection. This will assign specific atoms
         with a special flag for use when building their force field.
@@ -688,7 +688,7 @@ class MolecularGraph(nx.Graph):
                         pass
                 cluster_found = False
                 for name, cluster in possible_clusters.items():
-                    cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node], tol=0.4)
+                    cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node], tol=tol)
                     cliques = nx.find_cliques(cg)
                     for clique in cliques:
                         if len(clique) == cluster.number_of_nodes():
