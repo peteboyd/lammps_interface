@@ -205,7 +205,6 @@ class LammpsSimulation(object):
                     table_str += table_pot['table_function'](i_data,j_data, table_pot)
                     table_pot['table_potential'].filename = "table." + self.name
                     self.unique_pair_types[(i, j, 'table')] = table_pot
-                    print("%r"%(table_pot['table_potential']))
 
                 if (i_data['h_bond_donor'] and j_data['element'] in electro_neg_atoms and pairwise_test):
                     hdata = deepcopy(i_data)
@@ -237,7 +236,6 @@ class LammpsSimulation(object):
                     pair_data['tabulated_potential'] = False
                     # assuming i_data has the same pair_potential name as j_data
                     self.unique_pair_types[(i,j, i_data['pair_potential'].name)] = pair_data
-                    print(pair_data['tabulated_potential'], "%r"%(pair_data['table_potential']))
                 elif 'lj' in i_data['pair_potential'].name and 'lj' in j_data['pair_potential'].name:
 
                     pair_data['pair_potential'].eps = np.sqrt(i_data['pair_potential'].eps*j_data['pair_potential'].eps)

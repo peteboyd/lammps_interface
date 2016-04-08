@@ -1564,7 +1564,7 @@ class MOF_FF(ForceField):
         sigij = math.sqrt(MOFFF_atoms[ff1][7] * MOFFF_atoms[ff2][7])
         E_coeff = K*qi*qj
         F_coeff = - K*qi*qj * 2/(math.sqrt(math.pi) * sigij)
-        str += "# damped coulomb potential for %s - %s\n"%(ff1, ff2)
+        #str += "# damped coulomb potential for %s - %s\n"%(ff1, ff2)
         str += "GAUSS_%s_%s\n"%(ff1, ff2)
         str += "N %i\n"%(n)
         data['table_potential'].style = 'linear'
@@ -1578,7 +1578,7 @@ class MOF_FF(ForceField):
             rsq = r**2
             e = E_coeff*math.erf(r/sigij)/r 
             f = F_coeff * (math.exp(-(rsq)/(sigij**2))/ r - math.erf(r/sigij)/(rsq))
-            str += "%i %.3f %f %f\n"%(i, r, e, f)
+            str += "%i %.3f %f %f\n"%(i+1, r, e, f)
         return(str)
 
     def special_commands(self):
