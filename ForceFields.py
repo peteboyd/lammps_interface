@@ -1554,8 +1554,9 @@ class MOF_FF(ForceField):
         # kcal/mol energy units assumed...
         K = 332.063711
 
-        n = 1000 
-        R = np.linspace(0.001, self.cutoff, n)
+        n = 5000 
+        rlow=0.01
+        R = np.linspace(rlow, self.cutoff+5., n)
         ff1 = node1['force_field_type']
         ff2 = node2['force_field_type']
 
@@ -1566,7 +1567,7 @@ class MOF_FF(ForceField):
         F_coeff = - K*qi*qj * 2/(math.sqrt(math.pi) * sigij)
         str += "# damped coulomb potential for %s - %s\n"%(ff1, ff2)
         str += "GAUSS_%s_%s\n"%(ff1, ff2)
-        str += "N %i\n"%(n)
+        str += "N %i RSQ %.2f %.f\n"%(n, rlow, self.cutoff+5.)
         data['table_potential'].style = 'linear'
         data['table_potential'].N = n
         data['table_potential'].keyword = 'ewald'
