@@ -1130,6 +1130,24 @@ class Cell(object):
         """Get the 3x3 vector cell representation."""
         return self._inverse
 
+    def mod_to_UC(self, num):
+        """
+        Retrun any fractional coordinate back into the unit cell
+        """
+        if(hasattr(num,'__iter__')):
+            for i in range(len(num)):
+                if(num[i] < 0.0):
+                    num[i] = 1+math.fmod(num[i], 1.0)
+                else:
+                    num[i] = math.fmod(num[i], 1.0)
+
+            return num
+        else:
+            if(num < 0.0):
+                num = math.fmod((num*(-1)), 1.0)
+            else:
+                num = math.fmod(num, 1.0)
+
     def set_cell(self, value):
         """Set cell and params from the cell representation."""
         # Class internally expects an array
