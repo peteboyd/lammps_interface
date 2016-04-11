@@ -59,8 +59,7 @@ class MolecularGraph(nx.Graph):
         # are referenced properly (particularly across periodic images)
         self.sorted_edge_dict = {}
         self.molecule_images = []
-        # latest version of NetworkX has removed nodes_iter...
-        self.nodes_iter = self.nodes
+        #FIXME(pboyd): latest version of NetworkX has removed nodes_iter...
     def edges_iter2(self, **kwargs):
         for n1, n2, d in self.edges_iter(**kwargs):
             yield (self.sorted_edge_dict[(n1, n2)][0], self.sorted_edge_dict[(n1,n2)][1], d)
