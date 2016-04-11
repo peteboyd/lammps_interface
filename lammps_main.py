@@ -1006,6 +1006,7 @@ class LammpsSimulation(object):
                                  self.name, 
                                  " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
                                             for key in sorted(self.unique_atom_types.keys())])))
+        inp_str += "thermo 1\nthermo_style custom step temp cella cellb cellc etotal lx ly lz \n"
         inp_str += "%-15s %s\n"%("min_style","cg")
         inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
         inp_str += "%-15s %s\n"%("fix","1 all box/relax tri 0.0 vmax 0.01")
@@ -1016,7 +1017,7 @@ class LammpsSimulation(object):
         inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
         inp_str += "%-15s %s\n"%("unfix", "2")
         inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
-        inp_str += "%-15s %s\n"%("undump","%s_mov"%self.name)
+#        inp_str += "%-15s %s\n"%("undump","%s_mov"%self.name)
     
     #    inp_str += "thermo_style custom step temp etotal ebond eangle edihed eimp\n thermo 1 \n timestep 0.5 \n fix   2 all nvt temp 300.0 300  100\n run  50000"
         return inp_str
