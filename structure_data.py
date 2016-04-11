@@ -52,13 +52,15 @@ class MolecularGraph(nx.Graph):
         self.coordinates = None
         self.distance_matrix = None
         self.original_size = 0
+        self.inorganic_sbus = {}
         self.cell = None
         #TODO(pboyd): networkx edges do not store the nodes in order!
         # Have to keep a dictionary lookup to make sure the nodes 
         # are referenced properly (particularly across periodic images)
         self.sorted_edge_dict = {}
         self.molecule_images = []
-
+        # latest version of NetworkX has removed nodes_iter...
+        self.nodes_iter = self.nodes
     def edges_iter2(self, **kwargs):
         for n1, n2, d in self.edges_iter(**kwargs):
             yield (self.sorted_edge_dict[(n1, n2)][0], self.sorted_edge_dict[(n1,n2)][1], d)
@@ -77,6 +79,8 @@ class MolecularGraph(nx.Graph):
         kwargs.update({'pair_potential':None})
         kwargs.update({'h_bond_donor':False})
         kwargs.update({'h_bond_potential':None})
+        kwargs.update({'tabulated_potential':False})
+        kwargs.update({'table_potential':None})
         try:
             kwargs['charge'] = float(kwargs['_atom_type_partial_charge'])
         except KeyError:
@@ -93,7 +97,7 @@ class MolecularGraph(nx.Graph):
         n = kwargs.pop('_atom_site_label')
         kwargs.update({'ciflabel':n})
         # to identify Cu paddlewheels, etc.
-        kwargs.update({'special_flag':None})
+        #kwargs.update({'special_flag':None})
         self.add_node(idx, **kwargs)
    
     def compute_bonding(self, cell, scale_factor = 0.9):
@@ -153,7 +157,12 @@ class MolecularGraph(nx.Graph):
             i1,i2 = node1['index']-1, node2['index']-1
             rad = (COVALENT_RADII[e1] + COVALENT_RADII[e2])
             dist = self.distance_matrix[i1,i2]
-            if dist*scale_factor < rad:
+            tempsf = scale_factor
+            # probably a better way to fix these kinds of issues..
+            if ("F" in [e1, e2]) and ("Cu" in [e1, e2]):
+                tempsf = 0.8
+            if dist*tempsf < rad:
+
                 flag = self.compute_bond_image_flag(n1, n2, cell)
                 self.sorted_edge_dict.update({(n1,n2): (n1, n2), (n2, n1):(n1, n2)})
                 self.add_edge(n1, n2, key=self.number_of_edges() + 1, 
@@ -297,7 +306,7 @@ class MolecularGraph(nx.Graph):
     
     def min_img(self, coord):
         f = np.dot(self.cell.inverse, coord)
-        f = f%0.5
+        f -= np.around(f)
         return np.dot(f, self.cell.cell)
 
     def min_img_distance(self, coords1, coords2, cell):
@@ -590,7 +599,7 @@ class MolecularGraph(nx.Graph):
         self.compute_bonding(cell)
         self.compute_init_typing()
         self.compute_bond_typing()
-        self.detect_inorganic_clusters(num_neighbors=5) # num neighbors determines how many nodes from the metal element to cut out for comparison 
+        self.detect_inorganic_clusters(num_neighbors=5, tol=0.8) # num neighbors determines how many nodes from the metal element to cut out for comparison 
         self.compute_angles()
         self.compute_dihedrals()
         self.compute_improper_dihedrals()
@@ -652,7 +661,7 @@ class MolecularGraph(nx.Graph):
                 cg.add_edge((a1,b1), (a2,b2))
         return cg
 
-    def detect_inorganic_clusters(self, num_neighbors=5):
+    def detect_inorganic_clusters(self, num_neighbors=5, tol=0.1):
         """Detect clusters such as the copper paddlewheel using
         maximum clique detection. This will assign specific atoms
         with a special flag for use when building their force field.
@@ -687,7 +696,7 @@ class MolecularGraph(nx.Graph):
                         pass
                 cluster_found = False
                 for name, cluster in possible_clusters.items():
-                    cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node])
+                    cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node], tol=tol)
                     cliques = nx.find_cliques(cg)
                     for clique in cliques:
                         if len(clique) == cluster.number_of_nodes():
@@ -697,6 +706,7 @@ class MolecularGraph(nx.Graph):
                                 self.node[i]['special_flag'] = cluster.node[j]['special_flag']
                             cluster_found = True
                             print("Found %s"%(name))
+                            self.inorganic_sbus.setdefault(name, []).append([i for (i,j) in clique])
                             break
 
                     if(cluster_found):
@@ -709,6 +719,7 @@ class MolecularGraph(nx.Graph):
 
         for j in set(no_cluster):
             print ("No recognizable metal clusters for element %s"%(j))
+
 
     def build_supercell(self, sc, lattice, track_molecule=False):
         """Construct a graph with nodes supporting the size of the 
@@ -1097,486 +1108,6 @@ def write_CIF(graph, cell):
     file.writelines(str(c))
     file.close()
 
-class Structure(object):
-
-    def __init__(self, name):
-        self.name = name
-        self.cell = Cell()
-        self.atoms = []
-        self.bonds = []
-        self.angles = []
-        self.dihedrals = []
-        self.impropers = []
-        self.pairs = []
-        self.charge = 0.0
-        try:
-            self.graph = nx.Graph()
-        except NameError:
-            self.graph = None
-
-    
-
-    def obtain_graph(self):
-        """Attempt to assign bond and atom types based on graph analysis."""
-        if self.graph is None:
-            print("Warning atom and bond typing could not be completed due "+
-                    "to lacking networkx module. All bonds will be of 'single' type" +
-                    " which may result in a poor description of your system!")
-            return
-
-        for atom in self.atoms:
-            self.graph.add_node(atom.ciflabel)
-        for bond in self.bonds:
-            at1, at2 = bond.atoms
-            self.graph.add_edge(at1.ciflabel, at2.ciflabel)
-
-    def compute_bonding(self, scale_factor=0.9):
-        coords = np.array([a.coordinates for a in self.atoms])
-        elems = [a.element for a in self.atoms]
-        distmat = np.empty((coords.shape[0], coords.shape[0]))
-        organics = set(["H", "C", "N", "O", "F", "Cl", "S", "B"])
-        for (i,j) in zip(*np.triu_indices(coords.shape[0], k=1)):
-            e1 = elems[i]
-            e2 = elems[j]
-            dist = self.min_img_distance(coords[i], coords[j])
-            distmat[j,i] = dist
-            covrad = COVALENT_RADII[e1] + COVALENT_RADII[e2]
-            if(dist*scale_factor < covrad):
-                # make sure hydrogens don't bond to metals (specific case..)
-                if "H" in [e1, e2] and not set([e1, e2])<=organics:
-                    pass
-                else:
-                    # figure out bond orders when typing.
-                    bond = Bond(atm1=self.atoms[i], atm2=self.atoms[j], order=1)
-                    bond.length = dist
-                    self.bonds.append(bond)
-                    self.atoms[i].neighbours.append(self.atoms[j].index)
-                    self.atoms[j].neighbours.append(self.atoms[i].index)
-        # make sure hydrogens don't bond to other hydrogens.. umm. except for H2
-        delbonds = []
-        for idx, bond in enumerate(self.bonds):
-            a1, a2 = bond.atoms
-            if a1.element == "H" and a2.element == "H":
-                if len(a1.neighbours) > 1 or len(a2.neighbours) > 1:
-                    delbonds.append(idx)
-                    del(a1.neighbours[a1.neighbours.index(a2.index)])
-                    del(a2.neighbours[a2.neighbours.index(a1.index)])
-        for j in reversed(sorted(delbonds)):
-            del(self.bonds[j])
-        # re-index bonds after modification
-        for idx, bond in enumerate(self.bonds):
-            bond.index = idx
-        self.compute_bond_image_flag()
-
-    def get_atom_from_label(self, label):
-        for atom in self.atoms:
-            if atom.ciflabel == label:
-                return atom
-
-    def get_bond(self, atom1, atom2):
-        for bond in self.bonds:
-            if set((atom1, atom2)) ==  set(bond.atoms):
-                return bond
-        return None
-    
-    def get_angle(self, atom_a, atom_b, atom_c):
-        for angle in self.angles:
-            if (atom_a, atom_b, atom_c) ==  angle.atoms:
-                return angle
-        return None
-
-    
-    def compute_pair_terms(self):
-        """Place holder for hydrogen bonding?"""
-        for i in self.atoms:
-            pair = PairTerm(i, i)
-            self.pairs.append(pair)
-
-
-
-class Bond(object):
-    __ID = 0
-
-    def __init__(self, atm1=None, atm2=None, order=1):
-        self.index = self.__ID
-        self.order = order
-        self._atoms = (atm1, atm2)
-        self.length = 0.
-        self.symflag = 0
-        self.ff_type_index = 0
-        self.midpoint = np.array([0., 0., 0.])
-        self.potential = None
-        Bond.__ID += 1
-        self.ff_label = None
-
-    def compute_length(self, coord1, coord2):
-        return np.linalg.norm(np.array(coord2) - np.array(coord1))
-
-    def set_atoms(self, atm1, atm2):
-        self._atoms = (atm1, atm2)
-
-    def get_atoms(self):
-        return self._atoms
-
-    atoms = property(get_atoms, set_atoms)
-    
-    @property
-    def indices(self):
-        if not None in self.atoms:
-            return (self.atoms[0].index, self.atoms[1].index)
-        return (None, None)
-
-    @property
-    def elements(self):
-        if not None in self.atoms:
-            return (self.atoms[0].element, self.atoms[1].element)
-        return (None, None)
-
-class Angle(object):
-    __ID = 0
-    def __init__(self, abbond=None, bcbond=None):
-        """Class to contain angles. Atoms are labelled according to the angle:
-        a   c
-         \ /
-          b 
-        """
-        # atoms are obtained from the bonds.
-        self._atoms = (None, None, None)
-        if abbond is not None and bcbond is not None:
-            self.bonds = (abbond, bcbond)
-        else:
-            self._bonds = (abbond, bcbond)
-        self.ff_type_index = 0
-        self.potential = None
-        self._angle = 0.
-        self.index = self.__ID
-        Angle.__ID += 1
-        self.ff_label = None
-
-    def set_bonds(self, bonds):
-        """order is assumed (ab_bond, bc_bond)"""
-        self._bonds = bonds
-        atm1, atm2 = bonds[0].atoms
-        atm3, atm4 = bonds[1].atoms
-
-        self._atoms = list(self._atoms)
-        if atm1 in (atm3, atm4):
-            self._atoms[0] = atm2
-            self._atoms[1] = atm1
-            if atm1 == atm3:
-                self._atoms[2] = atm4
-            else:
-                self._atoms[2] = atm3
-
-        elif atm2 in (atm3, atm4):
-            self._atoms[0] = atm1
-            self._atoms[1] = atm2
-            if atm2 == atm3:
-                self._atoms[2] = atm4
-            else:
-                self._atoms[2] = atm3
-        self._atoms = tuple(self._atoms)
-
-    def get_bonds(self):
-        return self._bonds
-
-    bonds = property(get_bonds, set_bonds)
-
-    @property
-    def ab_bond(self):
-        return self._bonds[0]
-   
-    @property
-    def bc_bond(self):
-        return self._bonds[1]
-   
-    @property
-    def atoms(self):
-        return self._atoms
-
-    @property
-    def a_atom(self):
-        return self._atoms[0]
-
-    @property
-    def b_atom(self):
-        return self._atoms[1]
-
-    @property
-    def c_atom(self):
-        return self._atoms[2]
-
-class Dihedral(object):
-    """Class to store dihedral angles
-    a
-     \ 
-      b -- c
-            \ 
-             d
-
-    """
-    __ID = 0
-    def __init__(self, angle1=None, angle2=None):
-        self._atoms = (None, None, None, None)
-        self._bonds = (None, None, None)
-        # angles of the form: angle_abc, angle_bcd
-        self._angles = (angle1, angle2)
-        if not None in (angle1, angle2):
-            self.angles = (angle1, angle2)
-        self.ff_type_index = 0
-        self.index = self.__ID
-        self.potential = None
-        Dihedral.__ID += 1
-        self.ff_label = None
-
-    def set_angles(self, angles):
-        angle1, angle2 = angles
-        bonds1 = angle1.bonds
-        bonds2 = angle2.bonds
-
-        if angle1.bc_bond != angle2.ab_bond:
-            if angle1.bc_bond == angle2.bc_bond:
-                angle2.bonds = tuple(reversed(bonds2))
-            elif angle1.ab_bond == angle2.ab_bond:
-                angle1.bonds = tuple(reversed(bonds1))
-            elif angle1.ab_bond == angle2.bc_bond:
-                angle1.bonds = tuple(reversed(bonds1))
-                angle2.bonds = tuple(reversed(bonds2))
-        self._angles = (angle1, angle2)
-
-        assert angle1.bc_bond == angle2.ab_bond
-
-        assert angle1.b_atom == angle2.a_atom
-
-        assert angle1.c_atom == angle2.b_atom
-
-        self._atoms = tuple([angle1.a_atom, angle1.b_atom,
-                             angle2.b_atom, angle2.c_atom])
-        self._bonds = tuple([angle1.ab_bond, angle1.bc_bond, angle2.bc_bond])
-
-    def get_angles(self):
-        return self._angles
-
-    angles = property(get_angles, set_angles)
-
-    @property
-    def a_atom(self):
-        return self._atoms[0]
-
-    @property
-    def b_atom(self):
-        return self._atoms[1]
-
-    @property
-    def c_atom(self):
-        return self._atoms[2]
-    
-    @property
-    def d_atom(self):
-        return self._atoms[3]
-    
-    @property
-    def atoms(self):
-        return self._atoms
-
-    @property
-    def ab_bond(self):
-        return self._bonds[0]
-
-    @property
-    def bc_bond(self):
-        return self._bonds[1]
-
-    @property
-    def cd_bond(self):
-        return self._bonds[2]
-
-    @property
-    def bonds(self):
-        return self._bonds
-
-    @property
-    def abc_angle(self):
-        return self._angles[0]
-
-    @property
-    def bcd_angle(self):
-        return self._angles[1]
-
-class PairTerm(object):
-    """Place holder for VDW and other
-    non-bonded potentials.
-
-    """
-    __ID = 0
-
-    def __init__(self, atm1=None, atm2=None):
-        self.ff_type_index = 0
-        self._atoms = (atm1, atm2)
-        self.potential = None
-        self.index = self.__ID
-        PairTerm.__ID += 1
-    
-    def set_atoms(self, atm1, atm2):
-        self._atoms = (atm1, atm2)
-
-    def get_atoms(self):
-        return self._atoms
-
-    atoms = property(get_atoms, set_atoms)
-    
-    @property
-    def indices(self):
-        if not None in self.atoms:
-            return (self.atoms[0].index, self.atoms[1].index)
-        return (None, None)
-
-    @property
-    def elements(self):
-        if not None in self.atoms:
-            return (self.atoms[0].element, self.atoms[1].element)
-        return (None, None)
-
-class ImproperDihedral(object):
-    """Class to store improper dihedral angles
-
-    a
-     \ 
-      b -- c
-      |
-      d
-
-    """
-    __ID = 0
-    def __init__(self, bond1=None, bond2=None, bond3=None):
-        self._atoms = (None, None, None, None)
-        self._bonds = (bond1, bond2, bond3)
-        if not None in (bond1, bond2, bond3):
-            self.bonds = (bond1, bond2, bond3)
-        self.ff_type_index = 0
-        self.potential = None
-        self.index = self.__ID
-        ImproperDihedral.__ID += 1
-        self.ff_label = None
-
-    def set_bonds(self, bonds):
-        self._angles = bonds
-        bond1, bond2, bond3 = bonds
-        self._atoms = [None, None, None, None]
-        for a1 in bond1.atoms:
-            for a2 in bond2.atoms:
-                for a3 in bond3.atoms:
-                    if a1 == a2 == a3:
-                        self._atoms[1] = a1
-
-        ab1, ab2 = bond1.atoms
-        ab3, ab4 = bond2.atoms
-        ab5, ab6 = bond3.atoms
-
-        if ab1 == self._atoms[1]:
-            self._atoms[0] = ab2
-        else:
-            self._atoms[0] = ab1
-
-        if ab3 == self._atoms[1]:
-            self._atoms[2] = ab4
-        else:
-            self._atoms[2] = ab3
-
-        if ab5 == self._atoms[1]:
-            self._atoms[3] = ab6
-        else:
-            self._atoms[3] = ab5
-
-    def get_bonds(self):
-        return self._bonds
-
-    bonds = property(get_bonds, set_bonds)
-
-    @property
-    def a_atom(self):
-        return self._atoms[0]
-
-    @property
-    def b_atom(self):
-        return self._atoms[1]
-
-    @property
-    def c_atom(self):
-        return self._atoms[2]
-    
-    @property
-    def d_atom(self):
-        return self._atoms[3]
-    
-    @property
-    def atoms(self):
-        return self._atoms
-
-    @property
-    def ab_bond(self):
-        return self._bonds[0]
-
-    @property
-    def bc_bond(self):
-        return self._bonds[1]
-
-    @property
-    def bd_bond(self):
-        return self._bonds[2]
-
-class Atom(object):
-    __ID = 0
-    def __init__(self, element="X", coordinates=np.zeros(3)):
-        self.element = element
-        self.index = self.__ID
-        self.neighbours = []
-        self.ciflabel = None
-        self.images = []
-        self.rings = []
-        self.molecule_id = (None, 0)
-        self.is_cycle = False
-        self.hybridization = ''
-        self.force_field_type = None
-        self.coordinates = coordinates
-        self.charge = 0.
-        self.ff_type_index = 0 # keeps track of the unique integer value assigned to the force field type
-        Atom.__ID += 1
-        self.image_index = -1 # If a copy, keeps the original index here.
-        self.h_bond_donor = False # keep track of h-bonding atoms (for DREIDING)
-
-    def scaled_pos(self, inv_cell):
-        return np.dot(inv_cell, self.coordinates[:3])
-
-    def in_cell_scaled(self, inv_cell):
-        return np.array([i%1 for i in self.scaled_pos(inv_cell)])
-
-    def in_cell(self, cell, inv_cell):
-        return np.dot(self.in_cell_scaled(inv_cell), cell)
-
-    @property
-    def mass(self):
-        return MASS[self.element]
-
-    @property
-    def atomic_number(self):
-        return ATOMIC_NUMBER.index(self.element)
-
-    def __copy__(self):
-        a = Atom()
-        a.element = self.element[:]
-        # index determined automatically
-        # neighbours re-calculated
-        a.ciflabel = "%s%i"%(a.element, a.index)
-        a.hybridization = self.hybridization[:]
-        a.coordinates = self.coordinates.copy()
-        a.charge = float(self.charge)
-        a.ff_type_index = int(self.ff_type_index)
-        a.force_field_type = self.force_field_type[:]
-        a.image_index = self.index
-        a.h_bond_donor = self.h_bond_donor
-        
-        return a
 
 class Cell(object):
     def __init__(self):
@@ -1598,6 +1129,24 @@ class Cell(object):
     def get_cell_inverse(self):
         """Get the 3x3 vector cell representation."""
         return self._inverse
+
+    def mod_to_UC(self, num):
+        """
+        Retrun any fractional coordinate back into the unit cell
+        """
+        if(hasattr(num,'__iter__')):
+            for i in range(len(num)):
+                if(num[i] < 0.0):
+                    num[i] = 1+math.fmod(num[i], 1.0)
+                else:
+                    num[i] = math.fmod(num[i], 1.0)
+
+            return num
+        else:
+            if(num < 0.0):
+                num = math.fmod((num*(-1)), 1.0)
+            else:
+                num = math.fmod(num, 1.0)
 
     def set_cell(self, value):
         """Set cell and params from the cell representation."""

@@ -188,8 +188,9 @@ class LammpsSimulation(object):
                 pot_names.append('h_bonding')
             pot_names.append(data['pair_potential'].name)
         # mix yourself
-	
-        if len(list(set(pot_names))) > 1 or ('buck/coul/long' in list(set(pot_names))):
+
+        table_str = ""
+        if len(list(set(pot_names))) > 1 or (any(['buck' in i for i in list(set(pot_names))])):
             self.pair_in_data = False
             for (i, j) in itertools.combinations_with_replacement(nodes_list, 2):
                 n1, n2 = self.unique_atom_types[i], self.unique_atom_types[j]
@@ -199,17 +200,25 @@ class LammpsSimulation(object):
                 mol2 = self.type_molecules[j]
                 # test to see if h-bonding to occur between molecules
                 pairwise_test = ((mol1 != mol2 and self.no_molecule_pair) or (not self.no_molecule_pair))
+                if i_data['tabulated_potential'] and j_data['tabulated_potential']:
+                    table_pot = deepcopy(i_data)
+                    table_str += table_pot['table_function'](i_data,j_data, table_pot)
+                    table_pot['table_potential'].filename = "table." + self.name
+                    self.unique_pair_types[(i, j, 'table')] = table_pot
+
                 if (i_data['h_bond_donor'] and j_data['element'] in electro_neg_atoms and pairwise_test):
                     hdata = deepcopy(i_data)
                     hdata['h_bond_potential'] = hdata['h_bond_function'](n2, self.graph, flipped=False)
+                    hdata['tabulated_potential'] = False
                     self.unique_pair_types[(i,j,'hb')] = hdata
                 if (j_data['h_bond_donor'] and i_data['element'] in electro_neg_atoms and pairwise_test):
                     hdata = deepcopy(j_data)
+                    hdata['tabulated_potential'] = False
                     hdata['h_bond_potential'] = hdata['h_bond_function'](n1, self.graph, flipped=True)
                     self.unique_pair_types[(i,j,'hb')] = hdata 
                 # mix Lorentz-Berthelot rules
                 pair_data = deepcopy(i_data)
-                if i_data['pair_potential'].name == 'buck/coul/long' and j_data['pair_potential'].name == 'buck/coul/long':
+                if 'buck' in i_data['pair_potential'].name and 'buck' in j_data['pair_potential'].name:
                     eps1 = i_data['pair_potential'].eps 
                     eps2 = j_data['pair_potential'].eps 
                     sig1 = i_data['pair_potential'].sig 
@@ -224,13 +233,16 @@ class LammpsSimulation(object):
                     pair_data['pair_potential'].A = A 
                     pair_data['pair_potential'].rho = Rho
                     pair_data['pair_potential'].C = C
-                    self.unique_pair_types[(i,j)] = pair_data
-
-                else:
+                    pair_data['tabulated_potential'] = False
+                    # assuming i_data has the same pair_potential name as j_data
+                    self.unique_pair_types[(i,j, i_data['pair_potential'].name)] = pair_data
+                elif 'lj' in i_data['pair_potential'].name and 'lj' in j_data['pair_potential'].name:
 
                     pair_data['pair_potential'].eps = np.sqrt(i_data['pair_potential'].eps*j_data['pair_potential'].eps)
                     pair_data['pair_potential'].sig = (i_data['pair_potential'].sig + j_data['pair_potential'].sig)/2.
-                    self.unique_pair_types[(i,j)] = pair_data
+                    pair_data['tabulated_potential'] = False
+                    self.unique_pair_types[(i,j, i_data['pair_potential'].name)] = pair_data
+
         # can be mixed by lammps
         else:
             for b in sorted(list(self.unique_atom_types.keys())):
@@ -238,6 +250,11 @@ class LammpsSimulation(object):
                 # compute and store angle terms
                 pot = data['pair_potential']
                 self.unique_pair_types[b] = data
+
+        if (table_str):
+            f = open('table.'+self.name, 'w')
+            f.writelines(table_str)
+            f.close()
         return
 
     def define_styles(self):
@@ -289,7 +306,8 @@ class LammpsSimulation(object):
         else:
             self.improper_style = "" 
         pairs = set(["%r"%(j['pair_potential']) for j in list(self.unique_pair_types.values())]) | \
-                set(["%r"%(j['h_bond_potential']) for j in list(self.unique_pair_types.values()) if j['h_bond_potential'] is not None])
+                set(["%r"%(j['h_bond_potential']) for j in list(self.unique_pair_types.values()) if j['h_bond_potential'] is not None]) | \
+                set(["%r"%(j['table_potential']) for j in list(self.unique_pair_types.values()) if j['tabulated_potential']]) 
         if len(list(pairs)) > 1:
             self.pair_style = "hybrid/overlay %s"%(" ".join(list(pairs)))
         else:
@@ -932,17 +950,23 @@ class LammpsSimulation(object):
             for pair,data in sorted(self.unique_pair_types.items()):
                 n1, n2 = self.unique_atom_types[pair[0]], self.unique_atom_types[pair[1]]
                 try:
-                    pair[2]
-                    inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
-                        pair[0], pair[1], data['h_bond_potential'],
-                        self.graph.node[n1]['force_field_type'],
-                        self.graph.node[n2]['force_field_type'])
+                    if pair[2] == 'hb':
+                        inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
+                            pair[0], pair[1], data['h_bond_potential'],
+                            self.graph.node[n1]['force_field_type'],
+                            self.graph.node[n2]['force_field_type'])
+                    elif pair[2] == 'table':
+                        inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff",
+                            pair[0], pair[1], data['table_potential'],
+                            self.graph.node[n1]['force_field_type'],
+                            self.graph.node[n2]['force_field_type'])
+                    else:
+                        inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
+                            pair[0], pair[1], data['pair_potential'],
+                            self.graph.node[n1]['force_field_type'],
+                            self.graph.node[n2]['force_field_type'])
                 except IndexError:
                     pass
-                inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
-                    pair[0], pair[1], data['pair_potential'],
-                    self.graph.node[n1]['force_field_type'],
-                    self.graph.node[n2]['force_field_type'])
             inp_str += "#### END Pair Coefficients ####\n\n"
    
         
@@ -1019,7 +1043,7 @@ class LammpsSimulation(object):
         inp_str += "%-15s %s\n"%("minimize","1.0e-8 1.0e-8 10000 100000")
 #        inp_str += "%-15s %s\n"%("undump","%s_mov"%self.name)
     
-    #    inp_str += "thermo_style custom step temp etotal ebond eangle edihed eimp\n thermo 1 \n timestep 0.5 \n fix   2 all nvt temp 300.0 300  100\n run  50000"
+#        inp_str += "thermo_style custom step temp etotal ebond eangle edihed eimp\n thermo 1 \n timestep 0.5 \n fix   2 all nvt temp 300.0 300  100\n run  50000"
         return inp_str
     
     def groups(self, ints):
@@ -1038,7 +1062,8 @@ class LammpsSimulation(object):
     def cut_molecule(self, nodes):
         mgraph = self.graph.subgraph(nodes).copy()
         self.graph.remove_nodes_from(nodes)
-        indices = np.array(nodes) - 1
+        indices = np.array(list(nodes)) 
+        indices -= 1
         mgraph.coordinates = self.graph.coordinates[indices,:].copy()
         mgraph.sorted_edge_dict = self.graph.sorted_edge_dict.copy()
         mgraph.distance_matrix = self.graph.distance_matrix.copy()

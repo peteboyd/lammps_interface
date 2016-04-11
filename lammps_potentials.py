@@ -1075,7 +1075,30 @@ class PairPotential(object):
     NB: list here is HUGE, update as needed..
 
     """
-    
+    class Table(object):
+        """A tabulated potential is used
+
+        LAMMPS keyword arguments are passes as kwargs
+        """
+
+        def __init__(self):
+            self.name = "table"
+            self.style = None
+            self.N = 0
+            self.keyword = "" 
+            self.filename = ""
+            self.entry = ""
+            self.cutoff = 0.0
+            self.reduced = False
+        def __str__(self):
+            str = ""
+            if self.reduced:
+                return "%s %s %.2f"%(self.filename, self.entry, self.cutoff)
+            return "%28s %s %s %.2f"%(self.name, self.filename, self.entry, self.cutoff)
+        def __repr__(self):
+            return "%s %s %i %s"%(self.name, self.style, self.N, self.keyword)
+
+
     class LjCutCoulLong(object):
         """Potential defined as
 
@@ -1096,6 +1119,35 @@ class PairPotential(object):
             return "%28s %15.6f %15.6f"%(self.name,
                                          self.eps,
                                          self.sig)
+        def __repr__(self):
+            return "%s %.3f"%(self.name, self.cutoff)
+
+    class Buck(object):
+        """Potential defined as
+
+        E = A*exp{-r/rho} - C/r^{6}
+
+
+        """
+        def __init__(self):
+            self.name = "buck"
+            self.sig = 0.0
+            self.eps = 0.0
+            self.A = 0.0
+            self.rho = 0.0
+            self.C = 0.0
+            self.reduced = False
+            self.cutoff = 0.
+
+        def __str__(self):
+            if self.reduced:
+                return "%15.6f %15.6f %15.6f"%(self.A,
+                                               self.rho,
+                                               self.C)
+            return "%28s %15.6f %15.6f %15.6f"%(self.name,
+                                                self.A,
+                                                self.rho,
+                                                self.C)
         def __repr__(self):
             return "%s %.3f"%(self.name, self.cutoff)
 
