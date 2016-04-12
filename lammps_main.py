@@ -223,7 +223,7 @@ class LammpsSimulation(object):
                     eps2 = j_data['pair_potential'].eps 
                     sig1 = i_data['pair_potential'].sig 
                     sig2 = j_data['pair_potential'].sig 
-
+                    print("HI")
                     eps = np.sqrt(eps1*eps2)
                     Rv = (sig1 + sig2)
                     Rho = Rv/12.0
