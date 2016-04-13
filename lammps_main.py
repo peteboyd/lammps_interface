@@ -39,7 +39,7 @@ class LammpsSimulation(object):
         self.pair_in_data = True
         self.separate_molecule_types = True
         self.type_molecules = {}
-        self.no_molecule_pair = True # ensure that h-bonding will not occur between molecules of the same type
+        self.no_molecule_pair = True  # ensure that h-bonding will not occur between molecules of the same type
 
     def unique_atoms(self):
         """Computes the number of unique atoms in the structure"""
@@ -186,6 +186,8 @@ class LammpsSimulation(object):
         for n, data in self.graph.nodes_iter(data=True):
             if data['h_bond_donor']:
                 pot_names.append('h_bonding')
+            if data['tabulated_potential']:
+                pot_names.append('table')
             pot_names.append(data['pair_potential'].name)
         # mix yourself
 
@@ -206,12 +208,12 @@ class LammpsSimulation(object):
                     table_pot['table_potential'].filename = "table." + self.name
                     self.unique_pair_types[(i, j, 'table')] = table_pot
 
-                if (i_data['h_bond_donor'] and j_data['element'] in electro_neg_atoms and pairwise_test):
+                if (i_data['h_bond_donor'] and j_data['element'] in electro_neg_atoms and pairwise_test and not j_data['h_bond_donor']):
                     hdata = deepcopy(i_data)
                     hdata['h_bond_potential'] = hdata['h_bond_function'](n2, self.graph, flipped=False)
                     hdata['tabulated_potential'] = False
                     self.unique_pair_types[(i,j,'hb')] = hdata
-                if (j_data['h_bond_donor'] and i_data['element'] in electro_neg_atoms and pairwise_test):
+                if (j_data['h_bond_donor'] and i_data['element'] in electro_neg_atoms and pairwise_test and not i_data['h_bond_donor']):
                     hdata = deepcopy(j_data)
                     hdata['tabulated_potential'] = False
                     hdata['h_bond_potential'] = hdata['h_bond_function'](n1, self.graph, flipped=True)
@@ -223,7 +225,6 @@ class LammpsSimulation(object):
                     eps2 = j_data['pair_potential'].eps 
                     sig1 = i_data['pair_potential'].sig 
                     sig2 = j_data['pair_potential'].sig 
-                    print("HI")
                     eps = np.sqrt(eps1*eps2)
                     Rv = (sig1 + sig2)
                     Rho = Rv/12.0

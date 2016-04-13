@@ -3,7 +3,7 @@ from uff4mof import UFF4MOF_DATA
 from dreiding import DREIDING_DATA
 from uff_nonbonded import UFF_DATA_nonbonded
 from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds
-from FMOFCu import FMOFCu_angles, FMOFCu_dihedrals, FMOFCu_opbends, FMOFCu_atoms, FMOFCu_bonds
+#from FMOFCu import FMOFCu_angles, FMOFCu_dihedrals, FMOFCu_opbends, FMOFCu_atoms, FMOFCu_bonds
 from MOFFF import MOFFF_angles, MOFFF_dihedrals, MOFFF_opbends, MOFFF_atoms, MOFFF_bonds 
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
 from atomic import METALS
@@ -2483,7 +2483,7 @@ class Dreiding(ForceField):
             data['potential'] = AnglePotential.Cosine()
             data['potential'].K = K
         else:
-            data['potential'] = AnglePotential.CosineSquared()
+            data['potential'] = AnglePotential.Harmonic()
             K = 0.5*K/(np.sin(theta0*DEG2RAD))**2
             data['potential'].K = K
             data['potential'].theta0 = theta0

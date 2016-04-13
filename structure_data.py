@@ -598,7 +598,7 @@ class MolecularGraph(nx.Graph):
         self.compute_bonding(cell)
         self.compute_init_typing()
         self.compute_bond_typing()
-        self.detect_inorganic_clusters(num_neighbors=5, tol=0.8) # num neighbors determines how many nodes from the metal element to cut out for comparison 
+        self.detect_inorganic_clusters(num_neighbors=5, tol=0.6) # num neighbors determines how many nodes from the metal element to cut out for comparison 
         self.compute_angles()
         self.compute_dihedrals()
         self.compute_improper_dihedrals()
