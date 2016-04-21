@@ -3298,7 +3298,7 @@ class UFF4MOF(ForceField):
                     elif data['special_flag'] == "O1_Zn_pdw" or data['special_flag'] == "O2_Zn_pdw":
                         data['force_field_type'] = 'O_2'
                     elif data['special_flag'] == "Zn_pdw":
-                        data['force_field_type'] = 'Cu4+2'
+                        data['force_field_type'] = 'Zn4+2'
                         for n in self.graph.neighbors(node):
                             if self.graph.node[n]['element'] == "Zn":
                                 self.graph[node][n]['order'] = 0.25
