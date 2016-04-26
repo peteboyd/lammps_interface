@@ -2,7 +2,7 @@ from uff import UFF_DATA
 from uff4mof import UFF4MOF_DATA
 from dreiding import DREIDING_DATA
 from uff_nonbonded import UFF_DATA_nonbonded
-from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds
+from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds, BTW_charges
 #from FMOFCu import FMOFCu_angles, FMOFCu_dihedrals, FMOFCu_opbends, FMOFCu_atoms, FMOFCu_bonds
 from MOFFF import MOFFF_angles, MOFFF_dihedrals, MOFFF_opbends, MOFFF_atoms, MOFFF_bonds 
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
@@ -638,7 +638,8 @@ class BTW_FF(ForceField):
     def __init__(self,  **kwargs):
         self.pair_in_data = False 
         self.keep_metal_geometry = False
-        self.graph = None 
+        self.graph = None
+        self.TFF=False 
         # override existing arguments with kwargs
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -658,7 +659,13 @@ class BTW_FF(ForceField):
         if not (mof_sbus <= BTW_sbus):
             print("The system cannot be simulated with BTW-FF!")
             sys.exit()
-            
+        elif ( len(mof_sbus)> 1):
+            TFF=True  # Transferable FF charges (average values)
+            chrg_flag="TFF_"
+        else:
+            sbu_type = next(iter(mof_sbus))
+            chrg_flag=sbu_type+"_"
+
         #Assigning force field type of atoms 
         for node, atom in self.graph.nodes_iter(data=True):
             # check if element not in one of the SBUS
@@ -666,7 +673,9 @@ class BTW_FF(ForceField):
                 try:
                     if atom['special_flag'] == 'Cu_pdw':
                         atom['force_field_type']="185"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        
+                        atom['charge']=BTW_charges[chrg_key]
                     else:
                         print("ERROR: Cu %i is not assigned to a Cu Paddlewheel! exiting"%(node))
                         sys.exit()
@@ -678,7 +687,9 @@ class BTW_FF(ForceField):
                 try:
                     if atom['special_flag'] == 'Zn4O':
                         atom['force_field_type']="172"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        
+                        atom['charge']=BTW_charges[chrg_key]
 
                     else:
                         print("ERROR: Zn %i is not assigned to a Zn4O! exiting"%(node))
@@ -692,7 +703,9 @@ class BTW_FF(ForceField):
                 try:
                     if atom['special_flag'] == 'Zr_UiO':
                         atom['force_field_type']="192"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        
+                        atom['charge']=BTW_charges[chrg_key]
 
                     else:
                         print("ERROR: Zr %i is not assigned to a Zr_UiO! exiting"%(node))
@@ -713,24 +726,30 @@ class BTW_FF(ForceField):
                     # Zn4O cases
                     if atom['special_flag'] == "O_z_Zn4O":
                         atom['force_field_type'] = "171"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        atom['charge']=BTW_charges[chrg_key]
                     elif atom['special_flag'] == "O_c_Zn4O":
                         atom['force_field_type'] = "170"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        atom['charge']=BTW_charges[chrg_key]
                     # Zr_UiO cases
                     elif atom['special_flag'] == "O_z_Zr_UiO":
                         atom['force_field_type'] = "171"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        atom['charge']=BTW_charges[chrg_key]
                     elif atom['special_flag'] == "O_h_Zr_UiO":
                         atom['force_field_type'] = "75"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        atom['charge']=BTW_charges[chrg_key]
                     elif atom['special_flag'] == "O_c_Zr_UiO": 
                         atom['force_field_type'] = "170"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        atom['charge']=BTW_charges[chrg_key]
                     # Cu Paddlewheel case
                     elif (atom['special_flag'] == "O1_Cu_pdw") or (atom['special_flag'] == "O2_Cu_pdw"):
                         atom['force_field_type'] = "170"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        atom['charge']=BTW_charges[chrg_key]
                     else:
                         print("Oxygen number %i type cannot be detected!"%node)
                         sys.exit()
@@ -738,15 +757,18 @@ class BTW_FF(ForceField):
                     # Zn4O case
                     if atom['special_flag'] == "C_Zn4O":
                         atom['force_field_type'] = "913" # C-acid
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        atom['charge']=BTW_charges[chrg_key]
                     # Zr_UiO case
                     elif atom['special_flag'] == "C_Zr_UiO":
                         atom['force_field_type'] = "913" # C-acid
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        atom['charge']=BTW_charges[chrg_key]
                     # Cu Paddlewheel case
                     elif atom['special_flag'] == "C_Cu_pdw":
                         atom['force_field_type'] = "913" # C-acid
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        atom['charge']=BTW_charges[chrg_key]
                     else:
                         print("Carbon number %i type cannot be detected!"%node)
                         sys.exit()
@@ -755,7 +777,8 @@ class BTW_FF(ForceField):
                     # only UiO case
                     if atom['special_flag'] == "H_o_Zr_UiO":
                         atom['force_field_type'] = "21"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        atom['charge']=BTW_charges[chrg_key]
                     else:
                         print("Hydrogen number %i type cannot be detected!"%node)
                         sys.exit()
@@ -769,14 +792,17 @@ class BTW_FF(ForceField):
                     # all organic SBUs have the same types..
                     if set(neighbour_elements) == set(["C","H"]):
                         atom['force_field_type'] = "912" # C- benzene we should be careful that in this case C in ligand has also bond with H, but not in the FF
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        atom['charge']=BTW_charges[chrg_key]
                     elif set(neighbour_elements) == set(["C"]):
                         # check if carbon adjacent to metal SBU (signified by the key 'special_flag')
                         if any(['special_flag' in at for at in neighbours]):
                             atom['force_field_type'] = "902"
                         else:
                             atom['force_field_type'] = "903"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        
+                        atom['charge']=BTW_charges[chrg_key]
                     else:
                         print("Carbon number %i type cannot be detected!"%node)
                         sys.exit() 
@@ -784,7 +810,9 @@ class BTW_FF(ForceField):
                 elif (atom['element'] == "H") and not special:
                     if set(neighbour_elements)<=set(["C"]):
                         atom['force_field_type'] = "915"
-                        atom['charge']=BTW_atoms[atom['force_field_type']][6]
+                        chrg_key = chrg_flag+atom['force_field_type']
+                        
+                        atom['charge']=BTW_charges[chrg_key]
                     else:
                         print("Hydrogen number %i type cannot be detected!"%node)
                         sys.exit() 
