@@ -20,7 +20,6 @@ class ForceField(object):
 
     __metaclass__ = abc.ABCMeta
 
-    cutoff = 12.5
     @abc.abstractmethod
     def bond_term(self):
         """Computes the bond parameters"""
@@ -636,7 +635,7 @@ class OverwriteFF(ForceField):
 
 
 class BTW_FF(ForceField):
-    def __init__(self, cutoff=12.5, **kwargs):
+    def __init__(self,  **kwargs):
         self.pair_in_data = False 
         self.keep_metal_geometry = False
         self.graph = None 
@@ -1092,7 +1091,7 @@ class BTW_FF(ForceField):
 
 class MOF_FF(ForceField):
     
-    def __init__(self, cutoff=12.5, **kwargs):
+    def __init__(self, **kwargs):
         self.pair_in_data = False 
         self.keep_metal_geometry = False
         self.graph = None 
@@ -1102,7 +1101,6 @@ class MOF_FF(ForceField):
         if (self.graph is not None):
             self.detect_ff_terms() 
             self.compute_force_field_terms()
-
     def detect_ff_terms(self):
         """ MOF-FF contains force field descriptions for three different
         inorganic SBUs:
@@ -1250,8 +1248,9 @@ class MOF_FF(ForceField):
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     else:
                         print("Hydrogen number %i type cannot be detected!"%node)
-                        sys.exit() 
-                 
+                        sys.exit()
+
+#                atom['charge']=0
         # THE REST OF THIS SHOULD BE IN SEPARATE FUNCTIONS AS PER OTHER FF's DESCRIBED HERE
         # TODO(Mohammad): make this easier to read.
         #Assigning force field type of bonds
@@ -1472,8 +1471,11 @@ class MOF_FF(ForceField):
         data['potential'].K2 = K2
         data['potential'].K3 = K3 
         data['potential'].K4 = K4 
-        data['potential'].ba.N1 = baN1 
-        data['potential'].ba.N2 = baN2 
+        data['potential'].bb.M = 0.0 #bbM 
+        data['potential'].bb.r1 = r1 
+        data['potential'].bb.r2 = r2 
+        data['potential'].ba.N1 = 0.0 #baN1 
+        data['potential'].ba.N2 = 0.0 # baN2 
         data['potential'].ba.r1 = r1 
         data['potential'].ba.r2 = r2 
 
@@ -1557,18 +1559,19 @@ class MOF_FF(ForceField):
 
         n = 5000 
         rlow=0.01
-        R = np.linspace(rlow, self.cutoff+5., n)
+        R = np.linspace(rlow, self.cutoff+2., n)
         ff1 = node1['force_field_type']
         ff2 = node2['force_field_type']
 
         qi = node1['charge']
         qj = node2['charge']
-        sigij = math.sqrt(MOFFF_atoms[ff1][7] * MOFFF_atoms[ff2][7])
+        sigi = MOFFF_atoms[ff1][7]
+        sigj = MOFFF_atoms[ff2][7]
+        sigij = math.sqrt(sigi**2+sigj**2)
         E_coeff = K*qi*qj
-        F_coeff = - K*qi*qj * 2/(math.sqrt(math.pi) * sigij)
         str += "# damped coulomb potential for %s - %s\n"%(ff1, ff2)
         str += "GAUSS_%s_%s\n"%(ff1, ff2)
-        str += "N %i RSQ %.2f %.f\n"%(n, rlow, self.cutoff+5.)
+        str += "N %i R %.2f %.f\n\n"%(n, rlow, self.cutoff+2.)
         data['table_potential'].style = 'linear'
         data['table_potential'].N = n
         data['table_potential'].keyword = 'ewald'
@@ -1579,7 +1582,7 @@ class MOF_FF(ForceField):
         for i, r in enumerate(R):
             rsq = r**2
             e = E_coeff*math.erf(r/sigij)/r 
-            f = F_coeff * (math.exp(-(rsq)/(sigij**2))/ r - math.erf(r/sigij)/(rsq))
+            f = -E_coeff  * (math.exp(-(rsq)/(sigij**2))/ r* 2/(math.sqrt(math.pi) * sigij) - math.erf(r/sigij)/(rsq))
             str += "%i %.3f %f %f\n"%(i+1, r, e, f)
         return(str)
 
@@ -1588,7 +1591,7 @@ class MOF_FF(ForceField):
         return st
 
 class FMOFCu(ForceField):
-    def __init__(self, cutoff=12.5, **kwargs):
+    def __init__(self, **kwargs):
         self.pair_in_data = False
         self.keep_metal_geometry = False
         self.graph = None
@@ -2024,7 +2027,7 @@ class UFF(ForceField):
     The ammendments mentioned that document are included here
     """
     
-    def __init__(self, cutoff=12.5, **kwargs):
+    def __init__(self,  **kwargs):
         self.pair_in_data = True
         self.keep_metal_geometry = False
         self.graph = None 
@@ -2405,8 +2408,7 @@ class UFF(ForceField):
 
 class Dreiding(ForceField):
 
-    def __init__(self, graph=None, cutoff=12.5, h_bonding=False, **kwargs):
-        self.cutoff = cutoff
+    def __init__(self, graph=None,  h_bonding=False, **kwargs):
         self.pair_in_data = True
         self.h_bonding = h_bonding
         self.keep_metal_geometry = False
@@ -2907,7 +2909,7 @@ class UFF4MOF(ForceField):
     """Parameterize the periodic material with the UFF4MOF parameters.
     """
     
-    def __init__(self, cutoff=12.5, **kwargs):
+    def __init__(self, **kwargs):
         self.pair_in_data = True
         self.keep_metal_geometry = False
         self.graph = None 

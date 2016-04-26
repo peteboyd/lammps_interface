@@ -104,7 +104,6 @@ BTW_dihedrals = {
 #### Out-of-Plane bending in BTW-FF
 BTW_opbends = {
 # atom1_atom2_atom3_atom4 K[kcal/mol/rad^2] theta[degree]
-#"170_913_170_902":(	1.5, 180.0 ),     # these two should be enumarated to cover all possible set 
 ###    """
 ###          H
 ###         /
@@ -135,12 +134,22 @@ BTW_opbends = {
 ###        \
 ###         C 
 ###   """
-"912_902_912_913":( 0.2, 0.0 ,  0.24  , 0.300  ,  0.0   ),# Added from MM3 to complete the missing parameters. Alsi it was in BTW-FF unintentionally
-"912_902_913_912":( 0.2, 0.0 ,  0.24  , 0.300  ,  0.0   ),# Added from MM3 to complete the missing parameters. Alsi it was in BTW-FF unintentionall#
-"913_902_912_912":( 0.8, 0.0 ,  0.24  , 0.300  ,  0.0   ),# Added from MM3 to complete the missing parameters. Alsi it was in BTW-FF unintentionall# 
+"912_902_912_913":( 0.2, 0.0 ,  0.0   , 0.0  ,  0.0   ),# Added from MM3 to complete the missing parameters. Alsi it was in BTW-FF unintentionally
+"912_902_913_912":( 0.2, 0.0 ,  0.0   , 0.0  ,  0.0   ),# Added from MM3 to complete the missing parameters. Alsi it was in BTW-FF unintentionall#
+"913_902_912_912":( 0.8, 0.0 ,  0.0   , 0.0  ,  0.0   ),# Added from MM3 to complete the missing parameters. Alsi it was in BTW-FF unintentionall# 
 #
 # UIO special opbend
 #
-"192_171_192_192":( 2.0 , 0.0 ,  0.24  , 0.300  ,  0.0   ),# Added from MM3 to complete the missing parameters. Alsi it was in BTW-FF unintentionall# 
-}
+"192_171_192_192":( 2.0 , 0.0 ,  0.00  , 0.00  ,  0.0   ),# Added from MM3 to complete the missing parameters. Alsi it was in BTW-FF unintentionall# 
 
+"912_903_912_903":( 0.2, 0.0 ,  0.24  , 0.300  ,  0.0   ),# Added from MM3 to complete the missing parameters. Also it was in BTW-FF unintentionall# 
+"912_903_903_912":( 0.2, 0.0 ,  0.24  , 0.300  ,  0.0   ),# Added from MM3 to complete the missing parameters. Also it was in BTW-FF unintentionall# 
+"903_912_915_912":( 0.2 , 0.0  ,  0.24  , 0.300  ,  0.0    ),# Added from MM3 to complete the missing parameters. Also it was in BTW unintentionally 
+"903_912_912_915":( 0.2 , 0.0  ,  0.24  , 0.300  ,  0.0    ),# Added from MM3 to complete the missing parameters. Also it was in BTW unintentionally
+"912_912_903_915":( 0.2 , 0.0  ,  0.24  , 0.300  ,  0.0    ),# Added from MM3 to complete the missing parameters. Also it was in BTW unintentionally
+"912_912_915_903":( 0.2 , 0.0  ,  0.24  , 0.300  ,  0.0    ),# Added from MM3 to complete the missing parameters. Also it was in BTW unintentionally
+"903_903_912_912":( 0.2, 0.0 ,  0.24  , 0.300  ,  0.0   ),# Added from MM3 to complete the missing parameters. Also it was in BTW-FF unintentionall# 
+"915_912_903_912":( 0.11, 0.0  ,  0.24  , 0.300  ,  0.0    ),# Added from MM3 to complete the missing parameters. Also it was in BTW unintentionally
+"915_912_912_903":( 0.11, 0.0  ,  0.24  , 0.300  ,  0.0    ),# Added from MM3 to complete the missing parameters. Also it was in BTW unintentionally
+
+}
