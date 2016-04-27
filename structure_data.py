@@ -592,13 +592,14 @@ class MolecularGraph(nx.Graph):
                 (a, c, d) = local_impropers[idx]
                 data.setdefault('impropers',{}).update({(a,c,d):{'potential':None}})
 
-    def compute_topology_information(self, cell):
+    def compute_topology_information(self, cell, tol):
         self.compute_cartesian_coordinates(cell)
         self.compute_min_img_distances(cell)
         self.compute_bonding(cell)
         self.compute_init_typing()
         self.compute_bond_typing()
-        self.detect_inorganic_clusters(num_neighbors=5, tol=0.6) # num neighbors determines how many nodes from the metal element to cut out for comparison 
+        num_neighbors = 5
+        self.detect_inorganic_clusters(num_neighbors, tol) # num neighbors determines how many nodes from the metal element to cut out for comparison 
         self.compute_angles()
         self.compute_dihedrals()
         self.compute_improper_dihedrals()
@@ -660,7 +661,7 @@ class MolecularGraph(nx.Graph):
                 cg.add_edge((a1,b1), (a2,b2))
         return cg
 
-    def detect_inorganic_clusters(self, num_neighbors=5, tol=0.1):
+    def detect_inorganic_clusters(self, num_neighbors, tol):
         """Detect clusters such as the copper paddlewheel using
         maximum clique detection. This will assign specific atoms
         with a special flag for use when building their force field.

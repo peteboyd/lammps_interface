@@ -639,7 +639,6 @@ class BTW_FF(ForceField):
         self.pair_in_data = False 
         self.keep_metal_geometry = False
         self.graph = None
-        self.TFF=False 
         # override existing arguments with kwargs
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -660,8 +659,17 @@ class BTW_FF(ForceField):
             print("The system cannot be simulated with BTW-FF!")
             sys.exit()
         elif ( len(mof_sbus)> 1):
-            TFF=True  # Transferable FF charges (average values)
-            chrg_flag="TFF_"
+            print("No exact charge for the IRMOF is available from BTW-FF. Average charges in BTW-FF is used.")
+            chrg_flag="TFF_" # Transferable FF charges (average values)
+        elif("Zn4O" in mof_sbus):
+            resp= input("What is the IRMOF number?[1/10]")
+            if resp=="1":
+                chrg_flag="Zn4O_"
+            elif resp=="10":
+                chrg_flag="IRMOF10_"
+            else:
+                print("No exact charge for the IRMOF is available from BTW-FF. Average charges in BTW-FF is used.")
+                chrg_flag="TFF_"
         else:
             sbu_type = next(iter(mof_sbus))
             chrg_flag=sbu_type+"_"
@@ -817,29 +825,26 @@ class BTW_FF(ForceField):
                         print("Hydrogen number %i type cannot be detected!"%node)
                         sys.exit() 
                  
-        # THE REST OF THIS SHOULD BE IN SEPARATE FUNCTIONS AS PER OTHER FF's DESCRIBED HERE
-        # TODO(Mohammad): make this easier to read.
-        #Assigning force field type of bonds
+        # Assigning force field type of bonds
         for a, b, bond in self.graph.edges_iter2(data=True):
             a_atom = self.graph.node[a]
             b_atom = self.graph.node[b]
             atom_a_fflabel, atom_b_fflabel = a_atom['force_field_type'], b_atom['force_field_type']
-            bond1_fflabel=atom_a_fflabel+"_"+atom_b_fflabel
-            bond2_fflabel=atom_b_fflabel+"_"+atom_a_fflabel
-            if bond1_fflabel in BTW_bonds:
-                bond['force_field_type']=bond1_fflabel
-            elif bond2_fflabel in BTW_bonds:
-                bond['force_field_type']=bond2_fflabel
+            bond_fflabel1 = atom_a_fflabel+"_"+atom_b_fflabel
+            bond_fflabel2 = atom_b_fflabel+"_"+atom_a_fflabel
+            if bond_fflabel1 in BTW_bonds:
+                bond['force_field_type']=bond_fflabel1
+            elif bond_fflabel2 in BTW_bonds:
+                bond['force_field_type']=bond_fflabel2
             else:
-                print ("%s bond does not exist in FF!"%(bond1_fflabel))
+                print ("BTW-FF cannot be used for the system!\nNo parameter found for bond %s"%(bond_fflabel1))
                 exit()
 
         #Assigning force field type of angles
         missing_labels=[]
         for b , data in self.graph.nodes_iter(data=True):
-            # compute and store angle terms
             try:
-                nonexisting_angles=[]
+                missing_angles=[]
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
                     a_atom = self.graph.node[a]
@@ -848,34 +853,30 @@ class BTW_FF(ForceField):
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
                     atom_c_fflabel = c_atom['force_field_type']
-                    angle1_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
-                    angle2_fflabel=atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
-                    if (angle1_fflabel=="170_185_170"):
-                        val['force_field_type']=angle1_fflabel
-#                    elif (angle1_fflabel=="103_101_106") or (angle1_fflabel=="106_101_103"):
-#                        val['force_field_type']="103_101_106"
-#                    elif (angle1_fflabel=="106_101_106"):
-#                        val['force_field_type']=angle1_fflabel
-                    elif angle1_fflabel in BTW_angles:
-                        val['force_field_type']=angle1_fflabel
-                    elif angle2_fflabel in BTW_angles:
-                        val['force_field_type']=angle2_fflabel
+                    angle_fflabel1=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
+                    angle_fflabel2=atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
+                    if (angle_fflabel1=="170_185_170"):
+                        val['force_field_type']=angle_fflabel1
+                    elif angle_fflabel1 in BTW_angles:
+                        val['force_field_type']=angle_fflabel1
+                    elif angle_fflabel2 in BTW_angles:
+                        val['force_field_type']=angle_fflabel2
                     else:
-                        nonexisting_angles.append((a,c))
-                        missing_labels.append(angle1_fflabel)
-                for key in nonexisting_angles:
+                        missing_angles.append((a,c))
+                        missing_labels.append(angle_fflabel1)
+                for key in missing_angles:
                     del ang_data[key]
             except KeyError:
                 pass
 
         for ff_label in set(missing_labels):
-            print ("%s angle does not exist in FF!"%(ff_label))
+            print ("%s angle is deleted since the angle was not parametrized in BTW-FF!"%(ff_label))
 
         #Assigning force field type of dihedrals 
         missing_labels=[]
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
-                nonexisting_dihedral=[]
+                missing_dihedral=[]
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
                     a_atom = self.graph.node[a]
@@ -886,28 +887,28 @@ class BTW_FF(ForceField):
                     atom_b_fflabel = b_atom['force_field_type']
                     atom_c_fflabel = c_atom['force_field_type']
                     atom_d_fflabel = d_atom['force_field_type']
-                    dihedral1_fflabel=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
-                    dihedral2_fflabel=atom_d_fflabel+"_"+atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
+                    dihedral_fflabel1=atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel+"_"+atom_d_fflabel
+                    dihedral_fflabel2=atom_d_fflabel+"_"+atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
 
-                    if dihedral1_fflabel in BTW_dihedrals:
-                        val['force_field_type']=dihedral1_fflabel     
-                    elif dihedral2_fflabel in BTW_dihedrals:
-                        val['force_field_type']=dihedral2_fflabel     
+                    if dihedral_fflabel1 in BTW_dihedrals:
+                        val['force_field_type']=dihedral_fflabel1     
+                    elif dihedral_fflabel2 in BTW_dihedrals:
+                        val['force_field_type']=dihedral_fflabel2     
                     else:
-                        nonexisting_dihedral.append((a,d))
-                        missing_labels.append(dihedral1_fflabel)
-                for key in nonexisting_dihedral:
+                        missing_dihedral.append((a,d))
+                        missing_labels.append(dihedral_fflabel1)
+                for key in missing_dihedral:
                     del dihed_data[key]
             except KeyError:
                 pass
         for ff_label in set(missing_labels):
-            print ("%s dihedral does not exist in FF!"%(ff_label))
+            print ("%s dihedral is deleted since the dihedral was not parametrized in BTW-FF!"%(ff_label))
         
         #Assigning force field type of impropers 
         missing_labels=[]
         for b, data in self.graph.nodes_iter(data=True):
             try:
-                nonexisting_improper=[]
+                missing_improper=[]
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
                     a_atom = self.graph.node[a]
@@ -922,26 +923,24 @@ class BTW_FF(ForceField):
                     if improper_fflabel in BTW_opbends:
                         val['force_field_type']=improper_fflabel
                     else:
-                        nonexisting_improper.append((a,c,d))
+                        missing_improper.append((a,c,d))
                         missing_labels.append(improper_fflabel)
-                for key in nonexisting_improper:
+                for key in missing_improper:
                     del imp_data[key]
             except KeyError:
                 pass
 
         for ff_label in set(missing_labels):
-            print ("%s improper does not exist in FF!"%(ff_label))
+            print ("%s improper is deleted since the improper was not parametrized in BTW-FF!"%(ff_label))
         
     def bond_term(self, edge):
-        """class2 bond
-        Es=71.94*Ks*(l-l0)^2[1-2.55(l-l0)+(7/12)*2.55*(l-l0)^2]
-        (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
-        """
+        """class2 bond: 4-order polynomial """
         n1, n2, data = edge
         Ks =  BTW_bonds[data['force_field_type']][0] 
         l0 =  BTW_bonds[data['force_field_type']][1] 
-        K2= 71.94*Ks   # mdyne to kcal *(1/2)
-        K3= -2.55*K2
+        ### All the factors are conversion to kcal/mol from the units in the paper ###
+        K2= 71.94*Ks   
+        K3= -2.55*K2   
         K4= 3.793125*K2
         data['potential'] = BondPotential.Class2()
         data['potential'].K2 = K2
@@ -950,10 +949,9 @@ class BTW_FF(ForceField):
         data['potential'].R0 = l0
          
     def angle_term(self, angle):
-        """class2 angle
-        Be careful that the 5and6 order terms are vanished here since they are not implemented in LAMMPS!!
-        Etheta = 0.021914*Ktheta*(theta-theta0)^2[1-0.014(theta-theta0)+5.6(10^-5)*(theta-theta0)^2-7.0*(10^-7)*(theta-theta0)^3+9.0*(10^-10)*(theta-theta0)^4]        
-        (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
+        """class2 angle"""
+        """
+        NOTE: We ignored the 5and6 order terms of polynomial since the functional is not implemented in LAMMPS!! 
         """
         a, b, c, data = angle
 
@@ -963,7 +961,6 @@ class BTW_FF(ForceField):
             data['potential'].B = 1
             data['potential'].n = 4
             return
-        
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
         c_data = self.graph.node[c]
@@ -1004,7 +1001,7 @@ class BTW_FF(ForceField):
             bond2_label = atom_c_fflabel+"_"+atom_b_fflabel
             r2 = BTW_bonds[bond2_label][1]
         ### Unit conversion ###
-        bbM = bbM *71.94 # (TODO) maybe is wrong! 
+        bbM = bbM *71.94   
         baN1 = 2.51118 * baN1 / (DEG2RAD) 
         baN2 = 2.51118 * baN2/ (DEG2RAD) 
         K2 = 0.021914*Ktheta/(DEG2RAD**2)
@@ -1024,10 +1021,7 @@ class BTW_FF(ForceField):
 
 
     def dihedral_term(self, dihedral):
-        """fourier diherdral
-        Ew = (V1/2)(1 + cos w) + (V2/2)(1 - cos 2*w)+(V3/2)(1 + cos 3*w)+(V4/2)(1 + cos 4*w)
-        (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
-        """        
+        """ fourier diherdral """
         a,b,c,d, data = dihedral
 
         kt1 = 0.5 * BTW_dihedrals[data['force_field_type']][0]        
@@ -1054,7 +1048,7 @@ class BTW_FF(ForceField):
         
 
     def improper_term(self, improper):
-        """class2 diherdral"""
+        """class2 improper"""
         a,b,c,d, data = improper
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
@@ -1067,9 +1061,10 @@ class BTW_FF(ForceField):
         Kopb = BTW_opbends[data['force_field_type']][0]/(DEG2RAD**2)*0.02191418
         c0 =  BTW_opbends[data['force_field_type']][1]
         #Angle-Angle term
-        M1 = BTW_opbends[data['force_field_type']][2]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
-        M2 = BTW_opbends[data['force_field_type']][3]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
-        M3 = BTW_opbends[data['force_field_type']][4]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
+        M1 = BTW_opbends[data['force_field_type']][2]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Dividing by three to get rid of overcounting of angle-angle terms
+        M2 = BTW_opbends[data['force_field_type']][3]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Dividing by three to get rid of overcounting of angle-angle terms
+        M3 = BTW_opbends[data['force_field_type']][4]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Dividing by three to get rid of overcounting of angle-angle terms
+
         ang1_ff_label = atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
         ang2_ff_label = atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_d_fflabel
         ang3_ff_label = atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_d_fflabel
@@ -1299,7 +1294,7 @@ class MOF_FF(ForceField):
         missing_labels=[]
         for b , data in self.graph.nodes_iter(data=True):
             try:
-                nonexisting_angles=[]
+                missing_angles=[]
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
                     a_atom = self.graph.node[a]
@@ -1321,9 +1316,9 @@ class MOF_FF(ForceField):
                     elif angle2_fflabel in MOFFF_angles:
                         val['force_field_type']=angle2_fflabel
                     else:
-                        nonexisting_angles.append((a,c))
+                        missing_angles.append((a,c))
                         missing_labels.append(angle1_fflabel)
-                for key in nonexisting_angles:
+                for key in missing_angles:
                     del ang_data[key]
             except KeyError:
                 pass
@@ -1334,7 +1329,7 @@ class MOF_FF(ForceField):
         missing_labels=[]
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
-                nonexisting_dihedral=[]
+                missing_dihedral=[]
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
                     a_atom = self.graph.node[a]
@@ -1353,9 +1348,9 @@ class MOF_FF(ForceField):
                     elif dihedral2_fflabel in MOFFF_dihedrals:
                         val['force_field_type']=dihedral2_fflabel     
                     else:
-                        nonexisting_dihedral.append((a,d))
+                        missing_dihedral.append((a,d))
                         missing_labels.append(dihedral1_fflabel)
-                for key in nonexisting_dihedral:
+                for key in missing_dihedral:
                     del dihed_data[key]
             except KeyError:
                 pass
@@ -1366,7 +1361,7 @@ class MOF_FF(ForceField):
         missing_labels=[]
         for b, data in self.graph.nodes_iter(data=True):
             try:
-                nonexisting_improper=[]
+                missing_improper=[]
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
                     a_atom = self.graph.node[a]
@@ -1381,9 +1376,9 @@ class MOF_FF(ForceField):
                     if improper_fflabel in MOFFF_opbends:
                         val['force_field_type']=improper_fflabel
                     else:
-                        nonexisting_improper.append((a,c,d))
+                        missing_improper.append((a,c,d))
                         missing_labels.append(improper_fflabel)
-                for key in nonexisting_improper:
+                for key in missing_improper:
                     del imp_data[key]
             except KeyError:
                 pass
@@ -1757,7 +1752,7 @@ class FMOFCu(ForceField):
         for b , data in self.graph.nodes_iter(data=True):
             # compute and store angle terms
             try:
-                nonexisting_angles=[]
+                missing_angles=[]
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
                     a_atom = self.graph.node[a]
@@ -1780,9 +1775,9 @@ class FMOFCu(ForceField):
                         val['force_field_type']=angle2_fflabel
                     else:
                         print("1")
-                        nonexisting_angles.append((a,c))
+                        missing_angles.append((a,c))
                         missing_labels.append(angle1_fflabel)
-                for key in nonexisting_angles:
+                for key in missing_angles:
                     del ang_data[key]
             except KeyError:
                 pass
@@ -1796,7 +1791,7 @@ class FMOFCu(ForceField):
         missing_labels=[]
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
-                nonexisting_dihedral=[]
+                missing_dihedral=[]
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
                     a_atom = self.graph.node[a]
@@ -1815,9 +1810,9 @@ class FMOFCu(ForceField):
                     elif dihedral2_fflabel in FMOFCu_dihedrals:
                         val['force_field_type']=dihedral2_fflabel     
                     else:
-                        nonexisting_dihedral.append((a,d))
+                        missing_dihedral.append((a,d))
                         missing_labels.append(dihedral1_fflabel)
-                for key in nonexisting_dihedral:
+                for key in missing_dihedral:
                     del dihed_data[key]
             except KeyError:
                 pass
@@ -1830,7 +1825,7 @@ class FMOFCu(ForceField):
         missing_labels=[]
         for b, data in self.graph.nodes_iter(data=True):
             try:
-                nonexisting_improper=[]
+                missing_improper=[]
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
                     a_atom = self.graph.node[a]
@@ -1845,9 +1840,9 @@ class FMOFCu(ForceField):
                     if improper_fflabel in FMOFCu_opbends:
                         val['force_field_type']=improper_fflabel
                     else:
-                        nonexisting_improper.append((a,c,d))
+                        missing_improper.append((a,c,d))
                         missing_labels.append(improper_fflabel)
-                for key in nonexisting_improper:
+                for key in missing_improper:
                     del imp_data[key]
             except KeyError:
                 pass

@@ -319,7 +319,7 @@ class LammpsSimulation(object):
     def set_graph(self, graph):
         self.graph = graph
         try:
-            self.graph.compute_topology_information(self.cell)
+            self.graph.compute_topology_information(self.cell, self.options.tol)
         except AttributeError:
             # no cell set yet 
             pass
@@ -327,7 +327,7 @@ class LammpsSimulation(object):
     def set_cell(self, cell):
         self.cell = cell
         try:
-            self.graph.compute_topology_information(self.cell)
+            self.graph.compute_topology_information(self.cell, self.options.tol)
         except AttributeError:
             # no graph set yet
             pass

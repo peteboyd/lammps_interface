@@ -33,6 +33,14 @@ class Options(object):
                                  " Necessary for debugging purposes, this"+
                                  " file can show the user how the structure "+
                                  "has been interpreted by the program.")
+        parser.add_argument("-t", "--tolerance",
+                            action="store",
+                            type=float,
+                            default=0.4,
+                            dest="tol",
+                            help="Tolerance in angstroms to determine "+
+                                 "detection of inorganic clusters.")
+
         #split the command line options into separate groups for nicer
         #visualization.
         force_field_group = parser.add_argument_group("Force Field options")
