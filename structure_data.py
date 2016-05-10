@@ -7,7 +7,7 @@ import shlex
 from CIFIO import CIF
 from atomic import METALS
 from copy import copy
-from mof_sbus import InorganicCluster
+from mof_sbus import InorganicCluster, OrganicCluster
 from copy import deepcopy
 import itertools
 import os
@@ -53,6 +53,7 @@ class MolecularGraph(nx.Graph):
         self.distance_matrix = None
         self.original_size = 0
         self.inorganic_sbus = {}
+        self.organic_sbus = {}
         self.cell = None
         #TODO(pboyd): networkx edges do not store the nodes in order!
         # Have to keep a dictionary lookup to make sure the nodes 
@@ -65,7 +66,7 @@ class MolecularGraph(nx.Graph):
         for n1, n2, d in self.edges_iter(**kwargs):
             yield (self.sorted_edge_dict[(n1, n2)][0], self.sorted_edge_dict[(n1,n2)][1], d)
 
-    def reorder_labels(self):
+    def reorder_labels(self, reorder_dic):
         """Re-order the labels of the nodes so that LAMMPS doesn't complain.
         This issue only arises when a supercell is built, but isolated molecules
         are not replicated in the supercell (by user request).
@@ -74,41 +75,47 @@ class MolecularGraph(nx.Graph):
 
         """
 
-        reorder_dic = {node:idx+1 for idx, node in enumerate(self.graph.nodes_iter())}
         old_nodes = list(self.nodes_iter(data=True))
         old_edges = list(self.edges_iter2(data=True))
         for node, data in old_nodes:
-            ang_data = data['angles'].items()
-            for (a,c), val in ang_data:
-                data['angles'].pop((a,c))
-                data['angles'][(reorder_dic[a], reorder_dic[c])] = val
-            
-            imp_data = data['impropers'].items()
-            for (a, c, d), val in imp_data:
-                data['impropers'].pop((a,c,d))
-                data['impropers'][(reorder_dic[a], reorder_dic[c], reorder_dic[d])] = val
+            if 'angles' in data:
+                ang_data = data['angles'].items()
+                for (a,c), val in ang_data:
+                    data['angles'].pop((a,c))
+                    data['angles'][(reorder_dic[a], reorder_dic[c])] = val
+            if 'impropers' in data:
+                imp_data = data['impropers'].items()
+                for (a, c, d), val in imp_data:
+                    data['impropers'].pop((a,c,d))
+                    data['impropers'][(reorder_dic[a], reorder_dic[c], reorder_dic[d])] = val
 
             self.remove_node(node)
             data['index'] = reorder_dic[node]
             self.add_node(reorder_dic[node], **data)
 
-        for edge, data in old_edges:
-
-            dihed_data = data['dihedrals'].items()
-            for (a, d), val in dihed_data:
-                data['dihedrals'].pop((a,d))
-                data['dihedrals'][(reorder_dic[a], reorder_dic[d])] = val
+        for b, c, data in old_edges:
+            if 'dihedrals' in data:
+                dihed_data = data['dihedrals'].items()
+                for (a, d), val in dihed_data:
+                    data['dihedrals'].pop((a,d))
+                    data['dihedrals'][(reorder_dic[a], reorder_dic[d])] = val
             try:
-                self.remove_edge(a,b)
-            except NetworkXError:
+                self.remove_edge(b,c)
+            except nx.exception.NetworkXError:
                 # edge already removed from 'remove_node' above
                 pass
-            self.add_edge(reorder_dic[a], reorder_dic[b], data=data)
+            self.add_edge(reorder_dic[b], reorder_dic[c], **data)
         
         old_edge_dict = self.sorted_edge_dict.items()
+        self.sorted_edge_dict = {}
         for (a,b), val in old_edge_dict:
-            self.sorted_edge_dict.pop((a,b))
             self.sorted_edge_dict[(reorder_dic[a], reorder_dic[b])] = (reorder_dic[val[0]], reorder_dic[val[1]])
+
+        old_images = self.molecule_images[:]
+        self.molecule_images = []
+        for m in old_images:
+            newm = [reorder_dic[i] for i in m]
+            self.molecule_images.append(newm)
 
     def add_atomic_node(self, **kwargs):
         """Insert nodes into the graph from the cif file"""
@@ -645,7 +652,7 @@ class MolecularGraph(nx.Graph):
         self.compute_init_typing()
         self.compute_bond_typing()
         num_neighbors = 5
-        self.detect_inorganic_clusters(num_neighbors, tol) # num neighbors determines how many nodes from the metal element to cut out for comparison 
+        self.detect_clusters(num_neighbors, tol) # num neighbors determines how many nodes from the metal element to cut out for comparison 
         self.compute_angles()
         self.compute_dihedrals()
         self.compute_improper_dihedrals()
@@ -701,31 +708,43 @@ class MolecularGraph(nx.Graph):
                 cg.add_node((i,j))
         # add edges to cg
         for (a1, b1), (a2, b2) in itertools.combinations(cg.nodes(), 2):
-            da = self.distance_matrix[a1-1, a2-1]
-            db = graph.distance_matrix[b1-1, b2-1]
-            if np.allclose(da, db, atol=tol):
-                cg.add_edge((a1,b1), (a2,b2))
+            if (a1 != a2) and (b1 != b2):
+                da = self.distance_matrix[a1-1, a2-1]
+                db = graph.distance_matrix[b1-1, b2-1]
+                if np.allclose(da, db, atol=tol):
+                    cg.add_edge((a1,b1), (a2,b2))
         return cg
 
-    def detect_inorganic_clusters(self, num_neighbors, tol):
+    def detect_clusters(self, num_neighbors, tol, type='Inorganic'):
         """Detect clusters such as the copper paddlewheel using
         maximum clique detection. This will assign specific atoms
         with a special flag for use when building their force field.
 
 
         """
-        print("Detecting Inorganic clusters")
-        metal_nodes = []
+        print("Detecting %s clusters"%type)
+
+        reference_nodes = []
+        
+        if type=="Inorganic":
+            types = InorganicCluster.keys()
+            ref_sbus = InorganicCluster
+            store_sbus = self.inorganic_sbus
+        elif type == "Organic":
+            types = OrganicCluster.keys()
+            ref_sbus = OrganicCluster
+            store_sbus = self.organic_sbus
+
         for node, data in self.nodes_iter(data=True):
-            if data['atomic_number'] in METALS:
-                metal_nodes.append(node)
+            if data['element'] in types: 
+                reference_nodes.append(node)
 
         no_cluster = []
-        while metal_nodes:
-            node = metal_nodes.pop() 
+        while reference_nodes:
+            node = reference_nodes.pop() 
             data = self.node[node]
             try:
-                possible_clusters = InorganicCluster[data['element']]
+                possible_clusters = ref_sbus[data['element']]
                 neighbour_nodes = [] 
                 instanced_neighbours = self.neighbors(node)
                 # tree-like spanning of original node
@@ -735,36 +754,37 @@ class MolecularGraph(nx.Graph):
                         neighbour_nodes.append(n)
                         temp_neighbours += [j for j in self.neighbors(n) if j not in neighbour_nodes]
                     instanced_neighbours = temp_neighbours
-                for n in neighbour_nodes:
-                    try:
-                        metal_nodes.pop(metal_nodes.index(n))
-                    except:
-                        pass
                 cluster_found = False
                 for name, cluster in possible_clusters.items():
                     cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node], tol=tol)
                     cliques = nx.find_cliques(cg)
                     for clique in cliques:
-                        if len(clique) == cluster.number_of_nodes():
+                        if len(clique) >= cluster.number_of_nodes()-1:
                             # found cluster
                             # update the 'hybridization' data
                             for i,j in clique:
                                 self.node[i]['special_flag'] = cluster.node[j]['special_flag']
                             cluster_found = True
                             print("Found %s"%(name))
-                            self.inorganic_sbus.setdefault(name, []).append([i for (i,j) in clique])
+
+                            store_sbus.setdefault(name, []).append([i for (i,j) in clique])
                             break
 
                     if(cluster_found):
+                        for n in neighbour_nodes:
+                            try:
+                                reference_nodes.pop(reference_nodes.index(n))
+                            except:
+                                pass
                         break
                 if not (cluster_found):
                     no_cluster.append(data['element'])
             except KeyError:
-                # no recognizable metal clusters for element
+                # no recognizable clusters for element
                 no_cluster.append(data['element'])
-
+        print(no_cluster)
         for j in set(no_cluster):
-            print ("No recognizable metal clusters for element %s"%(j))
+            print ("No recognizable %s clusters for element %s"%(type.lower(), j))
 
 
     def build_supercell(self, sc, lattice, track_molecule=False):

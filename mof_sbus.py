@@ -20,6 +20,11 @@ InorganicCluster = {
               }
         }
 
+OrganicCluster = {
+        'N':{'Thymine': nx.Graph(name='Thymine'),
+             'Adenine': nx.Graph(name='Adenine')}
+        }
+
 # add entry
 InorganicCluster['Cu']['Cu Paddlewheel'].add_nodes_from([
     (1, {'element':'O',
@@ -560,8 +565,161 @@ InorganicCluster['Zr']['Zr_UiO'].add_nodes_from([
         )
     ])
 
+OrganicCluster['N']['Adenine'].add_nodes_from([
+    (1, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([-0.108000,-0.237000,0.527000])
+         }
+       ),
+    (2, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([0.853000,-2.150000,0.700000])
+         }
+       ),
+    (3, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([0.550000,-0.540000,-0.675000])
+         }
+       ),
+    (4, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([-0.074000,1.419000,-1.600000])
+         }
+       ),
+    (5, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([-0.796000,0.992000,0.603000])
+         }
+       ),
+    (6, {'element':'H',
+         'special_flag':'Hd',
+         'cartesian_coordinates':np.array([-1.914000,2.348000,1.629000])
+         }
+       ),
+    (7, {'element':'H',
+         'special_flag':'H',
+         'cartesian_coordinates':np.array([-1.599000,0.804000,2.476000])
+         }
+       ),
+    (8, {'element':'H',
+         'special_flag':'H',
+         'cartesian_coordinates':np.array([1.193000,-3.098000,1.104000])
+         }
+       ),
+    (9, {'element':'H',
+         'special_flag':'H',
+         'cartesian_coordinates':np.array([-0.080000,2.127000,-2.431000])
+         }
+       ),
+    (10, {'element':'N',
+          'special_flag':'N',
+          'cartesian_coordinates':np.array([0.121000,-1.283000,1.403000])
+          }
+        ),
+    (11, {'element':'N',
+          'special_flag':'N',
+          'cartesian_coordinates':np.array([1.133000,-1.761000,-0.560000])
+          }
+        ),
+    (12, {'element':'N',
+          'special_flag':'N',
+          'cartesian_coordinates':np.array([0.617000,0.283000,-1.751000])
+          }
+        ),
+    (13, {'element':'H',
+          'special_flag':'Na',
+          'cartesian_coordinates':np.array([-0.763000,1.773000,-0.514000])
+          }
+        ),
+    (14, {'element':'N',
+          'special_flag':'Nd',
+          'cartesian_coordinates':np.array([-1.424000,1.447000,1.691000])
+          }
+        )
+    ])
+
+OrganicCluster['N']['Thymine'].add_nodes_from([
+    (1, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([13.966000,16.972000,12.145000])
+         }
+       ),
+    (2, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([12.549000,18.380000,13.950000])
+         }
+       ),
+    (3, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([11.714000,19.119000,14.888000])
+         }
+       ),
+    (4, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([13.016000,17.103000,14.220000])
+         }
+       ),
+    (5, {'element':'N',
+         'special_flag':'Ndw',
+         'cartesian_coordinates':np.array([13.714000,16.442000,13.316000])
+         }
+       ),
+    (6, {'element':'O',
+         'special_flag':'Oa2',
+         'cartesian_coordinates':np.array([14.542000,16.323000,11.289000])
+         }
+       ),
+    (7, {'element':'O',
+         'special_flag':'Oaw',
+         'cartesian_coordinates':np.array([12.755000,16.528000,15.269000])
+         }
+       ),
+    (8, {'element':'H',
+         'special_flag':'H',
+         'cartesian_coordinates':np.array([10.864000,18.500000,15.184000])
+         }
+       ),
+    (9, {'element':'H',
+         'special_flag':'Hdw',
+         'cartesian_coordinates':np.array([14.003000,15.581000,13.493000])
+         }
+       ),
+    (10, {'element':'C',
+          'special_flag':'C',
+          'cartesian_coordinates':np.array([12.877000,18.890000,12.738000])
+          }
+        ),
+    (11, {'element':'N',
+          'special_flag':'Nd2',
+          'cartesian_coordinates':np.array([13.557000,18.186000,11.867000])
+          }
+        ),
+    (12, {'element':'H',
+          'special_flag':'H',
+          'cartesian_coordinates':np.array([12.293000,19.381000,15.776000])
+          }
+        ),
+    (13, {'element':'H',
+          'special_flag':'H',
+          'cartesian_coordinates':np.array([11.316000,20.039000,14.453000])
+          }
+        ),
+    (14, {'element':'H',
+          'special_flag':'H',
+          'cartesian_coordinates':np.array([12.585000,19.801000,12.470000])
+          }
+        ),
+    (15, {'element':'H',
+          'special_flag':'Hd2',
+          'cartesian_coordinates':np.array([13.727000,18.544000,11.021000])
+          }
+        )
+    ])
+
 # compute the distance matrix
 add_distance_matrix(InorganicCluster['Cu']['Cu Paddlewheel'])
 add_distance_matrix(InorganicCluster['Zn']['Zn Paddlewheel'])
 add_distance_matrix(InorganicCluster['Zn']['Zn4O'])
 add_distance_matrix(InorganicCluster['Zr']['Zr_UiO'])
+add_distance_matrix(OrganicCluster['N']['Adenine'])
+add_distance_matrix(OrganicCluster['N']['Thymine'])

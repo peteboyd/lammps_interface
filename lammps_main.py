@@ -470,9 +470,13 @@ class LammpsSimulation(object):
     def merge_graphs(self):
         for mgraph in self.subgraphs:
             self.graph += mgraph
-        if sorted(self.graph.nodes()) != range(len(self.graph.nodes())):
+        if sorted(self.graph.nodes()) != [i+1 for i in range(len(self.graph.nodes()))]:
             print("Re-labelling atom indices.")
-            self.graph.reorder_labels()
+            reorder_dic = {i:j+1 for i, j in zip(sorted(self.graph.nodes()), range(len(self.graph.nodes())))}
+            self.graph.reorder_labels(reorder_dic)
+            for mgraph in self.subgraphs:
+                mgraph.reorder_labels(reorder_dic)
+
 
     def write_lammps_files(self):
         self.unique_atoms()
