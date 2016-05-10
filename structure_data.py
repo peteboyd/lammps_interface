@@ -60,9 +60,55 @@ class MolecularGraph(nx.Graph):
         self.sorted_edge_dict = {}
         self.molecule_images = []
         #FIXME(pboyd): latest version of NetworkX has removed nodes_iter...
+
     def edges_iter2(self, **kwargs):
         for n1, n2, d in self.edges_iter(**kwargs):
             yield (self.sorted_edge_dict[(n1, n2)][0], self.sorted_edge_dict[(n1,n2)][1], d)
+
+    def reorder_labels(self):
+        """Re-order the labels of the nodes so that LAMMPS doesn't complain.
+        This issue only arises when a supercell is built, but isolated molecules
+        are not replicated in the supercell (by user request).
+        This creates a discontinuity in the indices of the atoms, which breaks
+        some features in LAMMPS.
+
+        """
+
+        reorder_dic = {node:idx+1 for idx, node in enumerate(self.graph.nodes_iter())}
+        old_nodes = list(self.nodes_iter(data=True))
+        old_edges = list(self.edges_iter2(data=True))
+        for node, data in old_nodes:
+            ang_data = data['angles'].items()
+            for (a,c), val in ang_data:
+                data['angles'].pop((a,c))
+                data['angles'][(reorder_dic[a], reorder_dic[c])] = val
+            
+            imp_data = data['impropers'].items()
+            for (a, c, d), val in imp_data:
+                data['impropers'].pop((a,c,d))
+                data['impropers'][(reorder_dic[a], reorder_dic[c], reorder_dic[d])] = val
+
+            self.remove_node(node)
+            data['index'] = reorder_dic[node]
+            self.add_node(reorder_dic[node], **data)
+
+        for edge, data in old_edges:
+
+            dihed_data = data['dihedrals'].items()
+            for (a, d), val in dihed_data:
+                data['dihedrals'].pop((a,d))
+                data['dihedrals'][(reorder_dic[a], reorder_dic[d])] = val
+            try:
+                self.remove_edge(a,b)
+            except NetworkXError:
+                # edge already removed from 'remove_node' above
+                pass
+            self.add_edge(reorder_dic[a], reorder_dic[b], data=data)
+        
+        old_edge_dict = self.sorted_edge_dict.items()
+        for (a,b), val in old_edge_dict:
+            self.sorted_edge_dict.pop((a,b))
+            self.sorted_edge_dict[(reorder_dic[a], reorder_dic[b])] = (reorder_dic[val[0]], reorder_dic[val[1]])
 
     def add_atomic_node(self, **kwargs):
         """Insert nodes into the graph from the cif file"""

@@ -2552,8 +2552,14 @@ class Dreiding(ForceField):
 
         sp2 = ["aromatic", "sp2"]
 
+        # g)
+        if (b_hyb == 'sp' or c_hyb == 'sp') or (btype in monovalent or ctype in monovalent) or \
+                (b_data['atomic_number'] in METALS or c_data['atomic_number'] in METALS):
+            V = 0.0
+            n = 2
+            phi0 = 180.0
         # a)
-        if((b_hyb == "sp3")and(c_hyb == "sp3")):
+        elif((b_hyb == "sp3")and(c_hyb == "sp3")):
             V = 2.0
             n = 3
             phi0 = 180.0
@@ -2629,12 +2635,6 @@ class Dreiding(ForceField):
                               " of your system.")
                 if (b_arom and c_arom):
                     V *= 2.0
-        # g)
-        elif (b_hyb == 'sp' or c_hyb == 'sp') or (b_type in monovalent or c_type in monovalent) or \
-                (b_data['atomic_number'] in METALS or c_data['atomic_number'] in METALS):
-            V = 0.0
-            n = 2
-            phi0 = 180.0
 
         # divide V by the number of dihedral angles
         # to compute across this a-b bond
