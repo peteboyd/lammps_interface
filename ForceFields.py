@@ -2767,8 +2767,8 @@ class Dreiding(ForceField):
             data2 = graph.node[node2]
             if(flipped):
                 potential.donor = 'j'
-                data1 = data2
-                data2 = data
+                data1 = data2.copy()
+                data2 = data.copy()
                 node1 = node2
                 node2 = node
             else:
@@ -2781,7 +2781,7 @@ class Dreiding(ForceField):
             R0 = 2.75
             ineigh = [graph.node[q]['element'] for q in graph.neighbors(node1)]
             jneigh = [graph.node[q]['element'] for q in graph.neighbors(node2)]
-            if(ff1 == "N_3"):
+            if(ff1 == "N_3") or (ff1 == "N_R" and ineigh.count("H") == 2):
                 # tertiary amine
                 if ((ineigh.count("H") < 3) and (len(ineigh) == 4)or
                         ineigh.count("H")<2 and (len(ineigh) == 3)):
@@ -2809,9 +2809,10 @@ class Dreiding(ForceField):
                     elif(ff2 == "O_3"):
                         D0 = 2.21
                         R0 = 3.12
-                    elif(ff2 == "O_2"):
-                        D0 = 8.38
-                        R0 = 2.77 
+                    elif(ff2 == "O_2" or ff2 == "O_R"): # Added the O_R if statement
+                        #D0 = 8.38
+                        #R0 = 2.77 
+                        R0 = 3.00 
                     elif(ff2 == "N_3"):
                         if((jneigh.count("H") > 0)):
                             D0 = 8.45
@@ -2844,6 +2845,8 @@ class Dreiding(ForceField):
                 elif(ff2 == "O_3"):
                     D0 = 1.38
                     R0 = 3.17
+                elif(ff2 == "N_R"):
+                    R0 = 2.72 # fix for adenine w-c
                 elif(ff2 == "O_2"):
                     D0 = 3.88
                     R0 = 2.9  
@@ -2873,14 +2876,15 @@ class Dreiding(ForceField):
             # one can edit these values for bookkeeping.
             potential.Rin = 9.0
             potential.Rout = 11.0
-            potential.a_cut = 90.0
+            potential.a_cut = 30.0
             return potential
 
         return hbond_pair
 
     def special_commands(self):
         st = ["%-15s %s"%("pair_modify", "tail yes"),
-              "%-15s %s"%("special_bonds", "dreiding"), "%-15s %.1f"%('dielectric', 1.0)] # equivalent to 'special_bonds lj 0.0 0.0 1.0'
+             # "%-15s %s"%("special_bonds", "dreiding"), 
+              "%-15s %.1f"%('dielectric', 1.0)] # equivalent to 'special_bonds lj 0.0 0.0 1.0'
         return st
 
     def detect_ff_terms(self):

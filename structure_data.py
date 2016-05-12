@@ -759,7 +759,7 @@ class MolecularGraph(nx.Graph):
                     cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node], tol=tol)
                     cliques = nx.find_cliques(cg)
                     for clique in cliques:
-                        if len(clique) >= cluster.number_of_nodes()-1:
+                        if len(clique) == cluster.number_of_nodes():
                             # found cluster
                             # update the 'hybridization' data
                             for i,j in clique:
@@ -782,9 +782,8 @@ class MolecularGraph(nx.Graph):
             except KeyError:
                 # no recognizable clusters for element
                 no_cluster.append(data['element'])
-        print(no_cluster)
         for j in set(no_cluster):
-            print ("No recognizable %s clusters for element %s"%(type.lower(), j))
+            print ("No recognizable %s clusters for %i elements %s"%(type.lower(), no_cluster.count(j),  j))
 
 
     def build_supercell(self, sc, lattice, track_molecule=False):

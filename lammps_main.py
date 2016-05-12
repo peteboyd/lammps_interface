@@ -71,9 +71,17 @@ class LammpsSimulation(object):
                 molid = 0
 
             if data['force_field_type'] is None:
-                label = (data['element'], data['h_bond_donor'], molid)
+                if data['h_bond_donor']:
+                    # add neighbors to signify type of hbond donor
+                    label = (data['element'], data['h_bond_donor'], molid, tuple(sorted([self.graph.node[j]['element'] for j in self.graph.neighbors(node)])))
+                else:
+                    label = (data['element'], data['h_bond_donor'], molid)
             else:
-                label = (data['force_field_type'], data['h_bond_donor'], molid)
+                if data['h_bond_donor']:
+                    # add neighbors to signify type of hbond donor
+                    label = (data['force_field_type'], data['h_bond_donor'], molid, tuple(sorted([self.graph.node[j]['element'] for j in self.graph.neighbors(node)])))
+                else:
+                    label = (data['force_field_type'], data['h_bond_donor'], molid)
 
             try:
                 type = ff_type[label]

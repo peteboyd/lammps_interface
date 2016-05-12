@@ -626,7 +626,7 @@ OrganicCluster['N']['Adenine'].add_nodes_from([
           'cartesian_coordinates':np.array([0.617000,0.283000,-1.751000])
           }
         ),
-    (13, {'element':'H',
+    (13, {'element':'N',
           'special_flag':'Na',
           'cartesian_coordinates':np.array([-0.763000,1.773000,-0.514000])
           }
