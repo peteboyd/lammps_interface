@@ -17,6 +17,10 @@ InorganicCluster = {
               'Zn Paddlewheel': nx.Graph(name='Zn Paddlewheel') # taken from doi:
               },
         'Zr':{'Zr_UiO': nx.Graph(name='Zr_UiO') # taken from doi:
+              },
+        'Cr':{'Cr_tri': nx.Graph(name='Cr_tri') # taken from doi:
+              },
+        'V':{'V_pillar': nx.Graph(name='V_pillar') # taken from doi:
               }
         }
 
@@ -542,27 +546,27 @@ InorganicCluster['Zr']['Zr_UiO'].add_nodes_from([
           'special_flag':'C_Zr_UiO',
           'cartesian_coordinates':np.array([-0.000000,3.141000,3.180000])
           }
-        ),
-    (51, {'element':'H',
-          'special_flag':'H_o_Zr_UiO',
-          'cartesian_coordinates':np.array([1.881000,1.801000,1.666000])
-          }
-        ),
-    (52, {'element':'H',
-          'special_flag':'H_o_Zr_UiO',
-          'cartesian_coordinates':np.array([-1.832000,-1.884000,1.722000])
-          }
-        ),
-    (53, {'element':'H',
-          'special_flag':'H_o_Zr_UiO',
-          'cartesian_coordinates':np.array([-1.838000,1.795000,-1.728000])
-          }
-        ),
-    (54, {'element':'H',
-          'special_flag':'H_o_Zr_UiO',
-          'cartesian_coordinates':np.array([1.871000,-1.866000,-1.695000])
-          }
-        )
+        )#,
+    #(51, {'element':'H',
+    #      'special_flag':'H_o_Zr_UiO',
+    #      'cartesian_coordinates':np.array([1.881000,1.801000,1.666000])
+    #      }
+    #    ),
+    #(52, {'element':'H',
+    #      'special_flag':'H_o_Zr_UiO',
+    #      'cartesian_coordinates':np.array([-1.832000,-1.884000,1.722000])
+    #      }
+    #    ),
+    #(53, {'element':'H',
+    #      'special_flag':'H_o_Zr_UiO',
+    #      'cartesian_coordinates':np.array([-1.838000,1.795000,-1.728000])
+    #      }
+    #    ),
+    #(54, {'element':'H',
+    #      'special_flag':'H_o_Zr_UiO',
+    #      'cartesian_coordinates':np.array([1.871000,-1.866000,-1.695000])
+    #      }
+    #    )
     ])
 
 
@@ -918,5 +922,7 @@ add_distance_matrix(InorganicCluster['Cu']['Cu Paddlewheel'])
 add_distance_matrix(InorganicCluster['Zn']['Zn Paddlewheel'])
 add_distance_matrix(InorganicCluster['Zn']['Zn4O'])
 add_distance_matrix(InorganicCluster['Zr']['Zr_UiO'])
+add_distance_matrix(InorganicCluster['Cr']['Cr_tri'])
+add_distance_matrix(InorganicCluster['V']['V_pillar'])
 add_distance_matrix(OrganicCluster['N']['Adenine'])
 add_distance_matrix(OrganicCluster['N']['Thymine'])
