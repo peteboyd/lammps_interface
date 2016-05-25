@@ -565,6 +565,203 @@ InorganicCluster['Zr']['Zr_UiO'].add_nodes_from([
         )
     ])
 
+
+InorganicCluster['Cr']['Cr_tri'].add_nodes_from([
+    (1, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([2.267000,-1.345000,1.482000])
+         }
+       ),
+    (2, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([-0.321000,-2.272000,1.374000])
+         }
+       ),
+    (3, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([-1.353000,-2.006000,2.059000])
+         }
+       ),
+    (4, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([-2.299000,-1.290000,1.482000])
+         }
+       ),
+    (5, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([-1.808000,1.414000,1.374000])
+         }
+       ),
+    (6, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([-1.061000,2.175000,2.059000])
+         }
+       ),
+    (7, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([0.032000,2.636000,1.482000])
+         }
+       ),
+    (8, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([2.128000,0.859000,1.374000])
+         }
+       ),
+    (9, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([2.414000,-0.169000,2.059000])
+         }
+       ),
+    (10, {'element':'O',
+          'special_flag':'O',
+          'cartesian_coordinates':np.array([2.267000,-1.345000,-1.477000])
+          }
+        ),
+    (11, {'element':'O',
+          'special_flag':'O',
+          'cartesian_coordinates':np.array([-0.321000,-2.272000,-1.369000])
+          }
+        ),
+    (12, {'element':'C',
+          'special_flag':'C',
+          'cartesian_coordinates':np.array([-1.353000,-2.006000,-2.054000])
+          }
+        ),
+    (13, {'element':'O',
+          'special_flag':'O',
+          'cartesian_coordinates':np.array([-2.299000,-1.290000,-1.477000])
+          }
+        ),
+    (14, {'element':'O',
+          'special_flag':'O',
+          'cartesian_coordinates':np.array([-1.808000,1.414000,-1.369000])
+          }
+        ),
+    (15, {'element':'C',
+          'special_flag':'C',
+          'cartesian_coordinates':np.array([-1.061000,2.175000,-2.054000])
+          }
+        ),
+    (16, {'element':'O',
+          'special_flag':'O',
+          'cartesian_coordinates':np.array([0.032000,2.636000,-1.477000])
+          }
+        ),
+    (17, {'element':'O',
+          'special_flag':'O',
+          'cartesian_coordinates':np.array([2.128000,0.859000,-1.369000])
+          }
+        ),
+    (18, {'element':'C',
+          'special_flag':'C',
+          'cartesian_coordinates':np.array([2.414000,-0.169000,-2.054000])
+          }
+        ),
+    (19, {'element':'Cr',
+          'special_flag':'Cr_tri',
+          'cartesian_coordinates':np.array([0.918000,-1.740000,0.002000])
+          }
+        ),
+    (20, {'element':'Cr',
+          'special_flag':'Cr_tri',
+          'cartesian_coordinates':np.array([-1.966000,0.075000,0.002000])
+          }
+        ),
+    (21, {'element':'Cr',
+          'special_flag':'Cr_tri',
+          'cartesian_coordinates':np.array([1.048000,1.665000,0.002000])
+          }
+        ),
+    (22, {'element':'O',
+          'special_flag':'O_z_Cr_tri',
+          'cartesian_coordinates':np.array([0.000000,0.000000,0.002000])
+          }
+        )
+    ])
+
+InorganicCluster['V']['V_pillar'].add_nodes_from([
+    (1, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([-3.335000,1.411000,1.192000])
+         }
+       ),
+    (2, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([-1.088000,-1.401000,1.345000])
+         }
+       ),
+    (3, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([0.073000,-1.411000,-1.136000])
+         }
+       ),
+    (4, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([-2.221000,-1.831000,1.655000])
+         }
+       ),
+    (5, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([-1.088000,1.401000,1.345000])
+         }
+       ),
+    (6, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([0.073000,1.411000,-1.136000])
+         }
+       ),
+    (7, {'element':'C',
+         'special_flag':'C',
+         'cartesian_coordinates':np.array([-2.221000,1.831000,1.655000])
+         }
+       ),
+    (8, {'element':'O',
+         'special_flag':'O',
+         'cartesian_coordinates':np.array([-3.335000,-1.411000,1.192000])
+         }
+       ),
+    (9, {'element':'O',
+         'special_flag':'O_z_V_pillar',
+         'cartesian_coordinates':np.array([-2.201000,0.000000,-0.786000])
+         }
+       ),
+    (10, {'element':'V',
+          'special_flag':'V_pillar',
+          'cartesian_coordinates':np.array([-0.327000,0.000000,0.179000])
+          }
+        ),
+    (11, {'element':'O',
+          'special_flag':'O',
+          'cartesian_coordinates':np.array([2.321000,1.401000,-1.289000])
+          }
+        ),
+    (12, {'element':'C',
+          'special_flag':'C',
+          'cartesian_coordinates':np.array([1.187000,1.831000,-1.599000])
+          }
+        ),
+    (13, {'element':'O',
+          'special_flag':'O',
+          'cartesian_coordinates':np.array([2.321000,-1.401000,-1.289000])
+          }
+        ),
+    (14, {'element':'C',
+          'special_flag':'C',
+          'cartesian_coordinates':np.array([1.187000,-1.831000,-1.599000])
+          }
+        ),
+    (15, {'element':'V',
+          'special_flag':'V_pillar',
+          'cartesian_coordinates':np.array([3.082000,0.000000,-0.123000])
+          }
+        ),
+    (16, {'element':'O',
+          'special_flag':'O_z_V_pillar',
+          'cartesian_coordinates':np.array([1.208000,0.000000,0.842000])
+          }
+        )
+    ])
+
 OrganicCluster['N']['Adenine'].add_nodes_from([
     (1, {'element':'C',
          'special_flag':'C',

@@ -121,7 +121,18 @@ class MolecularGraph(nx.Graph):
         """Insert nodes into the graph from the cif file"""
         #update keywords with more atom info
         # rename this to something more intuitive
-        element = kwargs.pop('_atom_site_type_symbol')
+        label="_atom_site_type_symbol"
+        if(label not in kwargs):
+            label = "_atom_site_label"
+            if (label not in kwargs):
+                print("ERROR: could not find the keyword for the element types in the cif file!"+
+                        " Please use '_atom_site_type_symbol' or '_atom_site_label' for the element"+
+                        " column.")
+                sys.exit()
+
+
+        element = kwargs.pop(label)
+
         # replacing Atom.__init__
         kwargs.update({'mass':MASS[element]})
         kwargs.update({'element':element})
@@ -146,7 +157,10 @@ class MolecularGraph(nx.Graph):
         idx = self.number_of_nodes() + 1
         kwargs.update({'index':idx})
         #TODO(pboyd) should have some error checking here..
-        n = kwargs.pop('_atom_site_label')
+        try:
+            n = kwargs.pop('_atom_site_label')
+        except KeyError:
+            n = label
         kwargs.update({'ciflabel':n})
         # to identify Cu paddlewheels, etc.
         #kwargs.update({'special_flag':None})
@@ -690,7 +704,7 @@ class MolecularGraph(nx.Graph):
             newflag = '.'
         return newflag
     
-    def correspondence_graph(self, graph, node_subset=None, tol=0.1):
+    def correspondence_graph(self, graph, tol, general_metal=False, node_subset=None):
         """Generate a correspondence graph between the nodes
         and the SBU.
         tolerance is the distance tolerance for the edge generation 
@@ -704,7 +718,17 @@ class MolecularGraph(nx.Graph):
         # add nodes to cg 
         for (i, j) in itertools.product(node_subset, graph_nodes):
             # match element-wise
-            if self.node[i]['element'] == graph.node[j]['element']:
+            elementi = self.node[i]['element']
+            elementj = graph.node[j]['element']
+            match = False
+            if general_metal:
+                if ATOMIC_NUMBER.index(elementi) in METALS and ATOMIC_NUMBER.index(elementj) in METALS:
+                    match = True
+                elif elementi == elementj:
+                    match = True
+            elif elementi == elementj:
+                match = True
+            if match:
                 cg.add_node((i,j))
         # add edges to cg
         for (a1, b1), (a2, b2) in itertools.combinations(cg.nodes(), 2):
@@ -715,11 +739,15 @@ class MolecularGraph(nx.Graph):
                     cg.add_edge((a1,b1), (a2,b2))
         return cg
 
-    def detect_clusters(self, num_neighbors, tol, type='Inorganic'):
+    def detect_clusters(self, num_neighbors, tol, type='Inorganic', general_metal=False):
         """Detect clusters such as the copper paddlewheel using
         maximum clique detection. This will assign specific atoms
         with a special flag for use when building their force field.
 
+        setting general_metal to True will allow for cluster recognition of 
+        inorganic SBUs while ignoring the specific element type of the metal,
+        so long as it is a metal, it will be paired with other metals.
+        This may increase the time for SBU recognition.
 
         """
         print("Detecting %s clusters"%type)
@@ -736,15 +764,23 @@ class MolecularGraph(nx.Graph):
             store_sbus = self.organic_sbus
 
         for node, data in self.nodes_iter(data=True):
-            if data['element'] in types: 
+            if (type=='Inorganic') and (general_metal) and (data['atomic_number'] in METALS):
+                reference_nodes.append(node) 
+
+            elif data['element'] in types: 
                 reference_nodes.append(node)
 
         no_cluster = []
         while reference_nodes:
             node = reference_nodes.pop() 
             data = self.node[node]
+            possible_clusters = {}
+            if type=="Inorganic" and general_metal:
+                for j in ref_sbus.keys():
+                    possible_clusters.update(ref_sbus[j])
+            else:
+                possible_clusters.update(ref_sbus[data['element']])
             try:
-                possible_clusters = ref_sbus[data['element']]
                 neighbour_nodes = [] 
                 instanced_neighbours = self.neighbors(node)
                 # tree-like spanning of original node
@@ -756,9 +792,10 @@ class MolecularGraph(nx.Graph):
                     instanced_neighbours = temp_neighbours
                 cluster_found = False
                 for name, cluster in possible_clusters.items():
-                    cg = self.correspondence_graph(cluster, node_subset=neighbour_nodes + [node], tol=tol)
+                    cg = self.correspondence_graph(cluster, tol, general_metal=general_metal, node_subset=neighbour_nodes + [node])
                     cliques = nx.find_cliques(cg)
                     for clique in cliques:
+                        #print(len(clique), cluster.number_of_nodes())
                         if len(clique) == cluster.number_of_nodes():
                             # found cluster
                             # update the 'hybridization' data
@@ -1046,7 +1083,7 @@ class MolecularGraph(nx.Graph):
         return self
 
     def __or__(self, graph):
-        cg = self.correspondence_graph(graph, tol=0.4)
+        cg = self.correspondence_graph(graph, 0.4)
         cliques = list(nx.find_cliques(cg))
         cliques.sort(key=len)
         return cliques[-1] 
