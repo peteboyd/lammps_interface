@@ -15,7 +15,7 @@ InorganicCluster = {
               },
         'Zn':{'Zn4O': nx.Graph(name='Zn4O'), # taken from doi:
               'Zn Paddlewheel': nx.Graph(name='Zn Paddlewheel') # taken from doi:
-              },
+              'Kuratowski': nx.Graph(name='Kurakowski')},
         'Zr':{'Zr_UiO': nx.Graph(name='Zr_UiO') # taken from doi:
               },
         'Cr':{'Cr_tri': nx.Graph(name='Cr_tri') # taken from doi:
@@ -291,6 +291,204 @@ InorganicCluster['Zn']['Zn4O'].add_nodes_from([
     (23, {'element':'C',
           'special_flag':'C_Zn4O',
           'cartesian_coordinates':np.array([0.058000,0.058000,3.429000])
+          }
+        )
+    ])
+
+InorganicCluster['Zn']['Kuratowski'].add_nodes_from([
+    (1, {'element':'Zn',
+         'special_flag':'Zn_tet',
+         'cartesian_coordinates':np.array([2.079000,2.079000,-2.079000])
+         }
+       ),
+    (2, {'element':'Cl',
+         'special_flag':'Cl_kuratowski',
+         'cartesian_coordinates':np.array([3.295000,3.295000,-3.295000])
+         }
+       ),
+    (3, {'element':'Zn',
+         'special_flag':'Zn_tet',
+         'cartesian_coordinates':np.array([-2.079000,2.079000,2.079000])
+         }
+       ),
+    (4, {'element':'Cl',
+         'special_flag':'Cl_kuratowski',
+         'cartesian_coordinates':np.array([-3.295000,3.295000,3.295000])
+         }
+       ),
+    (5, {'element':'Zn',
+         'special_flag':'Zn_tet',
+         'cartesian_coordinates':np.array([2.079000,-2.079000,2.079000])
+         }
+       ),
+    (6, {'element':'Cl',
+         'special_flag':'Cl_kuratowski',
+         'cartesian_coordinates':np.array([3.295000,-3.295000,3.295000])
+         }
+       ),
+    (7, {'element':'Zn',
+         'special_flag':'Zn_tet',
+         'cartesian_coordinates':np.array([-2.079000,-2.079000,-2.079000])
+         }
+       ),
+    (8, {'element':'Cl',
+         'special_flag':'Cl_kuratowski',
+         'cartesian_coordinates':np.array([-3.295000,-3.295000,-3.295000])
+         }
+       ),
+    (9, {'element':'Zn',
+         'special_flag':'Zn_oct',
+         'cartesian_coordinates':np.array([-0.000000,-0.000000,-0.000000])
+         }
+       ),
+    (10, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([2.946000,0.770000,-0.770000])
+          }
+        ),
+    (11, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([4.261000,-0.493000,0.493000])
+          }
+        ),
+    (12, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([-0.770000,2.946000,0.770000])
+          }
+        ),
+    (13, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([0.493000,4.261000,-0.493000])
+          }
+        ),
+    (14, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([0.770000,-0.770000,2.946000])
+          }
+        ),
+    (15, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([-0.493000,0.493000,4.261000])
+          }
+        ),
+    (16, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([0.770000,2.946000,-0.770000])
+          }
+        ),
+    (17, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([-0.493000,4.261000,0.493000])
+          }
+        ),
+    (18, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([2.946000,-0.770000,0.770000])
+          }
+        ),
+    (19, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([4.261000,0.493000,-0.493000])
+          }
+        ),
+    (20, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([-0.770000,0.770000,2.946000])
+          }
+        ),
+    (21, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([0.493000,-0.493000,4.261000])
+          }
+        ),
+    (22, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([-0.770000,-2.946000,-0.770000])
+          }
+        ),
+    (23, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([0.493000,-4.261000,0.493000])
+          }
+        ),
+    (24, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([0.770000,0.770000,-2.946000])
+          }
+        ),
+    (25, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([-0.493000,-0.493000,-4.261000])
+          }
+        ),
+    (26, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([0.770000,-2.946000,0.770000])
+          }
+        ),
+    (27, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([-0.493000,-4.261000,-0.493000])
+          }
+        ),
+    (28, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([-0.770000,-0.770000,-2.946000])
+          }
+        ),
+    (29, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([0.493000,0.493000,-4.261000])
+          }
+        ),
+    (30, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([-2.946000,0.770000,0.770000])
+          }
+        ),
+    (31, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([-4.261000,-0.493000,-0.493000])
+          }
+        ),
+    (32, {'element':'N',
+          'special_flag':'N_tet',
+          'cartesian_coordinates':np.array([-2.946000,-0.770000,-0.770000])
+          }
+        ),
+    (33, {'element':'C',
+          'special_flag':'C_kuratowski',
+          'cartesian_coordinates':np.array([-4.261000,0.493000,0.493000])
+          }
+        ),
+    (34, {'element':'N',
+          'special_flag':'N_oct',
+          'cartesian_coordinates':np.array([2.211000,-0.000000,-0.000000])
+          }
+        ),
+    (35, {'element':'N',
+          'special_flag':'N_oct',
+          'cartesian_coordinates':np.array([-0.000000,2.211000,-0.000000])
+          }
+        ),
+    (36, {'element':'N',
+          'special_flag':'N_oct',
+          'cartesian_coordinates':np.array([-0.000000,-0.000000,2.211000])
+          }
+        ),
+    (37, {'element':'N',
+          'special_flag':'N_oct',
+          'cartesian_coordinates':np.array([-0.000000,-2.211000,-0.000000])
+          }
+        ),
+    (38, {'element':'N',
+          'special_flag':'N_oct',
+          'cartesian_coordinates':np.array([-0.000000,-0.000000,-2.211000])
+          }
+        ),
+    (39, {'element':'N',
+          'special_flag':'N_oct',
+          'cartesian_coordinates':np.array([-2.211000,-0.000000,-0.000000])
           }
         )
     ])
@@ -921,6 +1119,7 @@ OrganicCluster['N']['Thymine'].add_nodes_from([
 add_distance_matrix(InorganicCluster['Cu']['Cu Paddlewheel'])
 add_distance_matrix(InorganicCluster['Zn']['Zn Paddlewheel'])
 add_distance_matrix(InorganicCluster['Zn']['Zn4O'])
+add_distance_matrix(InorganicCluster['Zn']['Kuratowski'])
 add_distance_matrix(InorganicCluster['Zr']['Zr_UiO'])
 add_distance_matrix(InorganicCluster['Cr']['Cr_tri'])
 add_distance_matrix(InorganicCluster['V']['V_pillar'])
