@@ -14,8 +14,8 @@ InorganicCluster = {
         'Cu':{'Cu Paddlewheel': nx.Graph(name='Cu Paddlewheel') # taken from doi: 10.1126/science.283.5405.1148
               },
         'Zn':{'Zn4O': nx.Graph(name='Zn4O'), # taken from doi:
-              'Zn Paddlewheel': nx.Graph(name='Zn Paddlewheel') # taken from doi:
-              'Kuratowski': nx.Graph(name='Kurakowski')},
+              'Zn Paddlewheel': nx.Graph(name='Zn Paddlewheel'), # taken from doi:
+              'Kuratowski': nx.Graph(name='Kuratowski')},
         'Zr':{'Zr_UiO': nx.Graph(name='Zr_UiO') # taken from doi:
               },
         'Cr':{'Cr_tri': nx.Graph(name='Cr_tri') # taken from doi:
@@ -26,7 +26,8 @@ InorganicCluster = {
 
 OrganicCluster = {
         'N':{'Thymine': nx.Graph(name='Thymine'),
-             'Adenine': nx.Graph(name='Adenine')}
+             'Adenine': nx.Graph(name='Adenine'),
+             'CarboxylateImidazolate': nx.Graph(name='CarboxylateImidazolate')}
         }
 
 # add entry
@@ -1114,6 +1115,58 @@ OrganicCluster['N']['Thymine'].add_nodes_from([
           }
         )
     ])
+OrganicCluster['N']['CarboxylateImidazolate'].add_nodes_from([
+    (1, {'element':'C',
+         'special_flag':'C13',
+         'cartesian_coordinates':np.array([-0.325000,-0.797000,0.755000])
+         }
+       ),
+    (2, {'element':'N',
+         'special_flag':'N20',
+         'cartesian_coordinates':np.array([-0.712000,0.499000,0.760000])
+         }
+       ),
+    (3, {'element':'C',
+         'special_flag':'N20',
+         'cartesian_coordinates':np.array([-0.133000,1.108000,-0.263000])
+         }
+       ),
+    (4, {'element':'C',
+         'special_flag':'C13',
+         'cartesian_coordinates':np.array([0.616000,0.148000,-0.885000])
+         }
+       ),
+    (5, {'element':'N',
+         'special_flag':'N20',
+         'cartesian_coordinates':np.array([0.512000,-1.071000,-0.265000])
+         }
+       ),
+    (6, {'element':'H',
+         'special_flag':'8H13',
+         'cartesian_coordinates':np.array([1.218000,0.325000,-1.764000])
+         }
+       ),
+    (7, {'element':'H',
+         'special_flag':'H',
+         'cartesian_coordinates':np.array([-0.314000,2.158000,-0.439000])
+         }
+       ),
+    (8, {'element':'C',
+         'special_flag':'C1',
+         'cartesian_coordinates':np.array([-0.843000,-1.760000,1.840000])
+         }
+       ),
+    (9, {'element':'O',
+         'special_flag':'O2',
+         'cartesian_coordinates':np.array([-0.453000,-3.062000,1.835000])
+         }
+       ),
+    (10, {'element':'O',
+          'special_flag':'O3',
+          'cartesian_coordinates':np.array([-1.690000,-1.307000,2.803000])
+          }
+        )  
+    ])
 
 # compute the distance matrix
 add_distance_matrix(InorganicCluster['Cu']['Cu Paddlewheel'])
@@ -1125,3 +1178,4 @@ add_distance_matrix(InorganicCluster['Cr']['Cr_tri'])
 add_distance_matrix(InorganicCluster['V']['V_pillar'])
 add_distance_matrix(OrganicCluster['N']['Adenine'])
 add_distance_matrix(OrganicCluster['N']['Thymine'])
+add_distance_matrix(OrganicCluster['N']['CarboxylateImidazolate'])
