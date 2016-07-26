@@ -662,7 +662,13 @@ class BTW_FF(ForceField):
             print("No exact charge for the IRMOF is available from BTW-FF. Average charges in BTW-FF is used.")
             chrg_flag="TFF_" # Transferable FF charges (average values)
         elif("Zn4O" in mof_sbus):
-            resp= input("What is the IRMOF number?[1/10]")
+            #resp= input("What is the IRMOF number?[1/10]")
+            # temp fix so I don't have to respond to screen prompt
+            if self.structure.number_of_nodes() == 424:
+                resp = "1"
+            elif self.structure.number_of_nodes() == 664:
+                reps = "10"
+
             if resp=="1":
                 chrg_flag="Zn4O_"
             elif resp=="10":
