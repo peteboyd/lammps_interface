@@ -664,9 +664,9 @@ class BTW_FF(ForceField):
         elif("Zn4O" in mof_sbus):
             #resp= input("What is the IRMOF number?[1/10]")
             # temp fix so I don't have to respond to screen prompt
-            if self.structure.number_of_nodes() == 424:
+            if self.graph.number_of_nodes() == 424:
                 resp = "1"
-            elif self.structure.number_of_nodes() == 664:
+            elif self.graph.number_of_nodes() == 664:
                 reps = "10"
 
             if resp=="1":
