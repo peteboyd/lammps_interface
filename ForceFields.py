@@ -2440,6 +2440,7 @@ class Dreiding(ForceField):
     def __init__(self, graph=None,  h_bonding=False, **kwargs):
         self.pair_in_data = True
         self.h_bonding = h_bonding
+        self.bondtype = 'harmonic'
         self.keep_metal_geometry = False
         # override existing arguments with kwargs
         for key, value in kwargs.items():
@@ -2450,7 +2451,7 @@ class Dreiding(ForceField):
             self.detect_ff_terms() 
             self.compute_force_field_terms()
 
-    def bond_term(self, edge, type='harmonic'):
+    def bond_term(self, edge):
         """The DREIDING Force Field contains two possible bond terms, harmonic and Morse.
         The authors recommend using harmonic as a default, and Morse potentials for more
         'refined' calculations. 
@@ -2485,19 +2486,24 @@ class Dreiding(ForceField):
             data['potential'].R = data['length']
             return
 
-        if type.lower() == 'harmonic':
+        if self.bondtype.lower() == 'harmonic':
 
             data['potential'] = BondPotential.Harmonic()
             data['potential'].K = K/2.
 
             data['potential'].R0 = Re
 
-        elif type.lower() == 'morse':
+        elif self.bondtype.lower() == 'morse':
             alpha = order * np.sqrt(K/2./D)
             data['potential'] = BondPotential.Morse()
             data['potential'].D = D
             data['potential'].alpha = alpha
             data['potential'].R = Re
+
+        else:
+            print("ERROR: Cannot recognize bond potential for Dreiding: %s"%self.bondtype)
+            print("Please chose between 'morse' or 'harmonic'")
+            sys.exit()
 
     def angle_term(self, angle):
         """

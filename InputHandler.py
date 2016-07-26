@@ -51,6 +51,13 @@ class Options(object):
                                           "to the force field characterization."+
                                           " Currently only applies to Dreiding. "+
                                           "Default is off.")
+        force_field_group.add_argument("--dreid-bond-type", action="store", 
+                                       dest="dreid_bond_type",
+                                       type=str,
+                                       default="harmonic",
+                                       help="Request the Morse bond potential "+
+                                          "for the Dreiding force field. Default" + 
+                                          " is harmonic.")
         force_field_group.add_argument("--fix-metal", action="store_true", 
                                        dest="fix_metal",
                                        default=False,

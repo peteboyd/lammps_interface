@@ -383,7 +383,7 @@ class LammpsSimulation(object):
     def assign_force_fields(self):
         
         attr = {'graph':self.graph, 'cutoff':self.options.cutoff, 'h_bonding':self.options.h_bonding,
-                'keep_metal_geometry':self.options.fix_metal}
+                'keep_metal_geometry':self.options.fix_metal, 'bondtype':self.options.dreid_bond_type}
 
         param = getattr(ForceFields, self.options.force_field)(**attr)
         self.special_commands += param.special_commands()
