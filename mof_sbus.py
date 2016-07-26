@@ -745,27 +745,27 @@ InorganicCluster['Zr']['Zr_UiO'].add_nodes_from([
           'special_flag':'C_Zr_UiO',
           'cartesian_coordinates':np.array([-0.000000,3.141000,3.180000])
           }
-        )#,
-    #(51, {'element':'H',
-    #      'special_flag':'H_o_Zr_UiO',
-    #      'cartesian_coordinates':np.array([1.881000,1.801000,1.666000])
-    #      }
-    #    ),
-    #(52, {'element':'H',
-    #      'special_flag':'H_o_Zr_UiO',
-    #      'cartesian_coordinates':np.array([-1.832000,-1.884000,1.722000])
-    #      }
-    #    ),
-    #(53, {'element':'H',
-    #      'special_flag':'H_o_Zr_UiO',
-    #      'cartesian_coordinates':np.array([-1.838000,1.795000,-1.728000])
-    #      }
-    #    ),
-    #(54, {'element':'H',
-    #      'special_flag':'H_o_Zr_UiO',
-    #      'cartesian_coordinates':np.array([1.871000,-1.866000,-1.695000])
-    #      }
-    #    )
+        ),
+    (51, {'element':'H',
+          'special_flag':'H_o_Zr_UiO',
+          'cartesian_coordinates':np.array([1.881000,1.801000,1.666000])
+          }
+        ),
+    (52, {'element':'H',
+          'special_flag':'H_o_Zr_UiO',
+          'cartesian_coordinates':np.array([-1.832000,-1.884000,1.722000])
+          }
+        ),
+    (53, {'element':'H',
+          'special_flag':'H_o_Zr_UiO',
+          'cartesian_coordinates':np.array([-1.838000,1.795000,-1.728000])
+          }
+        ),
+    (54, {'element':'H',
+          'special_flag':'H_o_Zr_UiO',
+          'cartesian_coordinates':np.array([1.871000,-1.866000,-1.695000])
+          }
+        )
     ])
 
 

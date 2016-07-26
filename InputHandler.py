@@ -33,13 +33,6 @@ class Options(object):
                                  " Necessary for debugging purposes, this"+
                                  " file can show the user how the structure "+
                                  "has been interpreted by the program.")
-        parser.add_argument("-t", "--tolerance",
-                            action="store",
-                            type=float,
-                            default=0.4,
-                            dest="tol",
-                            help="Tolerance in angstroms to determine "+
-                                 "detection of inorganic clusters.")
 
         #split the command line options into separate groups for nicer
         #visualization.
@@ -65,13 +58,68 @@ class Options(object):
                                       default=True,
                                       help="Request input files necessary for"
                                       + " a geometry optimization.")
+        simulation_group.add_argument("--bulk-moduli", action="store_true",
+                                      dest="bulk_moduli",
+                                      default=False,
+                                      help="Request input files necessary for"
+                                      + " an energy vs volume calculation. This will use "+
+                                      "values from ITER_COUNT and MAX_DEV to create "+
+                                      "the volume range")
+        simulation_group.add_argument("--thermal-scaling", action="store_true",
+                                      dest="thermal_scaling",
+                                      default=False,
+                                      help="Request input files necessary for"
+                                      + " a temperature scaling calculation. This will use "+
+                                      "values from ITER_COUNT and MAX_DEV to create "+
+                                      "the temperature range")
         simulation_group.add_argument("--cutoff", action="store",
                                       type=float, dest="cutoff",
                                       default=12.5,
                                       help="Set the long-range cutoff "+
                                       "to this value in Angstroms." + 
                                       " This will determine the size of "+
-                                      "the supercell computed for the simulation.")
+                                      "the supercell computed for the simulation. "+
+                                      "Default is 12.5 angstroms.")
+        simulation_group.add_argument("--dcd",
+                                      action="store_true",
+                                      default=False,
+                                      dest="dump_dcd",
+                                      help="Store trajectory of simulation in a "+
+                                           "dcd format. If not requested, then no trajectory "+
+                                           "file will be written.")
+        simulation_group.add_argument("--xyz",
+                                      action="store_true",
+                                      default=False,
+                                      dest="dump_xyz",
+                                      help="Store trajectory of simulation in a "+
+                                           "dcd format. If not requested, then no trajectory "+
+                                           "file will be written.")
+
+        parameter_group = parser.add_argument_group("Parameter options")
+        parameter_group.add_argument("-t", "--tolerance",
+                                     action="store",
+                                     type=float,
+                                     default=0.4,
+                                     dest="tol",
+                                     help="Tolerance in angstroms to determine "+
+                                          "detection of inorganic clusters. " +
+                                          "Default is 0.4 angstroms.")
+        parameter_group.add_argument("--iter-count",
+                                     action="store",
+                                     type=int,
+                                     default=10,
+                                     dest="iter_count",
+                                     help="Number of iteration steps to "+
+                                          "change a variable of interest (temperature, volume). "+
+                                          "Default is 10 steps.")
+        parameter_group.add_argument("--max-deviation",
+                                     action="store",
+                                     type=float,
+                                     default=0.04,
+                                     dest="max_dev",
+                                     help="Max deviation of adjusted variable "+
+                                          "at each step is scaled by MAX_DEV/ITER_COUNT. "+
+                                          "Default is 0.04 (ideal for volume).")
 
 
         parser.add_argument(metavar="CIF", dest="cif_file",
