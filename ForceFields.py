@@ -2469,6 +2469,16 @@ class Dreiding(ForceField):
         K = order*700.
         D = order*70.
         Re = R1 + R2 - 0.01
+        
+        if (self.keep_metal_geometry) and (n1_data['atomic_number'] in METALS
+            or n2_data['atomic_number'] in METALS):
+            alpha = order * np.sqrt(K/2./D)
+            data['potential'] = BondPotential.Morse()
+            data['potential'].D = D 
+            data['potential'].alpha = alpha
+            data['potential'].R = data['length']
+            return
+
         if type.lower() == 'harmonic':
 
             data['potential'] = BondPotential.Harmonic()
@@ -2504,11 +2514,38 @@ class Dreiding(ForceField):
         a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
         btype = b_data['force_field_type']
         theta0 = DREIDING_DATA[btype][1]
+        
+        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
+            theta0 = self.graph.compute_angle_between(a, b, c)
+            data['potential'] = AnglePotential.CosineSquared()
+            K = 0.5*K/(np.sin(theta0*DEG2RAD))**2
+            data['potential'].K = K
+            data['potential'].theta0 = theta0
+            return
+
         if (theta0 == 180.):
             data['potential'] = AnglePotential.Cosine()
-            data['potential'].K = K
+            data['potential'].K = K / 2.
+            # Dreiding suggests setting K = 100.0, but the resulting maxima in the cosine function 
+            # wind up as 200.0 due to the functional form. I have divided by two in case this is an
+            # error in the intended Dreiding force field.
+            #data['potential'].K = K
+
+        elif (theta0 == 90.0):
+            # this is for the Cu paddlehweel. This function has minima at 90 and 180 deg
+            # and is an addition made by Peter Boyd.
+            # NB: the slope around the minima is similar compared with the CosineSquared function,
+            #     however, the energetic barrier is much lower (50 kcal vs ~ 12). There
+            #     may be some unphysical effects of this parameterization
+            data['potential'] = AnglePotential.CosinePeriodic()
+            n = 4 # makes four minima in the angle range 0 - 360
+            data['potential'].C = K/n**2 
+            data['potential'].B = 1.
+            data['potential'].n = n 
+
         else:
-            data['potential'] = AnglePotential.Harmonic()
+            #data['potential'] = AnglePotential.Harmonic()
+            data['potential'] = AnglePotential.CosineSquared()
             K = 0.5*K/(np.sin(theta0*DEG2RAD))**2
             data['potential'].K = K
             data['potential'].theta0 = theta0
