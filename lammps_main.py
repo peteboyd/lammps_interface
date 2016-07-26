@@ -382,19 +382,11 @@ class LammpsSimulation(object):
 
     def assign_force_fields(self):
         
-        attr = {'graph':self.graph, 'cutoff':self.options.cutoff, 'h_bonding':self.options.h_bonding}
-        #try:
-        if self.options.force_field.lower() == "uff" or self.options.force_field.lower() == "dreiding":
-            response = input("Would you like to fix the metal geometries to their input values? [y/n]: ")
-            if response.lower() in ['y','yes']:
-                attr.update({'keep_metal_geometry':True})
+        attr = {'graph':self.graph, 'cutoff':self.options.cutoff, 'h_bonding':self.options.h_bonding,
+                'keep_metal_geometry':self.options.fix_metal}
 
         param = getattr(ForceFields, self.options.force_field)(**attr)
         self.special_commands += param.special_commands()
-        #except AttributeError:
-        #    print("Error: could not find the force field: %s"%self.options.force_field)
-        #    sys.exit()
-	     
 
         # apply different force fields.
         for mtype in list(self.molecule_types.keys()):

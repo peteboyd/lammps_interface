@@ -51,6 +51,19 @@ class Options(object):
                                           "to the force field characterization."+
                                           " Currently only applies to Dreiding. "+
                                           "Default is off.")
+        force_field_group.add_argument("--fix-metal", action="store_true", 
+                                       dest="fix_metal",
+                                       default=False,
+                                       help="Fix the metal geometries with "+
+                                          "modified potentials to match their "+
+                                          "input geometries. The potential isn't set "+ 
+                                          "to be overly rigid so that the material "+
+                                          "will behave physically in finite temperature "+
+                                          "calculations, however it may introduce some "+
+                                          "unintended artifacts so exercise with caution. "+
+                                          "Useful for structure minimizations. Currently only "+
+                                          "applies to UFF and Dreiding Force Fields. Default is "+
+                                          "off.")
 
         simulation_group = parser.add_argument_group("Simulation options")
         simulation_group.add_argument("--minimize", action="store_true",
