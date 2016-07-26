@@ -1055,22 +1055,23 @@ class LammpsSimulation(object):
                                      " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
                                                 for key in sorted(self.unique_atom_types.keys())])))
 
-        inp_str += "%-15s %s\n"%("min_style","cg")
-        inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-        
-        inp_str += "%-15s %-10s %s\n"%("variable", "fix1", "equal %i"%(self.fixcount()))
-        inp_str += "%-15s %s\n"%("fix","${fix1} all box/relax tri 0.0 vmax 0.01")
-        inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-        inp_str += "%-15s %s\n"%("unfix", "${fix1}")
-        
-        inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-        
-        inp_str += "%-15s %-10s %s\n"%("variable", "fix2", "equal %i"%(self.fixcount()))
-        inp_str += "%-15s %s\n"%("fix","${fix2} all box/relax tri 0.0 vmax 0.01")
-        inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-        inp_str += "%-15s %s\n"%("unfix", "${fix2}")
-        
-        inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+        if (self.options.minimize):
+            inp_str += "%-15s %s\n"%("min_style","cg")
+            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+            
+            inp_str += "%-15s %-10s %s\n"%("variable", "fix1", "equal %i"%(self.fixcount()))
+            inp_str += "%-15s %s\n"%("fix","${fix1} all box/relax tri 0.0 vmax 0.01")
+            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+            inp_str += "%-15s %s\n"%("unfix", "${fix1}")
+            
+            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+            
+            inp_str += "%-15s %-10s %s\n"%("variable", "fix2", "equal %i"%(self.fixcount()))
+            inp_str += "%-15s %s\n"%("fix","${fix2} all box/relax tri 0.0 vmax 0.01")
+            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+            inp_str += "%-15s %s\n"%("unfix", "${fix2}")
+            
+            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
         
         if (self.options.bulk_moduli):
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleVar", "equal 1.00-${totDev}+${do}*${sf}")

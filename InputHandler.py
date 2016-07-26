@@ -68,9 +68,9 @@ class Options(object):
         simulation_group = parser.add_argument_group("Simulation options")
         simulation_group.add_argument("--minimize", action="store_true",
                                       dest="minimize",
-                                      default=True,
+                                      default=False,
                                       help="Request input files necessary for"
-                                      + " a geometry optimization.")
+                                      + " a geometry optimization. Default off")
         simulation_group.add_argument("--bulk-moduli", action="store_true",
                                       dest="bulk_moduli",
                                       default=False,
