@@ -50,8 +50,13 @@ class ForceField(object):
             self.pair_terms(n, data, self.cutoff)
 
     def compute_bond_terms(self):
+        del_edges = []
         for n1, n2, data in self.graph.edges_iter2(data=True):
-            self.bond_term((n1, n2, data)) 
+
+            if self.bond_term((n1, n2, data)) is None:
+                del_edges.append((n1, n2))
+        for (n1, n2) in del_edges:
+            self.graph.remove_edge(n1, n2)
     
     def compute_angle_terms(self):
         for b, data in self.graph.nodes_iter(data=True):
@@ -3488,10 +3493,10 @@ class Dubbeldam(ForceField):
         type2 = self.graph.node[n2]['force_field_type']
         string = "_".join([type1, type2])
         if type1 == "Zn" or type2 == "Zn":
-            data['potential'] = BondPotential.Harmonic()
-            data['potential'].K = 0.0 
-            data['potential'].R0 = 2.4
-            return 
+            #data['potential'] = BondPotential.Harmonic()
+            #data['potential'].K = 0.0 
+            #data['potential'].R0 = 2.4
+            return None 
 
         if string not in Dub_bonds.keys():
             string = "_".join([type2, type1])
@@ -3502,6 +3507,7 @@ class Dubbeldam(ForceField):
         data['potential'] = BondPotential.Harmonic()
         data['potential'].K = Dub_bonds[string][0]*kBtokcal/2.
         data['potential'].R0 = Dub_bonds[string][1]
+        return 1
 
     def angle_term(self, angle):
         """
@@ -3628,6 +3634,7 @@ class Dubbeldam(ForceField):
         data['pair_potential'] = PairPotential.LjCutCoulLong()
         data['pair_potential'].eps = Dub_atoms[data['force_field_type']][0]*kBtokcal 
         data['pair_potential'].sig = Dub_atoms[data['force_field_type']][1]
+        data['pair_potential'].cutoff = cutoff
         data['charge'] = Dub_atoms[data['force_field_type']][2]
 
     def special_commands(self):
