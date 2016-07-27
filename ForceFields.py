@@ -668,18 +668,21 @@ class BTW_FF(ForceField):
         elif("Zn4O" in mof_sbus):
             #resp= input("What is the IRMOF number?[1/10]")
             # temp fix so I don't have to respond to screen prompt
+            resp = "0"
             if self.graph.number_of_nodes() == 424:
                 resp = "1"
             elif self.graph.number_of_nodes() == 664:
-                reps = "10"
+                resp = "10"
 
             if resp=="1":
                 chrg_flag="Zn4O_"
             elif resp=="10":
                 chrg_flag="IRMOF10_"
             else:
-                print("No exact charge for the IRMOF is available from BTW-FF. Average charges in BTW-FF is used.")
-                chrg_flag="TFF_"
+                #print("No exact charge for the IRMOF is available from BTW-FF. Average charges in BTW-FF is used.")
+                #chrg_flag="TFF_"
+                print("Cannot parameterize this MOF with BTW-FF.")
+                sys.exit()
         else:
             sbu_type = next(iter(mof_sbus))
             chrg_flag=sbu_type+"_"
