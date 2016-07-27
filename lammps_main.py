@@ -332,8 +332,7 @@ class LammpsSimulation(object):
                 self.graph.find_metal_sbus = True # true for UFF4MOF, BTW_FF and Dubbeldam
             if (self.options.force_field == "Dubbeldam"):
                 self.graph.find_organic_sbus = True
-
-            self.graph.compute_topology_information(self.cell, self.options.tol)
+            self.graph.compute_topology_information(self.cell, self.options.tol, self.options.neighbour_size)
         except AttributeError:
             # no cell set yet 
             pass
@@ -341,7 +340,7 @@ class LammpsSimulation(object):
     def set_cell(self, cell):
         self.cell = cell
         try:
-            self.graph.compute_topology_information(self.cell, self.options.tol)
+            self.graph.compute_topology_information(self.cell, self.options.tol, self.options.neighbour_size)
         except AttributeError:
             # no graph set yet
             pass
@@ -390,8 +389,8 @@ class LammpsSimulation(object):
         
         attr = {'graph':self.graph, 'cutoff':self.options.cutoff, 'h_bonding':self.options.h_bonding,
                 'keep_metal_geometry':self.options.fix_metal, 'bondtype':self.options.dreid_bond_type}
-
         param = getattr(ForceFields, self.options.force_field)(**attr)
+
         self.special_commands += param.special_commands()
 
         # apply different force fields.

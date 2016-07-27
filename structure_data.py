@@ -55,7 +55,7 @@ class MolecularGraph(nx.Graph):
         self.distance_matrix = None
         self.original_size = 0
         self.inorganic_sbus = {}
-        self.find_inorganic_sbus = False
+        self.find_metal_sbus = False
         self.organic_sbus = {}
         self.find_organic_sbus = False
         self.cell = None
@@ -663,17 +663,16 @@ class MolecularGraph(nx.Graph):
                 (a, c, d) = local_impropers[idx]
                 data.setdefault('impropers',{}).update({(a,c,d):{'potential':None}})
 
-    def compute_topology_information(self, cell, tol):
+    def compute_topology_information(self, cell, tol, num_neighbours):
         self.compute_cartesian_coordinates(cell)
         self.compute_min_img_distances(cell)
         self.compute_bonding(cell)
         self.compute_init_typing()
         self.compute_bond_typing()
-        num_neighbors = 5
         if (self.find_metal_sbus):
             self.detect_clusters(num_neighbors, tol) # num neighbors determines how many nodes from the metal element to cut out for comparison 
         if (self.find_organic_sbus):
-            self.detect_clusters(num_neighbors, tol,  type="Organic") 
+            self.detect_clusters(num_neighbors, tol,  type="Organic")
         self.compute_angles()
         self.compute_dihedrals()
         self.compute_improper_dihedrals()

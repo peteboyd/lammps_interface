@@ -124,6 +124,20 @@ class Options(object):
                                      help="Tolerance in angstroms to determine "+
                                           "detection of inorganic clusters. " +
                                           "Default is 0.4 angstroms.")
+        parameter_group.add_argument("--neighbour-size", "--neighbor-size",
+                                     action="store",
+                                     type=int,
+                                     default=5,
+                                     dest="neighbour_size",
+                                     help="To find SBUs in the framework via "+
+                                          "pattern recognition. This parameter "+
+                                          "determines how large a subset of atoms "+
+                                          "to search around each central atom in the framework. "+
+                                          "Central atoms are typically considered the "+
+                                          "metal species for inorganic SBUs or carbon/nitrogen "+
+                                          "for organic SBUs. This parameter will collect all "+
+                                          "atoms within NEIGHBOUR_SIZE bonds from the central atom. "+
+                                          "Default is 5.")
         parameter_group.add_argument("--iter-count",
                                      action="store",
                                      type=int,

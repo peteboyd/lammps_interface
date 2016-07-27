@@ -2075,7 +2075,7 @@ class UFF(ForceField):
     def __init__(self,  **kwargs):
         self.pair_in_data = True
         self.keep_metal_geometry = False
-        self.graph = None 
+        self.graph = None
         # override existing arguments with kwargs
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -2149,7 +2149,6 @@ class UFF(ForceField):
         sf = ['linear', 'trigonal-planar', 'square-planar', 'octahedral']
         a, b, c, data = angle
         angle_type = self.uff_angle_type(b)
-        
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
         c_data = self.graph.node[c]
