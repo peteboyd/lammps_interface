@@ -59,7 +59,7 @@ class ForceField(object):
             try:
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
-                    self.angle_term((a, b, c, val)): 
+                    self.angle_term((a, b, c, val)) 
             except KeyError:
                 pass
 
