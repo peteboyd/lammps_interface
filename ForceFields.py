@@ -57,27 +57,18 @@ class ForceField(object):
         for b, data in self.graph.nodes_iter(data=True):
             # compute and store angle terms
             try:
-                rem_ang = []
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
-                    if self.angle_term((a, b, c, val)) is None:
-                        rem_ang.append((a,c))
-                for d in rem_ang:
-                    del(data['angles'][d])
+                    self.angle_term((a, b, c, val)): 
             except KeyError:
                 pass
 
     def compute_dihedral_terms(self):
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
-                rem_dihed = []
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
-                    if self.dihedral_term((a,b,c,d, val)) is None:
-                        rem_dihed.append((a,d))
-
-                for rmd in rem_dihed:
-                    del(data['dihedrals'][rmd])
+                    self.dihedral_term((a,b,c,d, val)) 
             
             except KeyError:
                 pass
@@ -86,14 +77,9 @@ class ForceField(object):
 
         for b, data in self.graph.nodes_iter(data=True):
             try:
-                rem_imp = []
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
-                    if self.improper_term((a,b,c,d, val)) is None:
-                        rem_imp.append((a,c,d))
-
-                for rmimp in rem_imp:
-                    del(data['impropers'][rmimp])
+                    self.improper_term((a,b,c,d, val))
 
             except KeyError:
                 pass
