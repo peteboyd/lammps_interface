@@ -57,18 +57,27 @@ class ForceField(object):
         for b, data in self.graph.nodes_iter(data=True):
             # compute and store angle terms
             try:
+                rem_ang = []
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
-                    self.angle_term((a, b, c, val)) 
+                    if self.angle_term((a, b, c, val)) is None:
+                        rem_ang.append((a,c))
+                for i in rem_ang:
+                    del(data['angles'][i])
+
             except KeyError:
                 pass
 
     def compute_dihedral_terms(self):
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
+                rem_dihed = []
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
-                    self.dihedral_term((a,b,c,d, val)) 
+                    if self.dihedral_term((a,b,c,d, val)) is None:
+                        rem_dihed.append((a,d))
+                for i in rem_dihed:
+                    del(data['dihedrals'][i])
             
             except KeyError:
                 pass
@@ -77,9 +86,13 @@ class ForceField(object):
 
         for b, data in self.graph.nodes_iter(data=True):
             try:
+                rem_imp = []
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
-                    self.improper_term((a,b,c,d, val))
+                    if self.improper_term((a,b,c,d, val)) is None:
+                        rem_imp.append((a,c,d))
+                for i in rem_imp:
+                    del(data['impropers'][i])
 
             except KeyError:
                 pass
@@ -3583,6 +3596,7 @@ class Dubbeldam(ForceField):
         dtype = d_data['force_field_type']
         
         if atype == "Zn" or btype == "Zn" or ctype == "Zn" or dtype == "Zn":
+
             return None
         
         string = "_".join([atype, btype, ctype, dtype])
@@ -3602,7 +3616,7 @@ class Dubbeldam(ForceField):
         data['potential'] = ImproperPotential.Cvff()
         
         # I have 3 impropers, he only has 1. Divide by 3 to get average?
-        data['potential'].K = Dub_impropers[string][0]*kBtokcal / self.graph.neighbors(b) 
+        data['potential'].K = Dub_impropers[string][0]*kBtokcal / len(self.graph.neighbors(b)) 
         data['potential'].d = -1 
         data['potential'].n = Dub_impropers[string][2]
         return 1
