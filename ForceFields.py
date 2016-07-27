@@ -3,6 +3,7 @@ from uff4mof import UFF4MOF_DATA
 from dreiding import DREIDING_DATA
 from uff_nonbonded import UFF_DATA_nonbonded
 from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds, BTW_charges
+from Dubbeldam import Dub_atoms, Dub_bonds, Dub_angles, Dub_dihedrals, Dub_impropers
 #from FMOFCu import FMOFCu_angles, FMOFCu_dihedrals, FMOFCu_opbends, FMOFCu_atoms, FMOFCu_bonds
 from MOFFF import MOFFF_angles, MOFFF_dihedrals, MOFFF_opbends, MOFFF_atoms, MOFFF_bonds 
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
@@ -15,6 +16,7 @@ import abc
 import re
 import sys
 DEG2RAD = math.pi/180.
+kBtokcal = 0.00198588 
 
 class ForceField(object):
 
@@ -49,33 +51,50 @@ class ForceField(object):
 
     def compute_bond_terms(self):
         for n1, n2, data in self.graph.edges_iter2(data=True):
-            self.bond_term((n1, n2, data))
+            self.bond_term((n1, n2, data)) 
     
     def compute_angle_terms(self):
         for b, data in self.graph.nodes_iter(data=True):
             # compute and store angle terms
             try:
+                rem_ang = []
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
-                    self.angle_term((a, b, c, val))
+                    if self.angle_term((a, b, c, val)) is None:
+                        rem_ang.append((a,c))
+                for d in rem_ang:
+                    del(data['angles'][d])
             except KeyError:
                 pass
 
     def compute_dihedral_terms(self):
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
+                rem_dihed = []
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
-                    self.dihedral_term((a,b,c,d, val))
+                    if self.dihedral_term((a,b,c,d, val)) is None:
+                        rem_dihed.append((a,d))
+
+                for rmd in rem_dihed:
+                    del(data['dihedrals'][rmd])
+            
             except KeyError:
                 pass
 
     def compute_improper_terms(self):
+
         for b, data in self.graph.nodes_iter(data=True):
             try:
+                rem_imp = []
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
-                    self.improper_term((a,b,c,d, val))
+                    if self.improper_term((a,b,c,d, val)) is None:
+                        rem_imp.append((a,c,d))
+
+                for rmimp in rem_imp:
+                    del(data['impropers'][rmimp])
+
             except KeyError:
                 pass
                         
@@ -91,13 +110,13 @@ class UserFF(ForceField):
         self.unique_pair_types = {}
 
     def bond_term(self, bond):
-        pass
+        return 1
     def angle_term(self, angle):
-        pass
+        return 1
     def dihedral_term(self, dihedral):
-        pass
+        return 1
     def improper_term(self, improper):
-        pass
+        return 1
 
     def unique_atoms(self):
         # ff_type keeps track of the unique integer index
@@ -279,7 +298,6 @@ class UserFF(ForceField):
                 count += 1
                 type = count
                 improper_type[d1] = type
-                #self.improper_term(improper)
                 self.unique_improper_types[type] = improper
 
             improper.ff_type_index = type
@@ -844,7 +862,7 @@ class BTW_FF(ForceField):
                 bond['force_field_type']=bond_fflabel2
             else:
                 print ("BTW-FF cannot be used for the system!\nNo parameter found for bond %s"%(bond_fflabel1))
-                exit()
+                sys.exit()
 
         #Assigning force field type of angles
         missing_labels=[]
@@ -953,6 +971,7 @@ class BTW_FF(ForceField):
         data['potential'].K3 = K3
         data['potential'].K4 = K4
         data['potential'].R0 = l0
+        return 1
          
     def angle_term(self, angle):
         """class2 angle"""
@@ -966,7 +985,7 @@ class BTW_FF(ForceField):
             data['potential'].C = 100 #  Need to be parameterized!  
             data['potential'].B = 1
             data['potential'].n = 4
-            return
+            return 1
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
         c_data = self.graph.node[c]
@@ -1023,7 +1042,8 @@ class BTW_FF(ForceField):
         data['potential'].ba.N1 = baN1 
         data['potential'].ba.N2 = baN2 
         data['potential'].ba.r1 = r1 
-        data['potential'].ba.r2 = r2 
+        data['potential'].ba.r2 = r2
+        return 1
 
 
     def dihedral_term(self, dihedral):
@@ -1051,7 +1071,7 @@ class BTW_FF(ForceField):
         data['potential'].Ki = ki
         data['potential'].ni = ni
         data['potential'].di = di
-        
+        return 1
 
     def improper_term(self, improper):
         """class2 improper"""
@@ -1099,6 +1119,7 @@ class BTW_FF(ForceField):
         data['potential'].aa.theta1 = Theta1
         data['potential'].aa.theta2 = Theta2
         data['potential'].aa.theta3 = Theta3
+        return 1
 
     def pair_terms( self, node , data, cutoff):
         """
@@ -1409,7 +1430,7 @@ class MOF_FF(ForceField):
            data['potential'].D = D
            data['potential'].alpha = alpha
            data['potential'].R0 = l0
-           return
+           return 1
 
         K2= 71.94*Ks   # mdyne to kcal *(1/2)
         K3= -2.55*K2
@@ -1419,6 +1440,7 @@ class MOF_FF(ForceField):
         data['potential'].K3 = K3
         data['potential'].K4 = K4
         data['potential'].R0 = l0
+        return 1
 
     def angle_term(self, angle):
         """class2 angle
@@ -1433,19 +1455,19 @@ class MOF_FF(ForceField):
             data['potential'].C = 100 #  Need to be parameterized!  
             data['potential'].B = 1
             data['potential'].n = 4
-            return
+            return 1
         elif (data['force_field_type']=="106_101_106"):   ### in the case of square planar coordination of Cu-paddle-wheel, fourier angle must be used
             data['potential'] = AnglePotential.CosinePeriodic()
             data['potential'].C = 0 #  Need to be parameterized!  
             data['potential'].B = 1
             data['potential'].n = 4
-            return
+            return 1
         elif (data['force_field_type']=="103_101_106"):   ### in the case of square planar coordination of Cu-paddle-wheel, fourier angle must be used
             data['potential'] = AnglePotential.CosinePeriodic()
             data['potential'].C = 0 #  Need to be parameterized!  
             data['potential'].B = 1
             data['potential'].n = 4
-            return
+            return 1
         
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
@@ -1506,7 +1528,8 @@ class MOF_FF(ForceField):
         data['potential'].ba.N1 = 0.0 #baN1 
         data['potential'].ba.N2 = 0.0 # baN2 
         data['potential'].ba.r1 = r1 
-        data['potential'].ba.r2 = r2 
+        data['potential'].ba.r2 = r2
+        return 1
 
     def dihedral_term(self, dihedral):
         """fourier diherdral
@@ -1538,7 +1561,7 @@ class MOF_FF(ForceField):
         data['potential'].Ki = ki
         data['potential'].ni = ni
         data['potential'].di = di
-
+        return 1
 
     def improper_term(self, improper):
         """Harmonic improper"""
@@ -1548,6 +1571,7 @@ class MOF_FF(ForceField):
         data['potential'] = ImproperPotential.Harmonic()
         data['potential'].K = Kopb 
         data['potential'].chi0 = c0
+        return 1
 
     def pair_terms(self, node, data, cutoff):
         """
@@ -1873,7 +1897,8 @@ class FMOFCu(ForceField):
         data['potential'].K3 = K3
         data['potential'].K4 = K4
         data['potential'].R0 = l0
-         
+        return 1
+
     def angle_term(self, angle):
         """class2 angle"""
         """
@@ -1888,7 +1913,7 @@ class FMOFCu(ForceField):
             data['potential'].C = 100 #  Need to be parameterized!  
             data['potential'].B = 1
             data['potential'].n = 4
-            return
+            return 1
         
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
@@ -1947,7 +1972,7 @@ class FMOFCu(ForceField):
         data['potential'].ba.N2 = baN2 
         data['potential'].ba.r1 = r1 
         data['potential'].ba.r2 = r2 
-
+        return 1
 
     def dihedral_term(self, dihedral):
         """fourier diherdral"""
@@ -1978,6 +2003,7 @@ class FMOFCu(ForceField):
         data['potential'].Ki = ki
         data['potential'].ni = ni
         data['potential'].di = di
+        return 1
         
 
     def improper_term(self, improper):
@@ -2027,6 +2053,7 @@ class FMOFCu(ForceField):
         data['potential'].aa.theta1 = Theta1
         data['potential'].aa.theta2 = Theta2
         data['potential'].aa.theta3 = Theta3
+        return 1
 
     def pair_terms( self, node , data, cutoff):
         """
@@ -2098,6 +2125,7 @@ class UFF(ForceField):
         data['potential'] = BondPotential.Harmonic()
         data['potential'].K = K
         data['potential'].R0 = r0
+        return 1
 
     def angle_term(self, angle):
         """several cases exist where the type of atom in a particular environment is considered
@@ -2169,7 +2197,7 @@ class UFF(ForceField):
             data['potential'] = AnglePotential.Harmonic()
             data['potential'].K = ka/2.
             data['potential'].theta0 = theta0
-            return
+            return 1
 
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
             if angle_type == 'linear':
@@ -2213,6 +2241,7 @@ class UFF(ForceField):
             data['potential'].C0 = c0
             data['potential'].C1 = c1
             data['potential'].C2 = c2
+        return 1
 
     def uff_angle_type(self, b):
         name = self.graph.node[b]['force_field_type']
@@ -2338,11 +2367,12 @@ class UFF(ForceField):
             data['potential'].K = 0.5*V
             data['potential'].d = 180 + nphi0 
             data['potential'].n = n
-            return 
+            return 1 
         data['potential'] = DihedralPotential.Harmonic()
         data['potential'].K = 0.5*V
         data['potential'].d = -math.cos(nphi0*DEG2RAD)
         data['potential'].n = n
+        return 1
 
     def improper_term(self, improper):
         """
@@ -2358,7 +2388,7 @@ class UFF(ForceField):
         c_ff = self.graph.node[c]['force_field_type']
         d_ff = self.graph.node[d]['force_field_type']
         if not b_data['atomic_number'] in (6, 7, 8, 15, 33, 51, 83):
-            return
+            return None
         if b_data['force_field_type'] in ('N_3', 'N_2', 'N_R', 'O_2', 'O_R'):
             c0 = 1.0
             c1 = -1.0
@@ -2385,7 +2415,7 @@ class UFF(ForceField):
             if 'O_2' in (a_ff, c_ff, d_ff):
                 koop = 50.0 
         else:
-            return 
+            return None
         
         koop /= 3. 
 
@@ -2394,6 +2424,7 @@ class UFF(ForceField):
         data['potential'].C0 = c0
         data['potential'].C1 = c1
         data['potential'].C2 = c2
+        return 1
     
     def special_commands(self):
         st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"), "%-15s %.1f"%('dielectric', 1.0)]
@@ -2484,7 +2515,7 @@ class Dreiding(ForceField):
             data['potential'].D = D 
             data['potential'].alpha = alpha
             data['potential'].R = data['length']
-            return
+            return 1
 
         if self.bondtype.lower() == 'harmonic':
 
@@ -2504,6 +2535,7 @@ class Dreiding(ForceField):
             print("ERROR: Cannot recognize bond potential for Dreiding: %s"%self.bondtype)
             print("Please chose between 'morse' or 'harmonic'")
             sys.exit()
+        return 1
 
     def angle_term(self, angle):
         """
@@ -2533,7 +2565,7 @@ class Dreiding(ForceField):
             K = 0.5*K/(np.sin(theta0*DEG2RAD))**2
             data['potential'].K = K
             data['potential'].theta0 = theta0
-            return
+            return 1
 
         if (theta0 == 180.):
             data['potential'] = AnglePotential.Cosine()
@@ -2561,6 +2593,7 @@ class Dreiding(ForceField):
             K = 0.5*K/(np.sin(theta0*DEG2RAD))**2
             data['potential'].K = K
             data['potential'].theta0 = theta0
+        return 1
 
     def dihedral_term(self, dihedral):
         """
@@ -2701,6 +2734,7 @@ class Dreiding(ForceField):
         data['potential'].n = n
         data['potential'].d = d
         data['potential'].w = w
+        return 1
 
     def improper_term(self, improper):
         """
@@ -2737,12 +2771,13 @@ class Dreiding(ForceField):
         if b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic':
             K /= 3.
         if btype in sp3_N:
-            return
+            return None
         omega0 = DREIDING_DATA[btype][4]
         data['potential'] = ImproperPotential.Umbrella()
 
         data['potential'].K = K
-        data['potential'].omega0 = omega0 
+        data['potential'].omega0 = omega0
+        return 1
     
     def pair_terms(self, node, data, cutoff, nbpot='LJ', hbpot='morse'):
         """ DREIDING can adopt the exponential-6 or
@@ -2931,9 +2966,12 @@ class Dreiding(ForceField):
         return hbond_pair
 
     def special_commands(self):
-        st = ["%-15s %s"%("pair_modify", "tail yes"),
-             # "%-15s %s"%("special_bonds", "dreiding"), 
-              "%-15s %.1f"%('dielectric', 1.0)] # equivalent to 'special_bonds lj 0.0 0.0 1.0'
+        if self.pair_in_data: 
+            st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic")]
+        else:
+            st = ["%-15s %s"%("pair_modify", "tail yes")]
+        st += ["%-15s %s"%("special_bonds", "dreiding"), # equivalent to 'special_bonds lj 0.0 0.0 1.0'
+              "%-15s %.1f"%('dielectric', 1.0)] 
         return st
 
     def detect_ff_terms(self):
@@ -3002,6 +3040,7 @@ class UFF4MOF(ForceField):
         data['pair_potential'].eps = UFF4MOF_DATA[data['force_field_type']][3] 
         data['pair_potential'].sig = UFF4MOF_DATA[data['force_field_type']][2]*(2**(-1./6.))
         data['pair_potential'].cutoff = cutoff
+        return 1
 
     def bond_term(self, edge):
         """Harmonic assumed"""
@@ -3027,6 +3066,7 @@ class UFF4MOF(ForceField):
         data['potential'] = BondPotential.Harmonic()
         data['potential'].K = K
         data['potential'].R0 = r0
+        return 1
 
     def angle_term(self, angle):
         """several cases exist where the type of atom in a particular environment is considered
@@ -3098,7 +3138,7 @@ class UFF4MOF(ForceField):
             data['potential'] = AnglePotential.Harmonic()
             data['potential'].K = ka/2.
             data['potential'].theta0 = theta0
-            return
+            return 1
 
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
             if angle_type == 'linear':
@@ -3127,6 +3167,7 @@ class UFF4MOF(ForceField):
             data['potential'].K = kappa
             data['potential'].c = c0
             data['potential'].n = c1
+            return 1
         # general-nonlinear
         else:
 
@@ -3142,6 +3183,7 @@ class UFF4MOF(ForceField):
             data['potential'].C0 = c0
             data['potential'].C1 = c1
             data['potential'].C2 = c2
+            return 1
 
     def uff_angle_type(self, b):
         name = self.graph.node[b]['force_field_type']
@@ -3267,11 +3309,12 @@ class UFF4MOF(ForceField):
             data['potential'].K = 0.5*V
             data['potential'].d = 180 + nphi0 
             data['potential'].n = n
-            return 
+            return 1 
         data['potential'] = DihedralPotential.Harmonic()
         data['potential'].K = 0.5*V
         data['potential'].d = -math.cos(nphi0*DEG2RAD)
         data['potential'].n = n
+        return 1
 
     def improper_term(self, improper):
         """
@@ -3286,7 +3329,7 @@ class UFF4MOF(ForceField):
         c_ff = self.graph.node[c]['force_field_type']
         d_ff = self.graph.node[d]['force_field_type']
         if not b_data['atomic_number'] in (6, 7, 8, 15, 33, 51, 83):
-            return
+            return None
         if b_data['force_field_type'] in ('N_3', 'N_2', 'N_R', 'O_2', 'O_R'):
             c0 = 1.0
             c1 = -1.0
@@ -3313,7 +3356,7 @@ class UFF4MOF(ForceField):
             if 'O_2' in (a_ff, c_ff, d_ff):
                 koop = 50.0 
         else:
-            return 
+            return None
         
         koop /= 3. 
 
@@ -3322,6 +3365,7 @@ class UFF4MOF(ForceField):
         data['potential'].C0 = c0
         data['potential'].C1 = c1
         data['potential'].C2 = c2
+        return 1
     
     def special_commands(self):
         st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"), "%-15s %.1f"%('dielectric', 1.0)]
@@ -3412,6 +3456,218 @@ class UFF4MOF(ForceField):
                     for j in ffs:
                         if data['element'] == j[:2].strip("_"):
                             data['force_field_type'] = j
+            if data['force_field_type'] is None:
+                print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
+                        " with element: '%s'"%(data['element']))
+                sys.exit()
+
+
+class Dubbeldam(ForceField):
+
+    def __init__(self, graph=None, **kwargs):
+        self.pair_in_data = True
+        # override existing arguments with kwargs
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+        if (graph is not None):
+            self.graph = graph
+            self.detect_ff_terms() 
+            self.compute_force_field_terms()
+
+    def bond_term(self, edge):
+        """
+        Harmonic term
+        
+        E = 0.5 * K * (R - Req)^2
+        
+        """
+        n1, n2, data = edge
+        type1 = self.graph.node[n1]['force_field_type'] 
+        type2 = self.graph.node[n2]['force_field_type']
+        string = "_".join([type1, type2])
+        if type1 == "Zn" or type2 == "Zn":
+            data['potential'] = BondPotential.Harmonic()
+            data['potential'].K = 0.0 
+            data['potential'].R0 = 2.4
+            return 
+
+        if string not in Dub_bonds.keys():
+            string = "_".join([type2, type1])
+        if string not in Dub_bonds.keys():
+            print("ERROR: Could not find the bond parameters for the bond between %s"%string)
+            sys.exit()
+
+        data['potential'] = BondPotential.Harmonic()
+        data['potential'].K = Dub_bonds[string][0]*kBtokcal/2.
+        data['potential'].R0 = Dub_bonds[string][1]
+
+    def angle_term(self, angle):
+        """
+
+        """
+        a, b, c, data = angle
+        K = 100.0
+        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
+        atype = a_data['force_field_type']
+        btype = b_data['force_field_type']
+        ctype = c_data['force_field_type']
+        
+        string = "_".join([atype, btype, ctype])
+        
+        if atype == "Zn" or btype == "Zn" or ctype == "Zn":
+            return None
+
+        if string not in Dub_angles.keys():
+            string = "_".join([ctype, btype, atype])
+        if string not in Dub_angles.keys():
+            print("ERROR: Could not find the angle parameters for the atom types %s"%string)
+            sys.exit()
+
+        data['potential'] = AnglePotential.Harmonic()
+        data['potential'].K = Dub_angles[string][0]*kBtokcal/2.
+        data['potential'].theta0 = Dub_angles[string][1]
+        return 1
+
+    def dihedral_term(self, dihedral):
+        """
+        The Dihedral potential has the form
+
+        U(torsion) = k * (1 + cos(m*theta - theta0))
+
+        in LAMMPS this potential can be accessed by the dihedral_style charmm
+
+        E = K * [ 1 + d*cos(n*theta - d) ]
+        """
+        
+        a,b,c,d, data = dihedral
+        a_data = self.graph.node[a]
+        b_data = self.graph.node[b]
+        c_data = self.graph.node[c]
+        d_data = self.graph.node[d]
+
+        atype = a_data['force_field_type']
+        btype = b_data['force_field_type']
+        ctype = c_data['force_field_type']
+        dtype = d_data['force_field_type']
+        if atype == "Zn" or btype == "Zn" or ctype == "Zn" or dtype == "Zn":
+            return None
+
+        string = "_".join([atype, btype, ctype, dtype])
+        if string not in Dub_dihedrals.keys():
+            string = "_".join([dtype, ctype, btype, atype])
+        if string not in Dub_dihedrals.keys():
+            print("ERROR: Could not find the torsion parameters for the atom types %s"%string)
+            sys.exit()
+        w = 0.0
+        data['potential'] = DihedralPotential.Charmm()
+        data['potential'].K = Dub_dihedrals[string][0]*kBtokcal 
+        data['potential'].n = Dub_dihedrals[string][2] 
+        data['potential'].d = Dub_dihedrals[string][1]
+        data['potential'].w = w
+        return 1
+
+    def improper_term(self, improper):
+        """
+        The Improper potential has the form
+
+        U(torsion) = k * (1 + cos(m*theta - theta0))
+
+        in LAMMPS this potential can be accessed by the dihedral_style cvff
+
+        E = K * [ 1 + d*cos(n*theta) ]
+
+        # NO out of phase shift! to get a minima at 180 set d to -1.
+        # all of Dubbeldam's terms are for 180 degrees out-of-plane movement so
+        # this is fine.
+
+        """
+        a, b, c, d, data = improper
+        
+        a_data = self.graph.node[a]
+        b_data = self.graph.node[b]
+        c_data = self.graph.node[c]
+        d_data = self.graph.node[d]
+        
+        atype = a_data['force_field_type']
+        btype = b_data['force_field_type']
+        ctype = c_data['force_field_type']
+        dtype = d_data['force_field_type']
+        
+        if atype == "Zn" or btype == "Zn" or ctype == "Zn" or dtype == "Zn":
+            return None
+        
+        string = "_".join([atype, btype, ctype, dtype])
+        if string not in Dub_impropers.keys():
+            string = "_".join([atype, btype, dtype, ctype])
+        if string not in Dub_impropers.keys():
+            string = "_".join([ctype, btype, atype, dtype])
+        if string not in Dub_impropers.keys():
+            string = "_".join([ctype, btype, dtype, atype])
+        if string not in Dub_impropers.keys():
+            string = "_".join([dtype, btype, atype, ctype])
+        if string not in Dub_impropers.keys():
+            string = "_".join([dtype, btype, ctype, atype])
+        if string not in Dub_impropers.keys():
+            print("ERROR: Could not find the improper torsion parameters for the atom types %s"%string)
+            sys.exit()
+        data['potential'] = ImproperPotential.Cvff()
+        
+        # I have 3 impropers, he only has 1. Divide by 3 to get average?
+        data['potential'].K = Dub_impropers[string][0]*kBtokcal / self.graph.neighbors(b) 
+        data['potential'].d = -1 
+        data['potential'].n = Dub_impropers[string][2]
+        return 1
+    
+    def pair_terms(self, node, data, cutoff):
+        """ 
+
+        """
+        data['pair_potential'] = PairPotential.LjCutCoulLong()
+        data['pair_potential'].eps = Dub_atoms[data['force_field_type']][0]*kBtokcal 
+        data['pair_potential'].sig = Dub_atoms[data['force_field_type']][1]
+        data['charge'] = Dub_atoms[data['force_field_type']][2]
+
+    def special_commands(self):
+        st = ["%-15s %s"%("pair_modify", "tail yes"),
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"), 
+              "%-15s %.1f"%('dielectric', 1.0)] 
+        return st
+
+    def detect_ff_terms(self):
+        """ Instead of the painful experience of coding a huge set of 'if' statements over
+        extended bonding neighbours to identify IRMOF-1, 10 and 16, all of the force field types 
+        will be detected from maximum cliques.
+        
+        This means that failing to find the SBUs will result in a bad parameterization.
+
+        """
+        for node, data in self.graph.nodes_iter(data=True):
+            special = 'special_flag' in data
+            if not special:
+                print("ERROR: Some atoms were not detected as part of an SBU." + 
+                        " This is a requirement for successful parameterization of the "+
+                        "Dubbeldam forcefield for the IRMOFs.")
+                sys.exit()
+            if data['special_flag'] == "O_z_Zn4O":
+                data['force_field_type'] = "Oa"
+
+            elif data['special_flag'] == "Zn4O":
+                data['force_field_type'] = "Zn"
+            
+            elif data['special_flag'] == "C_Zn4O":
+                data['force_field_type'] = "Ca"
+
+            elif data['special_flag'] == "O_c_Zn4O":
+                data['force_field_type'] = "Ob"
+            
+            else:
+                # NB this works only because the special flags for the organic
+                # SBUs are set to be the force field types assigned by Dubeldam!
+                # if the 'special_flags' are changed for the aromatic molecules in mof_sbus.py then this
+                # will break!!
+                data['force_field_type'] = data['special_flag']
+
             if data['force_field_type'] is None:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))

@@ -14,6 +14,8 @@ import os
 
 try:
     import networkx as nx
+    from networkx.algorithms import approximation
+
 except ImportError:
     print("Warning: could not load networkx module, this is needed to produce the lammps data file.")
     sys.exit()
@@ -53,7 +55,9 @@ class MolecularGraph(nx.Graph):
         self.distance_matrix = None
         self.original_size = 0
         self.inorganic_sbus = {}
+        self.find_inorganic_sbus = False
         self.organic_sbus = {}
+        self.find_organic_sbus = False
         self.cell = None
         #TODO(pboyd): networkx edges do not store the nodes in order!
         # Have to keep a dictionary lookup to make sure the nodes 
@@ -666,7 +670,10 @@ class MolecularGraph(nx.Graph):
         self.compute_init_typing()
         self.compute_bond_typing()
         num_neighbors = 5
-        self.detect_clusters(num_neighbors, tol) # num neighbors determines how many nodes from the metal element to cut out for comparison 
+        if (self.find_metal_sbus):
+            self.detect_clusters(num_neighbors, tol) # num neighbors determines how many nodes from the metal element to cut out for comparison 
+        if (self.find_organic_sbus):
+            self.detect_clusters(num_neighbors, tol,  type="Organic") 
         self.compute_angles()
         self.compute_dihedrals()
         self.compute_improper_dihedrals()
@@ -764,17 +771,19 @@ class MolecularGraph(nx.Graph):
             store_sbus = self.organic_sbus
 
         for node, data in self.nodes_iter(data=True):
-            if (type=='Inorganic') and (general_metal) and (data['atomic_number'] in METALS):
+            if (type=='Inorganic') and (general_metal) and (data['atomic_number'] in METALS)\
+                    and ('special' not in data.keys()): # special means that this atom has already been found in a previous clique detection
                 reference_nodes.append(node) 
 
-            elif data['element'] in types: 
+            elif (data['element'] in types) and ('special' not in data.keys()): 
                 reference_nodes.append(node)
-
+        
         no_cluster = []
         while reference_nodes:
             node = reference_nodes.pop() 
             data = self.node[node]
             possible_clusters = {}
+            toln = tol
             if type=="Inorganic" and general_metal:
                 for j in ref_sbus.keys():
                     possible_clusters.update(ref_sbus[j])
@@ -783,17 +792,29 @@ class MolecularGraph(nx.Graph):
             try:
                 neighbour_nodes = [] 
                 instanced_neighbours = self.neighbors(node)
+                if (data['element'] == "C"):
+                    chk_neighbors = num_neighbors # organic clusters can be much bigger.
+                else:
+                    chk_neighbors = num_neighbors
                 # tree-like spanning of original node
-                for j in range(num_neighbors):
+                for j in range(chk_neighbors):
                     temp_neighbours = []
                     for n in instanced_neighbours:
-                        neighbour_nodes.append(n)
-                        temp_neighbours += [j for j in self.neighbors(n) if j not in neighbour_nodes]
+                        if('special' not in self.node[n].keys()):
+                            neighbour_nodes.append(n)
+                            temp_neighbours += [j for j in self.neighbors(n) if j not in neighbour_nodes]
                     instanced_neighbours = temp_neighbours
                 cluster_found = False
-                for name, cluster in possible_clusters.items():
-                    cg = self.correspondence_graph(cluster, tol, general_metal=general_metal, node_subset=neighbour_nodes + [node])
+                # sort by descending number of nodes, this will ensure the largest SBU will be found
+                # instead of a collection of smaller ones (e.g. multiple aromatic rings).
+                clusters = [(cluster.number_of_nodes(), name, cluster) for name,cluster in possible_clusters.items()]
+                for count, name, cluster in list(reversed(sorted(clusters))):
+                    # ignore if it is impossible to find a clique with the current cluster.
+                    if (len(neighbour_nodes)+1) < cluster.number_of_nodes():
+                        continue
+                    cg = self.correspondence_graph(cluster, toln, general_metal=general_metal, node_subset=neighbour_nodes + [node])
                     cliques = nx.find_cliques(cg)
+                    #cliques = approximation.clique.max_clique(cg)
                     for clique in cliques:
                         #print(len(clique), cluster.number_of_nodes())
                         if len(clique) == cluster.number_of_nodes():
@@ -803,7 +824,6 @@ class MolecularGraph(nx.Graph):
                                 self.node[i]['special_flag'] = cluster.node[j]['special_flag']
                             cluster_found = True
                             print("Found %s"%(name))
-
                             store_sbus.setdefault(name, []).append([i for (i,j) in clique])
                             break
 
@@ -814,6 +834,9 @@ class MolecularGraph(nx.Graph):
                             except:
                                 pass
                         break
+                    else:
+                        # put node back into the pool
+                        reference_nodes.append(node)
                 if not (cluster_found):
                     no_cluster.append(data['element'])
             except KeyError:
