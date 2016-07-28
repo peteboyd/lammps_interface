@@ -149,11 +149,11 @@ class Options(object):
         parameter_group.add_argument("--max-deviation",
                                      action="store",
                                      type=float,
-                                     default=0.04,
+                                     default=0.01,
                                      dest="max_dev",
                                      help="Max deviation of adjusted variable "+
                                           "at each step is scaled by MAX_DEV/ITER_COUNT. "+
-                                          "Default is 0.04 (ideal for volume).")
+                                          "Default is 0.01 (ideal for volume).")
 
 
         parser.add_argument(metavar="CIF", dest="cif_file",
