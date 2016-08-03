@@ -1059,7 +1059,7 @@ class LammpsSimulation(object):
                                      self.name, 
                                      " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
                                                 for key in sorted(self.unique_atom_types.keys())])))
-
+    
         if (self.options.minimize):
             inp_str += "%-15s %s\n"%("min_style","cg")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
@@ -1077,6 +1077,22 @@ class LammpsSimulation(object):
             inp_str += "%-15s %s\n"%("unfix", "${fix2}")
             
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+        if (self.options.random_vel):
+            inp_str += "%-15s %s\n"%("velocity", "all create %.2f %i"%(self.options.temp, np.random.randint(1,3000000)))
+        if (self.options.npt):
+            id = self.fixcount()
+            inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
+            inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 1000*${dt}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
+
+            inp_str += "%-15s %s\n"%("fix", "%i all npt temp %.2f %.2f ${tdamp} tri %.2f %.2f ${pdamp}"%(id, self.options.temp, self.options.temp,
+                                                                                                        self.options.pressure, self.options.pressure))
+            inp_str += "%-15s %i\n"%("thermo", 0)
+            inp_str += "%-15s %i\n"%("run", self.options.neqstp)
+            inp_str += "%-15s %i\n"%("thermo", 1)
+            inp_str += "%-15s %i\n"%("run", self.options.nprodstp)
+
+            inp_str += "%-15s %i\n"%("unfix", id) 
         
         if (self.options.bulk_moduli):
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleVar", "equal 1.00-${totDev}+${do}*${sf}")
@@ -1097,10 +1113,10 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "do", "delete")
 
         if (self.options.thermal_scaling):
-            temperature = 80. # kelvin
-            pressure = 1.0 # atmospheres
-            equil_steps = 200000 # 200 ps
-            prod_steps = 50000 # 50 ps
+            temperature = self.options.temp # kelvin
+            pressure = self.options.pressure # atmospheres
+            equil_steps = self.options.neqstp 
+            prod_steps = self.options.nprodstp 
             inp_str += "%-15s %s\n"%("thermo_style", "custom step temp cella cellb cellc vol etotal")
             # timestep in femtoseconds
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
@@ -1112,7 +1128,6 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "fix3", "equal %i"%(self.fixcount()))
             inp_str += "%-15s %-10s %s\n"%("variable", "fix4", "equal %i"%(self.fixcount()))
         
-            inp_str += "%-15s %s\n"%("velocity", "all create %.2f %i"%(temperature, np.random.randint(1,3000000)))
             inp_str += "%-15s %s\n"%("fix", "${fix3} all ave/time 1 %i %i v_myVol ave one file log.%s.vol"%(prod_steps,
                                                                                                         prod_steps + equil_steps, 
                                                                                                         self.name))

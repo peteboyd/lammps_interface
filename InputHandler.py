@@ -92,6 +92,13 @@ class Options(object):
                                       + " a temperature scaling calculation. This will use "+
                                       "values from ITER_COUNT and MAX_DEV to create "+
                                       "the temperature range")
+        simulation_group.add_argument("--npt", action="store_true",
+                                      dest="npt",
+                                      default=False,
+                                      help="Request input files necessary for"
+                                      + " an isothermal-isobaric simulation. This will use "+
+                                      "values from TEMP and PRESSURE, NEQSTP, and NPRODSTP to "+
+                                      "produce the input file.")
         simulation_group.add_argument("--cutoff", action="store",
                                       type=float, dest="cutoff",
                                       default=12.5,
@@ -100,6 +107,13 @@ class Options(object):
                                       " This will determine the size of "+
                                       "the supercell computed for the simulation. "+
                                       "Default is 12.5 angstroms.")
+        simulation_group.add_argument("--randomize-velocities",
+                                      action="store_true",
+                                      default=False,
+                                      dest="random_vel",
+                                      help="Adds a velocity randomization of the atoms "+
+                                           "prior to finite temperature simulation. The velocities are "+
+                                           "randomized to TEMP.")
         simulation_group.add_argument("--dcd",
                                       action="store_true",
                                       default=False,
@@ -154,7 +168,40 @@ class Options(object):
                                      help="Max deviation of adjusted variable "+
                                           "at each step is scaled by MAX_DEV/ITER_COUNT. "+
                                           "Default is 0.01 (ideal for volume).")
-
+        parameter_group.add_argument("--temperature",
+                                     action="store",
+                                     type=float,
+                                     default=298.0,
+                                     dest="temp",
+                                     help="Simulation temperature. This parameter is used "+
+                                          "only if NPT is True. "+
+                                          "Default is 298.0 Kelvin.")
+        parameter_group.add_argument("--pressure",
+                                     action="store",
+                                     type=float,
+                                     default=1.0,
+                                     dest="pressure",
+                                     help="Simulation pressure. This parameter is used "+
+                                          "only if NPT is True. "+
+                                          "Default is 1.0 atmosphere.")
+        parameter_group.add_argument("--production-steps",
+                                     action="store",
+                                     type=int,
+                                     default=200000,
+                                     dest="nprodstp",
+                                     help="Number of production steps in the simulation. "+
+                                          "Applies to NPT and THERMAL_SCALING simulations. "
+                                          "Default is 200,000 steps. (corresponding to "+
+                                          "200 ps if the timestep is 1 fs)")
+        parameter_group.add_argument("--equilibration-steps",
+                                     action="store",
+                                     type=int,
+                                     default=200000,
+                                     dest="neqstp",
+                                     help="Number of equilibration steps in the simulation. "+
+                                          "Applies to NPT and THERMAL_SCALING simulations. "
+                                          "Default is 200,000 steps. (corresponding to "+
+                                          "200 ps if the timestep is 1 fs)")
 
         parser.add_argument(metavar="CIF", dest="cif_file",
                             help="path to cif file to interpret")
