@@ -1142,7 +1142,9 @@ class BTW_FF(ForceField):
 
 
     def special_commands(self):
-        st = ["%-15s %s"%("pair_modify", "tail yes"), 'special_bonds lj/coul 0.0 0.0 1', "%-15s %.2f"%('dielectric', 1.5)]
+        st = ["%-15s %s"%("pair_modify", "tail yes"), 
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1"), 
+              "%-15s %.2f"%('dielectric', 1.5)]
         return st
 
 
@@ -1647,7 +1649,9 @@ class MOF_FF(ForceField):
         return(str)
 
     def special_commands(self):
-        st = ["%-15s %s"%("pair_modify", "tail yes"), 'special_bonds lj 0 0 1 coul 1 1 1 #!!! Note: Gaussian charges have to be used!', "%-15s %.1f"%('dielectric', 1.0)]
+        st = ["%-15s %s"%("pair_modify", "tail yes"), 
+              "%-15s %s"%("special_bonds", "lj 0 0 1 coul 1 1 1 #!!! Note: Gaussian charges have to be used!"), 
+              "%-15s %.1f"%("dielectric", 1.0)]
         return st
 
 class FMOFCu(ForceField):
@@ -2076,7 +2080,9 @@ class FMOFCu(ForceField):
 
 
     def special_commands(self):
-        st = ["%-15s %s"%("pair_modify", "tail yes"), 'special_bonds lj/coul 0.0 0.0 1', 'dielectric      1.50']
+        st = ["%-15s %s"%("pair_modify", "tail yes"), 
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1"), 
+              "%-15s %.2f"%("dielectric", 1.50)]
         return st
 
 
@@ -2433,7 +2439,9 @@ class UFF(ForceField):
         return 1
     
     def special_commands(self):
-        st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"), "%-15s %.1f"%('dielectric', 1.0)]
+        st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"), 
+              "%-15s %.1f"%('dielectric', 1.0),
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0")] 
         return st
 
     def detect_ff_terms(self):
@@ -3374,7 +3382,9 @@ class UFF4MOF(ForceField):
         return 1
     
     def special_commands(self):
-        st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"), "%-15s %.1f"%('dielectric', 1.0)]
+        st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"),
+              "%-15s %.1f"%('dielectric', 1.0),
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0")] 
         return st
 
     def detect_ff_terms(self):
