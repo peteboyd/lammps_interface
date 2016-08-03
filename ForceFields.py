@@ -2440,8 +2440,9 @@ class UFF(ForceField):
     
     def special_commands(self):
         st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"), 
-              "%-15s %.1f"%('dielectric', 1.0),
-              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0")] 
+              #"%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"), # this gives bad bulk moduli for IRMOF-1
+              "%-15s %.1f"%('dielectric', 1.0)
+              ] 
         return st
 
     def detect_ff_terms(self):
@@ -3383,8 +3384,9 @@ class UFF4MOF(ForceField):
     
     def special_commands(self):
         st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"),
-              "%-15s %.1f"%('dielectric', 1.0),
-              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0")] 
+              #"%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"),
+              "%-15s %.1f"%('dielectric', 1.0)
+              ] 
         return st
 
     def detect_ff_terms(self):
