@@ -2544,7 +2544,7 @@ class Dreiding(ForceField):
             data['potential'] = BondPotential.Morse()
             data['potential'].D = D
             data['potential'].alpha = alpha
-            data['potential'].R = Re
+            data['potential'].R0 = Re
 
         else:
             print("ERROR: Cannot recognize bond potential for Dreiding: %s"%self.bondtype)
@@ -2985,7 +2985,7 @@ class Dreiding(ForceField):
             st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic")]
         else:
             st = ["%-15s %s"%("pair_modify", "tail yes")]
-        st += ["%-15s %s"%("special_bonds", "dreiding"), # equivalent to 'special_bonds lj 0.0 0.0 1.0'
+        st += [#"%-15s %s"%("special_bonds", "dreiding"), # equivalent to 'special_bonds lj 0.0 0.0 1.0'
               "%-15s %.1f"%('dielectric', 1.0)] 
         return st
 
