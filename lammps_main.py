@@ -1061,21 +1061,25 @@ class LammpsSimulation(object):
                                                 for key in sorted(self.unique_atom_types.keys())])))
     
         if (self.options.minimize):
-            inp_str += "%-15s %s\n"%("min_style","cg")
+            inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             
-            inp_str += "%-15s %-10s %s\n"%("variable", "fix1", "equal %i"%(self.fixcount()))
-            inp_str += "%-15s %s\n"%("fix","${fix1} all box/relax tri 0.0 vmax 0.01")
+            fix = self.fixcount()
+            inp_str += "%-15s %s\n"%("min_style","sd")
+            inp_str += "%-15s %s\n"%("fix","%i all box/relax tri 0.0 vmax 0.01"%fix)
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-            inp_str += "%-15s %s\n"%("unfix", "${fix1}")
+            inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
             
+            inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             
-            inp_str += "%-15s %-10s %s\n"%("variable", "fix2", "equal %i"%(self.fixcount()))
-            inp_str += "%-15s %s\n"%("fix","${fix2} all box/relax tri 0.0 vmax 0.01")
+            fix = self.fixcount()
+            inp_str += "%-15s %s\n"%("min_style","sd")
+            inp_str += "%-15s %s\n"%("fix","%i all box/relax tri 0.0 vmax 0.01"%fix)
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-            inp_str += "%-15s %s\n"%("unfix", "${fix2}")
+            inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
             
+            inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
         if (self.options.random_vel):
             inp_str += "%-15s %s\n"%("velocity", "all create %.2f %i"%(self.options.temp, np.random.randint(1,3000000)))
@@ -1100,7 +1104,8 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "equal ${scaleVar}*${b}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleC", "equal ${scaleVar}*${c}")
             inp_str += "%-15s %s\n"%("change_box", "all x final 0.0 ${scaleA} y final 0.0 ${scaleB} z final 0.0 ${scaleC} remap")
-            inp_str += "%-15s %s\n"%("minimize", "1.0e-10 1.0e-10 10000 100000")
+            inp_str += "%-15s %s\n"%("min_style","fire")
+            inp_str += "%-15s %s\n"%("minimize", "1.0e-15 1.0e-15 10000 100000")
             inp_str += "%-15s %s\n"%("print", "\"STEP ${do} ${scaleVar} $(vol) $(press) $(etotal)\"")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleVar", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleA", "delete")
