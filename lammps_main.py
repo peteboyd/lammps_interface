@@ -1132,14 +1132,14 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "t", "equal temp")
             # start with initial random velocities
             fix1 = self.fixcount()
-            fix2 = self.fixcount()
+            #fix2 = self.fixcount()
         
-            inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_myVol ave one file log.%s.vol"%(fix1, prod_steps,
+            inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a v_myVol ave one file log.%s.vol"%(fix1, prod_steps,
                                                                                                         prod_steps + equil_steps, 
                                                                                                         self.name))
-            inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a ave one file log.%s.cella"%(fix2, prod_steps,
-                                                                                                        prod_steps + equil_steps, 
-                                                                                                        self.name))
+            #inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a ave one file log.%s.cella"%(fix2, prod_steps,
+            #                                                                                            prod_steps + equil_steps, 
+            #                                                                                            self.name))
 
             temprange = np.linspace(temperature, self.options.max_dev, self.options.iter_count).tolist()
             temprange.append(298.0)
@@ -1158,7 +1158,7 @@ class LammpsSimulation(object):
                 inp_str += "%-15s %i\n"%("unfix", id) 
 
             inp_str += "%-15s %i\n"%("unfix", fix1) 
-            inp_str += "%-15s %i\n"%("unfix", fix2) 
+            #inp_str += "%-15s %i\n"%("unfix", fix2) 
         if self.options.dump_dcd: 
             inp_str += "%-15s %s\n"%("undump", "%s_dcdmov"%(self.name))
         if self.options.dump_xyz:
