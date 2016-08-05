@@ -1129,14 +1129,15 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
             inp_str += "%-15s %-10s %s\n"%("variable", "myVol", "equal vol")
             inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
+            inp_str += "%-15s %-10s %s\n"%("variable", "t", "equal temp")
             # start with initial random velocities
-            inp_str += "%-15s %-10s %s\n"%("variable", "fix3", "equal %i"%(self.fixcount()))
-            inp_str += "%-15s %-10s %s\n"%("variable", "fix4", "equal %i"%(self.fixcount()))
+            fix1 = self.fixcount()
+            fix2 = self.fixcount()
         
-            inp_str += "%-15s %s\n"%("fix", "${fix3} all ave/time 1 %i %i v_myVol ave one file log.%s.vol"%(prod_steps,
+            inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_myVol ave one file log.%s.vol"%(fix1, prod_steps,
                                                                                                         prod_steps + equil_steps, 
                                                                                                         self.name))
-            inp_str += "%-15s %s\n"%("fix", "${fix4} all ave/time 1 %i %i v_a ave one file log.%s.cella"%(prod_steps,
+            inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a ave one file log.%s.cella"%(fix2, prod_steps,
                                                                                                         prod_steps + equil_steps, 
                                                                                                         self.name))
 
@@ -1156,8 +1157,8 @@ class LammpsSimulation(object):
 
                 inp_str += "%-15s %i\n"%("unfix", id) 
 
-            inp_str += "%-15s ${fix3}\n"%("unfix") 
-            inp_str += "%-15s ${fix4}\n"%("unfix") 
+            inp_str += "%-15s %i\n"%("unfix", fix1) 
+            inp_str += "%-15s %i\n"%("unfix", fix2) 
         if self.options.dump_dcd: 
             inp_str += "%-15s %s\n"%("undump", "%s_dcdmov"%(self.name))
         if self.options.dump_xyz:
