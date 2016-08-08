@@ -1161,8 +1161,8 @@ class LammpsSimulation(object):
             id = self.fixcount() 
             inp_str += "%-15s %i %s %s %s %s\n"%("fix", id,
                                         "all npt",
-                                        "temp ${sim_temp} ${sim_temp} ${tdamp}"
-                                        "tri ${sim_press} ${sim_press} ${pdamp}"
+                                        "temp ${sim_temp} ${sim_temp} ${tdamp}",
+                                        "tri ${sim_press} ${sim_press} ${pdamp}",
                                         "tchain 5 pchain 5")
             inp_str += "%-15s %i\n"%("thermo", 0)
             inp_str += "%-15s %i\n"%("run", equil_steps)
