@@ -1100,11 +1100,9 @@ class LammpsSimulation(object):
             inp_str += "%-15s %i\n"%("run", self.options.nprodstp)
 
             inp_str += "%-15s %i\n"%("unfix", id) 
-        
-        if (self.options.bulk_moduli):
 
         if(self.options.bulk_moduli):
-            inp_str += "%-15s %s"%("write_restart", "initial_structure.restart")
+            inp_str += "\n%-15s %s\n"%("write_restart", "initial_structure.restart")
             inp_str += "%-15s %-10s %s\n"%("variable", "N", "equal %i"%self.options.iter_count)
             inp_str += "%-15s %-10s %s\n"%("variable", "totDev", "equal %.5f"%self.options.max_dev)
             inp_str += "%-15s %-10s %s\n"%("variable", "sf", "equal ${totDev}/${N}*2")
@@ -1141,7 +1139,7 @@ class LammpsSimulation(object):
             temprange.append(298.0)
             temprange.insert(0,1.0) # add 1 and 298 K simulations.
 
-            inp_str += "%-15s %s"%("write_restart", "initial_structure.restart")
+            inp_str += "\n%-15s %s\n"%("write_restart", "initial_structure.restart")
             inp_str += "%-15s %-10s %s\n"%("variable", "sim_temp", "index %s"%(" ".join(["%.2f"%i for i in temprange])))
             inp_str += "%-15s %-10s %s\n"%("variable", "sim_press", "%.3f"%self.options.pressure) # atmospheres.
             inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
