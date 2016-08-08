@@ -934,15 +934,6 @@ class LammpsSimulation(object):
     def construct_input_file(self):
         """Input file will depend on what the user wants to do"""
         inp_str = ""
-        if(self.options.bulk_moduli):
-            inp_str += "%-15s %-10s %s\n"%("variable", "N", "equal %i"%self.options.iter_count)
-            inp_str += "%-15s %-10s %s\n"%("variable", "totDev", "equal %.5f"%self.options.max_dev)
-            inp_str += "%-15s %-10s %s\n"%("variable", "sf", "equal ${totDev}/${N}*2")
-            inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
-            inp_str += "%-15s %-10s %s\n"%("variable", "b", "equal cellb")
-            inp_str += "%-15s %-10s %s\n"%("variable", "c", "equal cellc")
-            inp_str += "%-15s %s\n"%("label", "loop")
-            inp_str += "%-15s %-10s %s\n"%("variable", "do", "loop ${N}")
         # Eventually, this function should be dependent on some command line arguments
         # which will dictate what kind of simulation to run in LAMMPS
         inp_str += "%-15s %s\n"%("log","log.%s append"%(self.name))
@@ -1061,28 +1052,40 @@ class LammpsSimulation(object):
                                                 for key in sorted(self.unique_atom_types.keys())])))
     
         if (self.options.minimize):
-            inp_str += "%-15s %s\n"%("min_style","fire")
+            #inp_str += "%-15s %s\n"%("min_style","fire")
+            inp_str += "%-15s %s\n"%("min_style","sd")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             
             fix = self.fixcount()
-            inp_str += "%-15s %s\n"%("min_style","sd")
+            #inp_str += "%-15s %s\n"%("min_style","sd")
             inp_str += "%-15s %s\n"%("fix","%i all box/relax tri 0.0 vmax 0.01"%fix)
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
             
-            inp_str += "%-15s %s\n"%("min_style","fire")
+            #inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             
             fix = self.fixcount()
-            inp_str += "%-15s %s\n"%("min_style","sd")
+            #inp_str += "%-15s %s\n"%("min_style","sd")
             inp_str += "%-15s %s\n"%("fix","%i all box/relax tri 0.0 vmax 0.01"%fix)
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
             
-            inp_str += "%-15s %s\n"%("min_style","fire")
+            #inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+            
+            fix = self.fixcount()
+            #inp_str += "%-15s %s\n"%("min_style","sd")
+            inp_str += "%-15s %s\n"%("fix","%i all box/relax tri 0.0 vmax 0.01"%fix)
+            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+            inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
+            
+            #inp_str += "%-15s %s\n"%("min_style","fire")
+            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+
         if (self.options.random_vel):
             inp_str += "%-15s %s\n"%("velocity", "all create %.2f %i"%(self.options.temp, np.random.randint(1,3000000)))
+
         if (self.options.npt):
             id = self.fixcount()
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
@@ -1099,6 +1102,20 @@ class LammpsSimulation(object):
             inp_str += "%-15s %i\n"%("unfix", id) 
         
         if (self.options.bulk_moduli):
+
+        if(self.options.bulk_moduli):
+            inp_str += "%-15s %s"%("write_restart", "initial_structure.restart")
+            inp_str += "%-15s %-10s %s\n"%("variable", "N", "equal %i"%self.options.iter_count)
+            inp_str += "%-15s %-10s %s\n"%("variable", "totDev", "equal %.5f"%self.options.max_dev)
+            inp_str += "%-15s %-10s %s\n"%("variable", "sf", "equal ${totDev}/${N}*2")
+            inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
+            inp_str += "%-15s %-10s %s\n"%("variable", "b", "equal cellb")
+            inp_str += "%-15s %-10s %s\n"%("variable", "c", "equal cellc")
+            inp_str += "%-15s %-10s %s\n"%("variable", "do", "loop ${N}")
+            inp_str += "%-15s %s\n"%("label", "loop")
+            inp_str += "%-15s\n"%("clear")
+            inp_str += "%-15s %s\n"%("read_restart", "initial_structure.restart")
+
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleVar", "equal 1.00-${totDev}+${do}*${sf}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleA", "equal ${scaleVar}*${a}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "equal ${scaleVar}*${b}")
@@ -1111,54 +1128,56 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleA", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleC", "delete")
-            inp_str += "%-15s\n"%("clear")
             inp_str += "%-15s %s\n"%("next", "do")
-            inp_str += "%-15s %s\n"%("jump", "in.%s loop"%(self.name))
+            inp_str += "%-15s %s\n"%("jump", "SELF loop")
             inp_str += "%-15s %s\n"%("label", "break")
             inp_str += "%-15s %-10s %s\n"%("variable", "do", "delete")
 
         if (self.options.thermal_scaling):
             temperature = self.options.temp # kelvin
-            pressure = self.options.pressure # atmospheres
             equil_steps = self.options.neqstp 
             prod_steps = self.options.nprodstp 
-            inp_str += "%-15s %s\n"%("thermo_style", "custom step temp cella cellb cellc vol etotal")
+            temprange = np.linspace(temperature, self.options.max_dev, self.options.iter_count).tolist()
+            temprange.append(298.0)
+            temprange.insert(0,1.0) # add 1 and 298 K simulations.
+
+            inp_str += "%-15s %s"%("write_restart", "initial_structure.restart")
+            inp_str += "%-15s %-10s %s\n"%("variable", "sim_temp", "index %s"%(" ".join(["%.2f"%i for i in temprange])))
+            inp_str += "%-15s %-10s %s\n"%("variable", "sim_press", "%.3f"%self.options.pressure) # atmospheres.
+            inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
+            inp_str += "%-15s %-10s %s\n"%("variable", "myVol", "equal vol")
+            inp_str += "%-15s %-10s %s\n"%("variable", "t", "equal temp")
             # timestep in femtoseconds
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
             inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 1000*${dt}")
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
-            inp_str += "%-15s %-10s %s\n"%("variable", "myVol", "equal vol")
-            inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
-            inp_str += "%-15s %-10s %s\n"%("variable", "t", "equal temp")
-            # start with initial random velocities
             fix1 = self.fixcount()
-            #fix2 = self.fixcount()
-        
             inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a v_myVol ave one file log.%s.vol"%(fix1, prod_steps,
                                                                                                         prod_steps + equil_steps, 
                                                                                                         self.name))
-            #inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a ave one file log.%s.cella"%(fix2, prod_steps,
-            #                                                                                            prod_steps + equil_steps, 
-            #                                                                                            self.name))
-
-            temprange = np.linspace(temperature, self.options.max_dev, self.options.iter_count).tolist()
-            temprange.append(298.0)
-            temprange.insert(0,1.0) # add 1 and 298 K simulations.
+            inp_str += "%-15s %s\n"%("label", "loop")
+            inp_str += "%-15s\n"%("clear")
+            inp_str += "%-15s %s\n"%("read_restart", "initial_structure.restart")
+            inp_str += "%-15s %s\n"%("thermo_style", "custom step temp cella cellb cellc vol etotal")
             
-            for temp in sorted(temprange): 
-                id = self.fixcount() 
-                inp_str += "%-15s %s\n"%("fix", "%i all npt temp %.2f %.2f ${tdamp} iso %.2f %.2f ${pdamp}"%(id, temp, temp,
-                                                                                                            pressure, pressure))
-                
-                inp_str += "%-15s %i\n"%("thermo", 0)
-                inp_str += "%-15s %i\n"%("run", equil_steps)
-                inp_str += "%-15s %i\n"%("thermo", 1)
-                inp_str += "%-15s %i\n"%("run", prod_steps)
+            id = self.fixcount() 
+            inp_str += "%-15s %i %s %s %s %s\n"%("fix", id,
+                                        "all npt",
+                                        "temp ${sim_temp} ${sim_temp} ${tdamp}"
+                                        "tri ${sim_press} ${sim_press} ${pdamp}"
+                                        "tchain 5 pchain 5")
+            inp_str += "%-15s %i\n"%("thermo", 0)
+            inp_str += "%-15s %i\n"%("run", equil_steps)
+            inp_str += "%-15s %i\n"%("thermo", 1)
+            inp_str += "%-15s %i\n"%("run", prod_steps)
 
-                inp_str += "%-15s %i\n"%("unfix", id) 
+            inp_str += "%-15s %i\n"%("unfix", id) 
+            inp_str += "\n%-15s %s\n"%("next", "sim_temp")
+            inp_str += "%-15s %s\n"%("jump", "SELF loop")
+            inp_str += "%-15s %s\n"%("label", "break")
+            inp_str += "%-15s %-10s %s\n"%("variable", "sim_temp", "delete")
+            inp_str += "%-15s %i\n"%("unfix", fix1)
 
-            inp_str += "%-15s %i\n"%("unfix", fix1) 
-            #inp_str += "%-15s %i\n"%("unfix", fix2) 
         if self.options.dump_dcd: 
             inp_str += "%-15s %s\n"%("undump", "%s_dcdmov"%(self.name))
         if self.options.dump_xyz:

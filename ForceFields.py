@@ -2440,7 +2440,7 @@ class UFF(ForceField):
     
     def special_commands(self):
         st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"), 
-              #"%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"), 
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"), 
               "%-15s %.1f"%('dielectric', 1.0)
               ] 
         return st
@@ -2985,7 +2985,7 @@ class Dreiding(ForceField):
             st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic")]
         else:
             st = ["%-15s %s"%("pair_modify", "tail yes")]
-        st += [#"%-15s %s"%("special_bonds", "dreiding"), # equivalent to 'special_bonds lj 0.0 0.0 1.0'
+        st += ["%-15s %s"%("special_bonds", "dreiding"), # equivalent to 'special_bonds lj 0.0 0.0 1.0'
               "%-15s %.1f"%('dielectric', 1.0)] 
         return st
 
@@ -3384,7 +3384,7 @@ class UFF4MOF(ForceField):
     
     def special_commands(self):
         st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"),
-              #"%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"),
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"),
               "%-15s %.1f"%('dielectric', 1.0)
               ] 
         return st
