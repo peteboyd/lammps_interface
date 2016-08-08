@@ -17,6 +17,9 @@ import networkx as nx
 import ForceFields
 import itertools
 import operator
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from structure_data import from_CIF, write_CIF, clean
 from CIFIO import CIF
 from ccdc import CCDC_BOND_ORDERS
@@ -973,23 +976,665 @@ class LammpsSimulation(object):
 class Cluster(object):
 
     def __init__(self, mgraph, xyz, rcut):
-        self.disgraph = mgraph.copy()
+
+        # the original graph from the super super box
         self.origraph = mgraph.copy()
 
-        # a temporary graph
-        self.temgraph = MolecularGraph()
+        # a copied graph that we can disconnect and edit as desired
+        self.disgraph = mgraph.copy()
 
-        # Contracted graph
-        self.congraph = nx.Graph
-
+        # The assigned center of the cluster and the size of the cluster
         self.xyz = xyz
         self.rcut = rcut
 
-    def cart_dist(self, pts1, pts2):
+        # Index of the node closest to the assigned center of the cluster
+        self.start_index = -1
 
+        # all nodes that must be kept bc they are within the cutoff radius
+        self.kept_nodes = set()
+        self.num_keep = 0
+       
+        # dict of hydrogens to add later on 
+        self.hydrogens = {}
+
+        # set of all metals that can exist in nanoprous materials
+        self.metals = set([4,12,13,14,20,21,22,23,24,25,26,27,28,29,30,37,38,39,40,41,42,43,44,45,46,47,48])
+
+
+    def cart_dist(self, pts1, pts2):
+        """
+        Cartesian distance between 2 points
+        """
         return np.linalg.norm(pts1 - pts2)
 
-    def all_building_blocks(self):
+    def parse_sym_flag_for_directionality(self, string):
+        """
+        symm flag looks 'like 1_455'
+        where 4 denotes a periodic bond in the x direction
+        where 5 denotes a non periodic bond in the y, z direction
+        """
+        ambiguous = False
+        directionality = -1
+        for i in range(3):
+            if(string[2+i]!='5'):
+                if(directionality == -1):
+                    directionality = int(i)
+                elif(directionality != -1 and directionality != int(i)):
+                    ambiguous = True
+                    return -1
+
+        return directionality
+
+    def get_start_and_kept_nodes(self):
+        """
+        Analyze a super box of a nanoporous material 
+        """
+        print("\n\nGETTING START NODE AND NODES INSIDE CUTOFF")
+        print("--------------------------------------")
+
+        min_dist = 100000000.0
+        all_nodes = nx.number_of_nodes(self.origraph)
+        for i in range(all_nodes):
+            this_xyz = self.origraph.node[i+1]['cartesian_coordinates']
+            cart_dist = self.cart_dist(this_xyz, self.xyz)
+
+            if(cart_dist < min_dist):
+                min_dist = float(cart_dist)
+                self.start_index = int(i+1)
+
+            if(cart_dist < self.rcut):
+                self.kept_nodes.add(i+1)
+
+        print("Start node: " + str(self.start_index))
+        print("Sart node xyz: " + str(self.origraph.node[self.start_index]['cartesian_coordinates']))
+        print("Num nodes inside rcut: " + str(len(self.kept_nodes)))
+
+        return self.start_index
+
+    def get_BFS_tree(self):
+        print("\n\nTURNING MOLECULAR GRAPH INTO BFS TREE")
+        print("--------------------------------------")
+        print("Start node: " + str(self.start_index))
+
+        # reset disgraph
+        self.disgraph = self.origraph.copy()
+        tree = nx.bfs_tree(self.origraph, self.start_index)
+        self.tree = tree
+
+        self.iterative_BFS_tree_structure(self.start_index)
+        return tree
+         
+
+    def iterative_BFS_tree_structure(self, v):
+        """
+        Construct a dict with key that indexes depth of BFS tree, 
+        and the value is a set of all nodes at that depth
+        """
+        print("\n\nTURNING BFS TREE INTO DICT OF DEPTHS")
+        print("--------------------------------------")
+        
+
+        # intitialize first level
+        stack = set() 
+        stack.add(v)
+        curr_depth = 0
+
+        self.BFS_tree_dict = {
+                                curr_depth: set(stack)
+                             }
+    
+        curr_depth += 1
+
+
+        # Move through every depth level in tree
+        while(len(stack) != 0):
+
+            # iterate over all up_nodes in stack
+            for up_node in stack.copy():
+        
+                # get all down nodes from this up_node
+                for down_node in self.tree.successors_iter(up_node):
+                    stack.add(down_node)
+
+                # after we've gotten all down nodes, remove this up node
+                stack.remove(up_node)
+
+            # add this depth and all nodes to the graph
+            if(len(stack) != 0):
+                self.BFS_tree_dict[curr_depth] = set(stack)
+                curr_depth += 1
+
+            
+
+        print("Depth of BFS tree: " + str(len(self.BFS_tree_dict.keys())))
+        #for i in range(len(self.BFS_tree_dict.keys())):
+        #    print("Level " + str(i) + ": " + str(len(self.BFS_tree_dict[i]))) 
+
+
+        self.visualize_n_levels_of_tree(8)
+        self.nodes_w_2plus_parents()
+        self.nodes_that_DNE_in_origraph()
+        self.distree = self.tree.copy()
+        
+        #print(self.get_nth_heirarcy_BFS_tree(46))
+        self.preliminary_truncate_BFS_tree()
+        self.truncate_all()
+        #self.compute_cluster_in_tree()
+        self.compute_cluster_in_disgraph()
+        self.cap_by_material()
+        
+
+    def visualize_n_levels_of_tree(self, n):
+
+        self.vistree = self.tree.copy()
+        print(dir(self.vistree))
+
+        for i in range(n, len(self.BFS_tree_dict.keys())):
+            for node in self.BFS_tree_dict[i]:
+                for child in self.tree.successors_iter(node):
+                    self.vistree.remove_edge(node, child)
+
+                self.vistree.remove_node(node)
+
+        fig = plt.figure(figsize=(20,20))
+
+        nx.spring_layout(self.vistree)
+        nx.draw_spring(self.vistree, node_size = 50)
+        homedir = os.path.expanduser('~')
+        plt.savefig(homedir + '/Dropbox/sample_tree.png')
+
+    def nodes_w_2plus_parents(self):
+        print("\n\nFINDING NODES W/2+ PARENTS")
+        print("--------------------------------------")
+        for i in range(len(self.BFS_tree_dict.keys())):
+            for node in self.BFS_tree_dict[i]:
+                parents = len(self.tree.predecessors(node))
+
+                if(parents > 1):
+                    print("Node %s: %s parents" % (str(node), str(parents)))
+
+    def nodes_that_DNE_in_origraph(self): 
+        print("\n\nFINDING MISSING EDGES IN ORIGRAPH")
+        print("--------------------------------------")
+        for n1, n2, data in self.origraph.edges_iter2(data=True):
+            if((self.tree.has_edge(n1,n2)) or \
+               (self.tree.has_edge(n2,n1))):
+                pass
+            else:
+                print("BFS tree removed: %s!" % (str((n1,n2))))
+                depth1 = -1
+                depth2 = -1
+                for i in range(len(self.BFS_tree_dict.keys())):
+                    if(n1 in self.BFS_tree_dict[i]):
+                        depth1 = int(i)
+                        print("depth1 = %s" % (str(i)))
+                    elif(n2 in self.BFS_tree_dict[i]):
+                        depth2 = int(i)
+                        print("depth2 = %s" % (str(i)))
+                print("Added it back")
+                if(depth1 < depth2):
+                    self.tree.add_edge(n1, n2, data)
+                else:
+                    self.tree.add_edge(n2, n1, data)
+        
+
+    def get_nth_heirarcy_BFS_tree(self, n):
+        return self.BFS_tree_dict[n]
+            
+    def truncation_criteria(self, up_node, down_node):
+        # For 3D organics
+        
+        if(self.mat_type == "organic"):
+            if(self.origraph.node[up_node]['atomic_number'] in [6] and \
+               self.origraph.node[down_node]['atomic_number'] in [6,7,8]):
+                return True
+            else:
+                return False
+        # For zeolites
+        elif(self.mat_type == "zeolite"):
+            # For zeolites
+            if((self.origraph.node[up_node]['atomic_number'] in [8,14] and \
+                self.origraph.node[down_node]['atomic_number'] in [8, 14]) and \
+               (len(self.tree.predecessors(down_node)) != 1 and \
+                self.origraph.node[down_node]['atomic_number'] == 8) \
+              ):
+                return True
+            else:
+                return False
+        elif(self.mat_type == "oned"):
+            if(self.origraph.node[up_node]['atomic_number'] in self.metals and \
+               self.origraph.node[down_node]['atomic_number'] in self.metals):
+                return True
+            else:
+                return False
+        else:
+            print("Material type unknown, can't truncate")
+            exit()
+            
+                
+
+    def preliminary_truncate_BFS_tree(self):
+        print("\n\nTRUNCATING BFS TREE BASED ON MATERIAL TYPE")
+        print("--------------------------------------")
+
+        # preliminary list of all bonds that can be truncated
+        self.pot_truncs = set()
+        self.pot_truncs_directed = set()
+        self.pot_truncs_to_remove = set()
+        added = 0
+        for i in range(len(self.BFS_tree_dict.keys())):
+            for up_node in self.BFS_tree_dict[i]:
+                for down_node in self.tree.successors_iter(up_node):
+                    this_edge = (self.origraph.sorted_edge_dict[(up_node, down_node)][0], \
+                                 self.origraph.sorted_edge_dict[(up_node, down_node)][1])
+
+                    data = self.origraph.get_edge_data(this_edge[0], this_edge[1])
+
+                    if(data['order'] == 1.0):
+                            # For MOFs
+                            # NOTE WHY ARE YOU LOOKING AT ORIGRAPH HERE???
+                        if(self.truncation_criteria(up_node, down_node)):
+                        #if((self.origraph.node[up_node]['atomic_number'] in [6] and \
+                        #    self.origraph.node[down_node]['atomic_number'] in [6,7,8]) or \
+                        #    # For zeolites
+                        #   (self.origraph.node[up_node]['atomic_number'] == 8 and \
+                        #    self.origraph.node[down_node]['atomic_number'] == 14)
+                        #    # For 1D rod MOFs
+                        #   #(self.origraph.node[up_node]['atomic_number'] in self.metals and \
+                        #   # self.origraph.node[down_node]['atomic_number'] in self.metals)
+                        #  ):
+                        #    # Will need another condition for 1D rod MOFs
+
+                        #    #print("Num parents of down node:")
+                        #    #print(len(self.tree.predecessors(down_node)))
+                        #    #print("Num children of up node:")
+                        #    #print(len(self.tree.successors(up_node)))
+                        #    if(len(self.tree.predecessors(down_node)) == 1):
+                        #        #self.hydrogens[(this_edge[0], this_edge[1])] = {
+                        #        #                      'cartesian_coordinates': self.origraph.node[up_node]['cartesian_coordinates'],
+                        #        #                      'atomic_number': 10000,
+                        #        #                      'element': 'A'
+                        #        #                    }
+                        #        #self.hydrogens[this_edge] = {
+                        #        #                      'cartesian_coordinates': self.origraph.node[down_node]['cartesian_coordinates'],
+                        #        #                      'atomic_number': 10000,
+                        #        #                      'element': 'X'
+                        #        #                    }
+                        #        #self.num_keep += 1
+                        #        pass
+
+                        #        #print("Warning, cutting out a node that has 2+ parents")
+                        #    if(len(self.tree.predecessors(down_node)) != 1 and self.origraph.node[down_node]['atomic_number'] == 8):
+                        #        pass
+                        #    else:
+                        #    #if(True):
+                        #        #print("Cutting at node that has exactly 1 parents")
+
+                                up_cart, down_cart = self.origraph.node[up_node]['cartesian_coordinates'], \
+                                                     self.origraph.node[down_node]['cartesian_coordinates']
+
+                                up_dist = self.cart_dist(up_cart, self.xyz)
+                                down_dist = self.cart_dist(down_cart, self.xyz)
+
+                                if((up_dist > self.rcut) and (down_dist > self.rcut)):
+                                #if((up_dist > self.rcut and down_dist > self.rcut) and \
+                                #   (up_dist < down_dist)):
+                                #if((up_dist < down_dist)):
+                                    # NOTE here's the tricky part I was missing before
+                                    # Now that we are cutting a DIRECTED graph, we can look at the end node of each cut
+                                    # If this end node occurs in two different cuts, NEITHER are valid! \
+                                    # We simply don't count this cut, and mark the other one for deletion
+                                    to_add = True
+                                    #print("\nCheck Overlap: " + str(added))
+                                    #print("Down node: " + str(down_node))
+                                    #for directed_edge in self.pot_truncs_directed:
+                                    #    #print(directed_edge)
+                                    #
+                                    #    if(down_node == directed_edge[1]):
+                                    #        #print("Gotcha!")
+                                    #        to_add = False
+                                    #        self.pot_truncs_to_remove.add(directed_edge)
+                                    #        break
+
+                                    if(to_add):
+                                        self.pot_truncs.add((this_edge[0], this_edge[1]))
+                                        self.pot_truncs_directed.add((up_node, down_node))
+                                        added += 1
+                                        #self.hydrogens[this_edge] = {
+                                        #                      'cartesian_coordinates': self.origraph.node[down_node]['cartesian_coordinates'],
+                                        #                      'atomic_number': 10000,
+                                        #                      'element': 'X'
+                                        #                    }
+                                        #self.num_keep += 1
+                                    
+
+        print("Identified %s num of potential truncations" % (str(len(self.pot_truncs))))
+        print("%s num of which are invalid because the directed child node are shared with another truncation" \
+               % (str(len(self.pot_truncs_to_remove))))
+
+        #for directed_edge in self.pot_truncs_to_remove:
+        #    this_edge = (self.origraph.sorted_edge_dict[directed_edge][0], \
+        #                 self.origraph.sorted_edge_dict[directed_edge][1])
+
+        #    self.pot_truncs.remove(this_edge)
+        #    self.pot_truncs_directed.remove(directed_edge)
+            
+
+    def truncate_all(self):
+        print("\n\nFINALIZE ALL TRUNCTAIONS TO MAKE")
+        print("--------------------------------------")
+        print("Truncating disgraph at all finalized truncation locations") 
+        self.actual_truncs = set()
+        self.actual_truncs_directed = set()
+
+        for n1, n2, data in self.origraph.edges_iter2(data=True):
+            this_edge = (n1, n2)
+            
+            if(data['symflag'] != '.'):
+                #if(this_edge in self.pot_truncs):
+                #    print("ERROR! Truncating a periodic edge that is too close to the cutoff...")
+                #    print("Modify source code to start with more replications of unit cell...\nExiting...")
+                #    exit()
+                #self.disgraph.remove_edge(this_edge[0], this_edge[1]) 
+                #self.pot_truncs.add(this_edge)
+                pass
+
+                
+        for this_edge in self.pot_truncs:
+            self.disgraph.remove_edge(this_edge[0], this_edge[1]) 
+            self.actual_truncs.add(this_edge)
+
+            #print("Truncating edge: " + str(this_edge))
+            #print(self.tree.successors(this_edge[0]))
+            #print(self.tree.successors(this_edge[1]))
+
+            if(this_edge[0] in self.tree.successors(this_edge[1])):
+                self.actual_truncs_directed.add((this_edge[1], this_edge[0]))
+            elif(this_edge[1] in self.tree.successors(this_edge[0])):
+                self.actual_truncs_directed.add((this_edge[0], this_edge[1]))
+            #else:
+            #    self.actual_truncs_directed.add((this_edge[0], this_edge[1]))
+
+    def compute_cluster_in_tree(self):
+        print("\n\nIDENTIFYING PRIMARY CLUSTER IN TREE")
+        print("--------------------------------------")
+
+        self.components = []
+        self.components_to_keep = []
+        primary_cluster = set()
+        primary_cluster_ind = -1
+        max_size = 0
+        iter_ = 0
+        for component in nx.connected_components(self.tree):
+            print("Comp %s: %s nodes" % (str(iter_), str(len(component))))
+            self.components.append(component)
+            if(self.start_index in component):
+                primary_cluster = component.copy()
+                primary_cluster_ind = int(iter_)
+            iter_ += 1
+
+        print("Total number of components: %d" % (iter_))
+        print("Primary cluster determined:") 
+        print("Comp %s: %s nodes" % (str(primary_cluster_ind), str(len(self.components[primary_cluster_ind]))))
+        self.components_to_keep.append(primary_cluster)
+        #self.update_num_keep()    
+
+    def compute_cluster_in_disgraph(self):
+        print("\n\nIDENTIFYING PRIMARY CLUSTER IN DISGRAPH")
+        print("--------------------------------------")
+
+        self.components = []
+        self.components_to_keep = []
+        self.components_to_keep_ind = []
+        primary_cluster = set()
+        primary_cluster_ind = -1
+        max_size = 0
+        iter_ = 0
+        for component in nx.connected_components(self.disgraph):
+            print("Comp %s: %s nodes" % (str(iter_), str(len(component))))
+            self.components.append(component)
+            if(self.start_index in component):
+                primary_cluster = component.copy()
+                primary_cluster_ind = int(iter_)
+            iter_ += 1
+
+        print("Total number of components: %d" % (iter_))
+        print("Primary cluster determined:") 
+        print("Comp %s: %s nodes" % (str(primary_cluster_ind), str(len(self.components[primary_cluster_ind]))))
+        self.components_to_keep.append(primary_cluster)
+        self.components_to_keep_ind.append(primary_cluster_ind)
+        print("All clusters to keep:") 
+        for i in range(len(self.components_to_keep)):
+            print("Comp %d: %d" % (self.components_to_keep_ind[i], len(self.components_to_keep[i])))
+        self.components_to_keep.append(primary_cluster)
+        self.update_num_keep()    
+        
+    def update_num_keep(self):
+        for i in range(len(self.components_to_keep)):
+            self.num_keep += len(self.components_to_keep[i])
+
+
+    def cap_by_material(self):
+        print("\n\nCAPPING BY MATERIAL TYPE")
+        print("--------------------------------------")
+        if(self.mat_type == 'zeolite'):
+            print(self.mat_type)
+            self.cap_zeolite_v2()
+        elif(self.mat_type == 'organic'):
+            print(self.mat_type)
+            self.cap_3D_organic()
+        else:
+            pass
+            
+
+    def cap_zeolite_v2(self):
+        """
+        Cap a zeolite, not an extremeley difficult case
+        """
+        print("\n\nCAPPING ZEOLITE")
+        print("--------------------------------------")
+        
+
+        print("%d Atom X debug probes" % len(self.hydrogens.keys()))
+        self.nodes_to_replace = set()
+        #print(self.actual_truncs_directed)
+            
+        for i in range(len(self.components_to_keep)):
+
+            component = self.components_to_keep[i]
+
+            for node in component:
+
+                for nbr in self.tree.successors_iter(node):
+
+                    if(nbr in self.hydrogens.keys()):
+                        #self.hydrogens.pop(nbr, None)
+                        pass 
+                    else:
+                        if((node, nbr) in self.actual_truncs_directed):
+                            print("Capping edge: " + str((node,nbr)))
+    
+                            # Don't cap if we're wrapping around into a node that's already been kept
+                            to_add = True
+                            for component in self.components_to_keep:
+                                if(nbr in component):
+                                    to_add = False
+                                    break
+                            if(to_add):
+                                bond_start = self.origraph.node[node]['cartesian_coordinates'] 
+                                bond_end =    self.origraph.node[nbr]['cartesian_coordinates']
+                                start_type = self.origraph.node[node]['atomic_number']
+                                end_type = self.origraph.node[nbr]['atomic_number']
+                        
+                                bond_vec_mag = self.cart_dist(bond_start, bond_end)
+                                bond_vec = bond_end - bond_start 
+                        
+                                # these are the easy cases
+                                if(start_type == 8):
+                                    h_dist = 0.96
+                                elif(start_type == 14):
+                                    h_dist = 1.46
+
+                                scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
+                                new_bond_end = bond_start + scaled_bond_vec
+                            
+                                # store necessary modifications 
+                                self.hydrogens[nbr] = {
+                                                          'cartesian_coordinates': new_bond_end,
+                                                          'atomic_number': 1,
+                                                          'element': 'H'
+                                                        }
+                                self.num_keep += 1
+                
+            print("%s hydrogens added as caps: " % (str(len(self.hydrogens))))
+
+    def cap_zeolite(self):
+        """
+        Cap a zeolite, not an extremeley difficult case
+        """
+        print("\n\nCAPPING ZEOLITE")
+        print("--------------------------------------")
+        
+
+        print("%d Atom X debug probes" % len(self.hydrogens.keys()))
+        self.nodes_to_replace = set()
+            
+        for i in range(len(self.components_to_keep)):
+
+            component = self.components_to_keep[i]
+
+            for node in component:
+
+                for nbr in self.tree.successors_iter(node):
+
+                    if(nbr in self.hydrogens.keys()):
+                        #self.hydrogens.pop(nbr, None)
+                        pass
+                    else:
+                        if((node, nbr) in self.actual_truncs_directed):
+                            #print("Capping edge: " + str((node,nbr)))
+                            to_add = True
+                            for component in self.components_to_keep:
+                                if(nbr in component):
+                                    to_add = False
+                                    break
+                        
+                            
+                            if(to_add):
+                                bond_start = self.origraph.node[node]['cartesian_coordinates'] 
+                                bond_end =    self.origraph.node[nbr]['cartesian_coordinates']
+                                start_type = self.origraph.node[node]['atomic_number']
+                                end_type = self.origraph.node[nbr]['atomic_number']
+                        
+                                bond_vec_mag = self.cart_dist(bond_start, bond_end)
+                                bond_vec = bond_end - bond_start 
+                        
+                                # these are the easy cases
+                                if(start_type == 8):
+                                    h_dist = 0.96
+                                elif(start_type == 14):
+                                    h_dist = 1.46
+                                elif(start_type == 8):
+                                    h_dist = 0.96
+
+                                scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
+                                new_bond_end = bond_start + scaled_bond_vec
+                            
+                                # store necessary modifications 
+                                self.hydrogens[nbr] = {
+                                                          'cartesian_coordinates': new_bond_end,
+                                                          'atomic_number': 1,
+                                                          'element': 'H'
+                                                        }
+                                self.num_keep += 1
+                
+            print("%s hydrogens added as caps: " % (str(len(self.hydrogens))))
+
+
+    def cap_3D_organic(self):
+        """
+        Cap a MOF (or COF, COP, whatever), that is a 3-D network (i.e. doens't have 1D rods)
+        """
+        print("\n\nCAPPING 3D ORGANIC")
+        print("--------------------------------------")
+
+            
+        for i in range(len(self.components_to_keep)):
+
+            component = self.components_to_keep[i]
+
+            for node in component:
+
+                for nbr in self.tree.successors_iter(node):
+
+                    if((node, nbr) in self.actual_truncs_directed):
+                        #print("Capping edge: " + str((node,nbr)))
+
+                        bond_start = self.origraph.node[node]['cartesian_coordinates'] 
+                        bond_end =    self.origraph.node[nbr]['cartesian_coordinates']
+                        start_type = self.origraph.node[node]['atomic_number']
+                        end_type = self.origraph.node[nbr]['atomic_number']
+                
+                        bond_vec_mag = self.cart_dist(bond_start, bond_end)
+                        bond_vec = bond_end - bond_start 
+                
+                        # these are the easy cases
+                        if(start_type == 6):
+                            h_dist = 1.09
+                        elif(start_type == 7):
+                            h_dist = 1.00
+                        elif(start_type == 8):
+                            h_dist = 0.96
+
+                        scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
+                        new_bond_end = bond_start + scaled_bond_vec
+                    
+                        # store necessary modifications 
+                        self.hydrogens[len(self.hydrogens.keys())] = {
+                                                                      'cartesian_coordinates': new_bond_end,
+                                                                      'atomic_number': 1,
+                                                                      'element': 'H'
+                                                                    }
+                        self.num_keep += 1
+            
+        print("%s hydrogens added as caps: " % (str(len(self.hydrogens))))
+
+
+    def cap_1D_organic(self):
+        pass
+
+    def identify_mat_type(self):
+        """
+        For now just a basic check to classify a zeolite vs an organic (MOF, COF, etc)
+        """
+        print("\n\nClassifying material")
+        print("--------------------------------------")
+        print("0: zeolite")
+        print("1: organic1 (1D-rod MOF)")
+        print("2: organic  (3D-rod MOF)")
+        could_be_Zeo = False
+        could_be_Organic = False
+        for node1,node2,data in self.origraph.edges_iter2(data=True):
+            if(self.origraph.node[node1]['atomic_number'] == 14 and self.origraph.node[node2]['atomic_number'] == 8):
+                could_be_Zeo = True
+            if(self.origraph.node[node1]['atomic_number'] == 6 or self.origraph.node[node2]['atomic_number'] == 6):
+                could_be_Organic = True
+
+        if(could_be_Organic):
+            self.mat_type = 'organic'
+            self.iterable1 = [6]
+            self.iterable2 = [6,7,8]
+        else:
+            self.mat_type = 'zeolite'
+       
+        print(self.mat_type)
+        return self.mat_type
+
+    def disconnect_building_blocks(self):
+        """
+        Break a super simulation box into every possible component where each disconnected
+        bond represents a cappable bond
+        """
         self.edges_to_cut = set() 
         for node1,node2,data in self.origraph.edges_iter2(data=True):
             #print(data.keys())
@@ -1012,52 +1657,282 @@ class Cluster(object):
                         
 
 
-    def all_external_building_blocks(self):
+    def disconnect_external_building_blocks(self):
+        """
+        Break a super simulation box into every possible component where each disconnected
+        bond represents a cappable bond BUT we only break bonds that straddle or are external
+        to the cluster cutoff radius
+        """ 
+        print("\n\nDISCONNECTING EXTERNAL BUILDING BLOCKS")
+        print("--------------------------------------")
         self.edges_to_cut = set()
+        self.all_edges = {}
         for node1,node2,data in self.origraph.edges_iter2(data=True):
-            #print(data.keys())
+            # store all the data for later lookup so we don't have to iterate every time 
+            # just to get the data associated with an edge we want
+            self.all_edges[(node1, node2)] = data
+    
             if(data['order'] == 1.0):
                 # no point in identifying a Hydrogen bond to cleave only to cap it again right after
                 if(self.origraph.node[node1]['atomic_number'] != 1 and \
                    self.origraph.node[node2]['atomic_number'] != 1):
-                    if(self.origraph.node[node1]['atomic_number'] in [6,7,8] and \
-                       self.origraph.node[node2]['atomic_number'] in [6,7,8]):
+
+                    # For now we have to limit ourselves to only cutting single C-C bonds
+                    # it becomes too difficult to handle edge cases otherwise
+                    if(self.origraph.node[node1]['atomic_number'] in [6,7,8,14] and \
+                       self.origraph.node[node2]['atomic_number'] in [6,7,8,14]):     
+                    #if((self.origraph.node[node1]['atomic_number'] in [6,7,8] and \
+                    #    self.origraph.node[node2]['atomic_number'] in [6,7,8]) and \
+                    #   (self.origraph.node[node1]['hybridization'] == '3' and \
+                    #    self.origraph.node[node2]['hybridization'] == '3')):
                             # If all these criteria satsified, then we know how to cap a dangling bond 
                             cart1, cart2 = self.origraph.node[node1]['cartesian_coordinates'], \
                                            self.origraph.node[node2]['cartesian_coordinates']
 
                             if(self.cart_dist(cart1, self.xyz) > self.rcut or \
-                               self.cart_dist(cart2, self.xyz) > self.rcut):  
-                                #print("To cut: " + str(node1) + " " + str(node2))
-                                #print(str(cart1) + " " + str(cart2))
+                               self.cart_dist(cart2, self.xyz) < self.rcut):  
                                 self.edges_to_cut.add((node1, node2))
+                                #print("Cutting edge: " + str((node1, node2)) + " " + \
+                                #      str((self.origraph.node[node1]['element'], \
+                                #           self.origraph.node[node2]['element'])))
                                 self.disgraph.remove_edge(node1, node2)
+        self.components = []
+        for component in nx.connected_components(self.disgraph):
+            self.components.append(component)
+        print("Num edges in original graph: " + str(len(self.all_edges)))
+        print("Num disconnected components: "  + str(len(self.components)))
 
-    def identify_symm_of_origraph(self):
-        for node1,node2,data in self.origraph.edges_iter2(data=True):
-            #print(str(node1) + " " + str(node2) + " " + data['symflag'])
-            if(data['symflag'] != '.'):
-                cart1, cart2 = self.origraph.node[node1]['cartesian_coordinates'], \
-                               self.origraph.node[node2]['cartesian_coordinates']
-                #print(str(cart1) + " " + str(cart2))
-                
-        
 
-    def compute_primary_cluster(self):
-        print(self.origraph.node[1].keys())
-        print(self.origraph.node[2].keys())
-        print(self.origraph.node[3].keys())
-        print(self.origraph.node[4].keys())
+    def identify_1D_building_blocks(self):
+        """
+        By going through each component determined from all_external_building_blocks() we can determine
+        if the MOF is 1D rod.  If a component has two edges that eg have 'symflag' attribute of (4,x,x) and 
+        (6,x,x) respectively, then we found a component that spans across one crystallographic direction
+        and reconnects with itself.  This is the definition of a 1D rod MOF
+        """
        
+        print("\n\nCHECKING FOR 1D BUILDING BLOCKS")
+        print("-------------------------------")
+
+        self.oneD_vec = [] 
+        self.directionality = []
+        self.final_direct = -1
+        print("Checking for dimensionality of components")
+        self.components = []
+        for component in nx.connected_components(self.disgraph):
+            self.components.append(component)
+            #print(str(len(self.components)) + ": " + str(len(component)))
+            #for e in component:
+            #    print(self.origraph.node[e])
+        print("Num disconnected components: "  + str(len(self.components)))
+
+        
+        for i in range(len(self.components)):
+            #print("Comp " + str(i) + ": " + str(len(self.components[i])))
+
+            # we need a subgraph construct to actually determine if this chunk is 1D rod
+            this_subgraph = nx.Graph()
+            could_be_1D = False
+            possible_directionality = None
+
+            for node in self.components[i]:
+                #print("For node: " + str(node))
+                for nbr in self.origraph[node]:
+                    #print("Finding nbr: " + str(nbr))
+                    # only form an edge if it is periodic
+                    if (node, nbr) in self.all_edges:
+                        symflag = self.all_edges[(node, nbr)]['symflag']
+                        #print(symflag)
+                        if(symflag == '.'):
+                            this_subgraph.add_edge(node, nbr)
+                        else:
+                            could_be_1D = True
+                            possible_directionality = self.parse_sym_flag_for_directionality(symflag)
+                    elif (nbr, node) in self.all_edges:
+                        symflag = self.all_edges[(nbr, node)]['symflag']
+                        #print(symflag)
+                        if(symflag == '.'):
+                            this_subgraph.add_edge(node, nbr)
+                        else:
+                            could_be_1D = True
+                            possible_directionality = self.parse_sym_flag_for_directionality(symflag)
+                            
+                    else:
+                        print("Ya done messed up A-aron")
+                        exit()
+
+            if(could_be_1D and self.mat_type != 'zeolite'):
+                # if a component is still a continuous graph (1 segment) after disconnecting all edges inside it that
+                # are periodic, then it must be a 1D rod type structure
+                this_subgraph_comps = 0
+                for this_comp in nx.connected_components(this_subgraph):
+                    this_subgraph_comps += 1
+
+                if(this_subgraph_comps>1):
+                    pass
+                    #print(False)
+                else:
+                    self.oneD_vec.append(i)
+                    self.directionality.append(possible_directionality)
+                    #print(True)
+            else:
+                pass
+                #print(False)
+
+        print("All components that are 1D rods:")
+        print(len(self.oneD_vec))
+        print(self.oneD_vec)
+
+        if(len(set(self.directionality)) > 1):
+            print("ERROR! Ambiguous dimensionality of rods. Check structure and/or modify source for this edge case...")
+            print("Rods have directionality of(0 = a, 1 = b, 2 = c): ")
+            print(self.final_direct)
+            print("Non directionality of:")
+            print(self.final_nondirect)
+            print("Exiting....")
+            exit()
+        elif(len(set(self.directionality)) == 1):
+            self.final_direct = self.directionality[0]
+            self.final_nondirect = [int(i) for i in range(0,3) if i != self.final_direct]
+            print("Rods have directionality of(0 = a, 1 = b, 2 = c): ")
+            print(self.final_direct)
+            print("Non directionality of:")
+            print(self.final_nondirect)
+        else:
+            print("No 1D rods detected")
+         
+    
+                
+
+        if(len(self.oneD_vec)>0):
+            self.mat_type == "oned"
+            return True            
+        else:
+            return False
+                    
+
+    def disconnect_1D_building_blocks(self):
+        """
+        Disconnect 1D rods so they can actually be capped
+
+        Best thing to do is still apply the same disconnection algorithm, only this time we are allowed to 
+        break a bond between a type in self.metals and [6,7,8]
+        """
+
+        # NOTE
+        # NOTE
+        # NOTE
+        # IF WE HAVE A 1D ROD MOF, the primary cluster is still going to be identified
+        # as a 1D rod!!!!!!!!!!
+        print("\n\nDISCONNECTING 1D ROD BUILDING BLOCKS")
+        print("------------------------------------")
+
+        
+        self.disgraph = self.origraph.copy()
+        
+        self.edges_to_cut = set()
+        self.all_edges = {}
+        #for i in range(len(self.oneD_vec)):
+
+        for node,nbr,data in self.origraph.edges_iter2(data=True):
+                    self.all_edges[(node, nbr)] = data
+            #this_rod = self.oneD_vec[i]
+            #print("Comp " + str(this_rod) + ":")
+            #for node in self.components[this_rod]:
+            #    for nbr in self.origraph[node]:
+            #        if (node, nbr) in self.all_edges.keys():
+            #            this_edge = (node, nbr)
+            #        elif (nbr, node) in self.all_edges.keys():
+            #            this_edge = (nbr, node)
+            #        else:
+            #            print("Ya done messed up A-aron")
+            #            exit()
+                    this_edge = (node, nbr)
+
+                    # we can only disconnect single bonds
+                    # NOTE we assume that metal oxide rod bonds are always determined as single
+                    # otherwise this will fail
+                    if(self.all_edges[this_edge]['order'] == 1.0):
+
+                        # Don't disconnect any covalent hydrogen bonds
+                        if((self.origraph.node[this_edge[0]]['atomic_number'] != 1 and \
+                            self.origraph.node[this_edge[1]]['atomic_number'] != 1)):
+                           #(self.origraph.node[this_edge[0]]['atomic_number'] not in self.metals and \
+                           # self.origraph.node[this_edge[1]]['atomic_number'] not in self.metals)):
+                       
+                            # we can cut a C-C bond 
+                            #if((self.origraph.node[this_edge[0]]['atomic_number'] in [6,7,8] and \
+                            #    self.origraph.node[this_edge[1]]['atomic_number'] in [6,7,8]) or \
+                            #   # or an M-O bond
+                            #   (self.origraph.node[this_edge[0]]['atomic_number'] in [6,8,7] and \
+                            #    self.origraph.node[this_edge[1]]['atomic_number'] in self.metals) or \
+                            #   # or an M-N bond
+                            #   (self.origraph.node[this_edge[1]]['atomic_number'] in [6,8,7] and \
+                            #    self.origraph.node[this_edge[0]]['atomic_number'] in self.metals)):
+                            if((self.origraph.node[this_edge[0]]['atomic_number'] in self.metals or \
+                                self.origraph.node[this_edge[1]]['atomic_number'] in self.metals) or \
+                               (self.origraph.node[this_edge[0]]['atomic_number'] in [6,8] and \
+                                self.origraph.node[this_edge[1]]['atomic_number'] in [6,8])):
+ 
+                                cart1, cart2 = self.origraph.node[this_edge[0]]['cartesian_coordinates'], \
+                                               self.origraph.node[this_edge[1]]['cartesian_coordinates']
+
+                                #print("Axial dist: " + str(cart1[self.final_direct]) + " " + str(self.xyz[self.final_direct]))
+                                #print("Rad dist: " + str(cart1[self.final_nondirect]) + " " + str(self.xyz[self.final_nondirect]))
+                                axial_dist1 = self.cart_dist(cart1[self.final_direct],self.xyz[self.final_direct])
+                                axial_dist2 = self.cart_dist(cart2[self.final_direct],self.xyz[self.final_direct])
+                                rad_dist1 = self.cart_dist(cart1[self.final_nondirect],self.xyz[self.final_nondirect])
+                                rad_dist2 = self.cart_dist(cart2[self.final_nondirect],self.xyz[self.final_nondirect])
+                                cart_dist1 = self.cart_dist(cart1,self.xyz)
+                                cart_dist2 = self.cart_dist(cart2,self.xyz)
+                                
+                                if((axial_dist1 > self.rcut and axial_dist2 > self.rcut) or \
+                                   (rad_dist1 > self.rcut and rad_dist2 > self.rcut)):
+                                #if(cart_dist1 > self.rcut and cart_dist2 > self.rcut):
+                                    # to expensive for exception handling, just do O(n) lookup of this_edge in  edges_to_cut
+                                    if(this_edge in self.edges_to_cut):
+                                        pass
+                                    else:
+                                        #print("Cutting edge: " + str(this_edge) + " " + str(axial_dist1) + " " + str(rad_dist1) + " " + str(axial_dist2) + " " + str(rad_dist2))
+                                        self.edges_to_cut.add((this_edge))
+                                        self.disgraph.remove_edge(this_edge[0], this_edge[1])
+                           
         self.components = []
         for component in nx.connected_components(self.disgraph):
             self.components.append(component)
         print("Num disconnected components: "  + str(len(self.components)))
+
+    def debug_edges_to_cut(self):
+        print("\n\nDEBUG EDGES TO CUT")
+        print("-------------------------")
+        for this_edge in self.edges_to_cut:
+            if(self.origraph.node[this_edge[0]]['atomic_number'] == 1 or 
+               self.origraph.node[this_edge[0]]['atomic_number'] == 1):
+                print("ERROR: you cut an H covalent bond")
+                exit()
+
+        print("Pass")
+                
+
+        
+
+    def compute_primary_cluster(self):
+        print("\n\nCOMPUTING PRIMARY CLUSTER")
+        print("-------------------------")
+        print("Node has keys of:")
+        print(self.origraph.node[1].keys())
+       
+        print("Computing connected components")
+        self.components = []
+        for component in nx.connected_components(self.disgraph):
+            self.components.append(component)
+        print("Num disconnected components: "  + str(len(self.components)))
+
         
         self.components_to_keep = []
         for i in range(len(self.components)):
             #print(component)
-            print("Comp " + str(i) + ": " + str(len(self.components[i])))
+            #print("Comp " + str(i) + ": " + str(len(self.components[i])))
             for node in self.components[i]:
                 #print("neighbors of " + str(node) + ":")
                 cart1 = self.origraph.node[node]['cartesian_coordinates']
@@ -1072,70 +1947,183 @@ class Cluster(object):
         self.num_keep = 0
         for i in range(len(self.components_to_keep)):
             self.num_keep += len(self.components[self.components_to_keep[i]])
-            print("Comp " + str(self.components_to_keep[i]) + ": " + \
-                  str(len(self.components[self.components_to_keep[i]])))
+            #print("Comp " + str(self.components_to_keep[i]) + ": " + \
+            #      str(len(self.components[self.components_to_keep[i]])))
+
+    def compute_required_caps(self):
+        
+        additional_components = set()
+
+        # iterate over all kept components
+        for i in range(len(self.components_to_keep)):
+
+            # look at each node in all kept components
+            for node in self.components[self.components_to_keep[i]]:
+
+                # look at each neighbor of each node in kept components
+                #           Nbr3
+                #            |    
+                #            | 
+                #            |
+                # Nbr1 --X-- Node ----- Nbr4
+                #            |
+                #            X 
+                #            |
+                #           Nbr2
+                for nbr in self.origraph[node]:
+                
+                    # if the current edge was previously disconnected, we procede
+                    if (node, nbr) in self.edges_to_cut or (nbr, node) in self.edges_to_cut:
+
+                        # store the edge so that we can quickly look it up in self.edges_to_cut
+                        if (node, nbr) in self.edges_to_cut:
+                            this_edge = (node, nbr)
+                        elif (nbr, node) in self.edges_to_cut:
+                            this_edge = (nbr, node)
+
+                        for j in range(len(self.components_to_keep)):
+                            if(nbr in self.components[self.components_to_keep[j]]):
+                                attempt_to_cap = False
+                                break
+
+                        
+
+                
+
 
 
     def cap_primary_cluster(self):
+        print("\n\nCAPPING PRIMARY CLUSTER")
+        print("-------------------------")
+        print("Capping previously disconnected bonds w/hydrogen")
 
-        print("Recapping disconnected bonds")
-
+        # a set of all nodes that need to be included in the final cluster
         component_to_add = set()
+        # a dict of all properties that need to be modified before writing the final cluster
+        self.mods = {}
         # Loop over every component we want want to keep
         for i in range(len(self.components_to_keep)):
-            print("Comp " + str(self.components_to_keep[i]) + ": " + \
-                  str(len(self.components[self.components_to_keep[i]])))
+            #print("Comp " + str(self.components_to_keep[i]) + ": " + \
+            #      str(len(self.components[self.components_to_keep[i]])))
             # loop over every node in that component to get the broken bonds in this 
             for node in self.components[self.components_to_keep[i]]:
                 # get neighbor of each node in component
                 for nbr in self.origraph[node]:
                     # by default we attempt to cap
                     attempt_to_cap = True
+                    skip_standard_cap = False
 
                     # if the current edge was previously disconnected, we procede
                     if (node, nbr) in self.edges_to_cut or (nbr, node) in self.edges_to_cut:
                         if (node, nbr) in self.edges_to_cut:
-                            print("Cut bond: " + str((node,nbr)))
+                            print("Cut bond: " + str((node,nbr)) + " " + str((self.origraph.node[node]['element'], self.origraph.node[nbr]['element'])))
                         elif (nbr, node) in self.edges_to_cut:
-                            print("Reverse cut bond: " + str((nbr,node)))
+                            print("Reverse cut bond: " + str((nbr,node)) + " " + str((self.origraph.node[nbr]['element'], self.origraph.node[node]['element'])))
 
                         # now we need to arduously go back and check that this start/end
                         # combo doesn't link two components in self.components_to_keep
                         for j in range(len(self.components_to_keep)):
                             #if(j != i):
-                            if nbr in self.components[self.components_to_keep[j]]:
+                            if(nbr in self.components[self.components_to_keep[j]]):
                                 attempt_to_cap = False
                                 break
+
+                        if(nbr in component_to_add):
+                            attempt_to_cap = False
 
                         if(attempt_to_cap):
                             bond_start = self.origraph.node[node]['cartesian_coordinates'] 
                             bond_end =    self.origraph.node[nbr]['cartesian_coordinates']
                             start_type = self.origraph.node[node]['atomic_number']
-                            print(start_type)
+                            end_type = self.origraph.node[nbr]['atomic_number']
+                            
                             bond_vec_mag = self.cart_dist(bond_start, bond_end)
-                
                             bond_vec = bond_end - bond_start 
-
+                    
+                            # these are the easy cases
                             if(start_type == 6):
                                 h_dist = 1.09
                             elif(start_type == 7):
                                 h_dist = 1.00
                             elif(start_type == 8):
                                 h_dist = 0.96
+                            # this is the really hard case, if the bond broken was Metal-X (or X-Metal)
+                            # NOTE M-X bonds can only be severed when 1-D rods are identified, hence this
+                            # fancy capping modifications only done for 1D rods
+
+                            # NOTE this also counts for Si-O bonds in zeolites
+                            elif(start_type in self.metals and end_type != start_type):
+                                # now each nbr of nbr (denoted nbrnbr) is a candidate to become a hydrogen
+                                # NOTE we assume that the metal must be coordinated to O or N (aka nbr = O, N)
+                                for nbrnbr in self.origraph[nbr]:
+                                    # first make sure we don't replace the metal we are trying to cap
+                                    if(nbrnbr != node):
+                                        bond_start = self.origraph.node[nbr]['cartesian_coordinates'] 
+                                        bond_end =    self.origraph.node[nbrnbr]['cartesian_coordinates']
+                                        start_type = self.origraph.node[nbr]['atomic_number']
+                                        end_type = self.origraph.node[nbrnbr]['atomic_number']
+                                        start_elem = self.origraph.node[nbr]['element']
+                                        end_elem = self.origraph.node[nbrnbr]['element']
+                                        target_h = int(nbrnbr)
+                                    
+                                        bond_vec_mag = self.cart_dist(bond_start, bond_end)
+                                        bond_vec = bond_end - bond_start 
+                                        if(start_type == 6):
+                                            h_dist = 1.09
+                                        elif(start_type == 7):
+                                            h_dist = 1.00
+                                        elif(start_type == 8):
+                                            h_dist = 0.96
+                                        else:
+                                            h_dist = 1.0
+                                            pass
+                                            #raise ValueError("ERROR! Unrecongnized coordination env of " + \
+                                            #                 self.origraph.node[node]['element'] + "-" + \
+                                            #                 self.origraph.node[nbr]['element'])
+                                            
+                                        scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
+                                        new_bond_end = bond_start + scaled_bond_vec
+
+                                        # store necessary modifications 
+                                        self.mods[nbrnbr] = {
+                                                              'cartesian_coordinates': new_bond_end,
+                                                              'atomic_number': 1,
+                                                              'element': 'H',
+                                                              'old_cartesian_coordinates': bond_end,
+                                                              'old_atomic_number': end_type,
+                                                              'old_elem': end_elem  
+                                                            }
+
+                                        component_to_add.add(nbrnbr)
+                                        self.num_keep += 1
+                                        component_to_add.add(nbr)
+                                        self.num_keep += 1
+                                        break
+                                ## skip the regular capping step since we just did it        
+                                skip_standard_cap = True
+                            elif(start_type in self.metals and end_type == start_type):
+                                # NOTE we have to ignore metal-metal bonds in rods, if they actually exist
+                                # in the structure then we can't do it accurately for now
+                                pass
                             else:
                                 raise ValueError("ERROR! Trying to cap a bond with " + \
                                                  self.origraph.node[node]['element'] + " node as start type")
         
-                            scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
-                
-                            new_bond_end = bond_start + scaled_bond_vec
+                            if(skip_standard_cap):
+                                continue
+                            else:
+                                scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
+                                new_bond_end = bond_start + scaled_bond_vec
+                            
+                                # store necessary modifications 
+                                self.mods[nbr] = {
+                                                      'cartesian_coordinates': new_bond_end,
+                                                      'atomic_number': 1,
+                                                      'element': 'H'
+                                                    }
 
-                        
-                            self.origraph.node[nbr]['cartesian_coordinates'] = new_bond_end
-                            self.origraph.node[nbr]['atomic_number'] = 1
-                            self.origraph.node[nbr]['element'] = 'H'
-                            component_to_add.add(nbr)
-                            self.num_keep += 1
+                                component_to_add.add(nbr)
+                                self.num_keep += 1
                         else:
                             print("No capping because we have two components of self.components_to_keep that were originally connected")
 
@@ -1144,7 +2132,11 @@ class Cluster(object):
         self.components_to_keep.append(len(self.components)-1)
                         
                     
-
+    def modify_structure_w_hydrogens(self):
+        for this_node in self.mods.keys():
+            self.origraph.node[this_node]['cartesian_coordinates'] = self.mods[this_node]['cartesian_coordinates']
+            self.origraph.node[this_node]['atomic_number'] = self.mods[this_node]['atomic_number']
+            self.origraph.node[this_node]['element'] = self.mods[this_node]['element']
                         
                     
                     
@@ -1152,11 +2144,18 @@ class Cluster(object):
         
 
     def write_cluster_to_xyz(self):
+        """
+        Write the computed and capped cluster to an xyz file
+        """
+
         struct = 'host'
         guest = 'guest'
         filename = struct + '_' + guest + '_' + str(self.rcut) + '.xyz'
         home = os.path.expanduser('~')
-        outname = home + '/Dropbox/ForceFields/data/MP2_output_files/' + filename
+        outdir = home + '/Dropbox/ForceFields/data/MP2_input_files/'
+
+        #if not os.path.exists(outdir)
+        outname = home + '/Dropbox/ForceFields/data/MP2_input_files/' + filename
 
 
         print("Writing cluster to <" + outname + ">")
@@ -1166,27 +2165,57 @@ class Cluster(object):
         outfile.write('cluster formation of test struct\n')
         atom = 1
         for i in range(len(self.components_to_keep)):
-            print("Comp " + str(self.components_to_keep[i]) + ": " + \
-                  str(len(self.components[self.components_to_keep[i]])))
+            #print("Comp " + str(self.components_to_keep[i]) + ": " + \
+            #      str(len(self.components[self.components_to_keep[i]])))
             for node in self.components[self.components_to_keep[i]]:
                 outfile.write("%s %s %s %s\n"%(self.origraph.node[node]['element'],
                                                self.origraph.node[node]['cartesian_coordinates'][0],
                                                self.origraph.node[node]['cartesian_coordinates'][1],
                                                self.origraph.node[node]['cartesian_coordinates'][2]))
                 atom +=1
-
         outfile.close()
 
-        #obConversion = openbabel.OBConversion()
-        #obConversion.SetInAndOutFormats("xyz", "xyz")
 
-        #mol = openbabel.OBMol()
-        #obConversion.ReadFile(mol, outname)
+    def write_cluster_to_xyz_v2(self):
+        """
+        Write the computed and capped cluster to an xyz file
+        """
 
-        #mol.DeleteHydrogens()
-        #mol.AddHydrogens()
-        #print(mol.NumAtoms())
+        #self.components_to_keep = [self.kept_nodes]
 
+        struct = 'host'
+        guest = 'guest'
+        filename = struct + '_' + guest + '_' + str(self.rcut) + '.xyz'
+        home = os.path.expanduser('~')
+        outdir = home + '/Dropbox/ForceFields/data/MP2_input_files/'
+
+        #if not os.path.exists(outdir)
+        outname = home + '/Dropbox/ForceFields/data/MP2_input_files/' + filename
+
+
+        print("Writing cluster to <" + outname + ">")
+        
+        outfile = open(outname, 'w')
+        outfile.write(str(self.num_keep)+'\n')
+        outfile.write('cluster formation of test struct\n')
+        atom = 1
+        for i in range(len(self.components_to_keep)):
+            #print("Comp " + str(self.components_to_keep[i]) + ": " + \
+            #      str(len(self.components[self.components_to_keep[i]])))
+            for node in self.components_to_keep[i]:
+                outfile.write("%s %s %s %s\n"%(self.origraph.node[node]['element'],
+                                               self.origraph.node[node]['cartesian_coordinates'][0],
+                                               self.origraph.node[node]['cartesian_coordinates'][1],
+                                               self.origraph.node[node]['cartesian_coordinates'][2]))
+                atom +=1
+
+        for i in self.hydrogens.keys():
+            outfile.write("%s %s %s %s\n"%(self.hydrogens[i]['element'],
+                                           self.hydrogens[i]['cartesian_coordinates'][0],
+                                           self.hydrogens[i]['cartesian_coordinates'][1],
+                                           self.hydrogens[i]['cartesian_coordinates'][2]))
+            
+        outfile.close()
         
 
     def cut_cappable_bonds(self):
@@ -1216,15 +2245,66 @@ class Cluster(object):
             #print(self.graph.edge[1].keys())
             #print(str(edge) + str(edge.order))
 
-    def custom_dijkstra_stop_criteria(self):
-        pass
+    def create_cluster_around_point_v2(self):
+        """
+        A BFS search approach to creating clusters
+        """
+        mat_type = self.identify_mat_type()
+        start_index = self.get_start_and_kept_nodes()
+        self.disconnect_external_building_blocks()
+        one_D = self.identify_1D_building_blocks()
+        if(one_D):
+            print("1D rod identified")
+            exit()
+        else:
+            tree = self.get_BFS_tree()
+            self.write_cluster_to_xyz_v2()
 
     def create_cluster_around_point(self):
-        #self.identify_cappable_bonds()
-        #self.identify_symm_of_origraph()
-        self.all_external_building_blocks()
-        self.compute_primary_cluster()
-        self.cap_primary_cluster()
+        # STEP 1:
+        # Dislocate all bonds in the super simbox that straddle
+        # or are outside the cluster cutoff
+
+        mat_type = self.identify_mat_type()
+        self.disconnect_external_building_blocks()
+        self.debug_edges_to_cut()
+    
+        # STEP 2:
+        # This step is very important, we now need to handle the edge cases of a 1D rod MOF
+        # If it is indeed 1D rod, we will reset the calculation with a diff version of STEP 1
+        one_D = self.identify_1D_building_blocks()
+        if(one_D):
+            self.disconnect_1D_building_blocks()
+        self.debug_edges_to_cut()
+    
+
+        # STEP 3:
+        # NOTE for now using the simplest capping algorithm
+        # All disconnected components that have an atom within the cutoff are kept
+        # If a kept component has disconnected edge that orignally connected to another kept component, reconnect
+        # At this point the cluster is ready to be capped
+        if(one_D):
+            self.compute_primary_cluster()
+        else:
+            self.compute_primary_cluster()
+        self.debug_edges_to_cut()
+    
+
+        # STEP 4:
+        # Any bonds that remain disconnected after calculation of the primary cluster are identified
+        # for capping according to proper chemical bonding rules
+        if(one_D):
+            self.cap_primary_cluster()
+        else:
+            self.cap_primary_cluster()
+            
+
+        # STEP 5:
+        # structure is capped with hydrogen
+        self.modify_structure_w_hydrogens()
+
+        # STEP 5:
+        # the molecular crystal cluster (NOT GUEST) is written to xyz
         self.write_cluster_to_xyz()
 
 
@@ -1232,7 +2312,10 @@ class Cluster(object):
 def main():
 
     # command line parsing
+    #for r in [7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0]:
+    
     options = Options()
+    #options.cutoff = float(r)
     sim = LammpsSimulation(options)
     cell, graph = from_CIF(options.cif_file)
     sim.set_cell(cell)
@@ -1260,19 +2343,10 @@ def main():
     xyz = np.dot(sim.cell.get_cell().T, abc)
     print("Cluster origin: " + str(xyz))
            
-           
-    
-
     cluster = Cluster(sim.graph, xyz = xyz, rcut = options.cutoff)
 
-
-
-
-   
-
-
     #sim.assign_force_fields()
-    cluster.create_cluster_around_point()
+    cluster.create_cluster_around_point_v2()
     print(sim.cell.get_cell())
     opp_corner = np.dot(sim.cell.get_cell().T, [1,1,1])
     print(opp_corner)
