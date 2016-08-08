@@ -1141,7 +1141,7 @@ class LammpsSimulation(object):
 
             inp_str += "\n%-15s %s\n"%("write_restart", "initial_structure.restart")
             inp_str += "%-15s %-10s %s\n"%("variable", "sim_temp", "index %s"%(" ".join(["%.2f"%i for i in temprange])))
-            inp_str += "%-15s %-10s %s\n"%("variable", "sim_press", "%.3f"%self.options.pressure) # atmospheres.
+            inp_str += "%-15s %-10s %s\n"%("variable", "sim_press", "equal %.3f"%self.options.pressure) # atmospheres.
             inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
             inp_str += "%-15s %-10s %s\n"%("variable", "myVol", "equal vol")
             inp_str += "%-15s %-10s %s\n"%("variable", "t", "equal temp")
