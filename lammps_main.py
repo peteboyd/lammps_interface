@@ -1161,12 +1161,13 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
             inp_str += "%-15s %s\n"%("label", "loop")
             fix1 = self.fixcount()
-            inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a v_myVol ave one"%(fix1, prod_steps,
-                                                                                               prod_steps + equil_steps))
 
             inp_str += "%-15s %s\n"%("read_dump", "initial_structure.dump ${readstep} x y z box yes format native")
             inp_str += "%-15s %s\n"%("thermo_style", "custom step temp cella cellb cellc vol etotal")
             
+            # the ave/time fix must be after read_dump, or the averages are reported as '0'
+            inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a v_myVol ave one"%(fix1, prod_steps,
+                                                                                               prod_steps + equil_steps))
             id = self.fixcount() 
             inp_str += "%-15s %s\n"%("velocity", "all create ${sim_temp} %i"%(np.random.randint(1,3000000)))
             inp_str += "%-15s %i %s %s %s %s\n"%("fix", id,
@@ -1178,11 +1179,14 @@ class LammpsSimulation(object):
             inp_str += "%-15s %i\n"%("run", equil_steps)
             inp_str += "%-15s %i\n"%("thermo", 10)
             inp_str += "%-15s %i\n"%("run", prod_steps)
-            inp_str += "%-15s %-10s %s\n"%("variable", "inst_t", "equal f_%i[1]"%(fix1))
+            inp_str += "\n%-15s %-10s %s\n"%("variable", "inst_t", "equal f_%i[1]"%(fix1))
             inp_str += "%-15s %-10s %s\n"%("variable", "inst_a", "equal f_%i[2]"%(fix1))
             inp_str += "%-15s %-10s %s\n"%("variable", "inst_v", "equal f_%i[3]"%(fix1))
 
             inp_str += "%-15s %s\n"%("print", "\"STEP $(step) ${inst_t} ${inst_a} ${inst_v}\"")
+            inp_str += "%-15s %-10s %s\n"%("variable", "inst_t", "delete")
+            inp_str += "%-15s %-10s %s\n"%("variable", "inst_a", "delete")
+            inp_str += "%-15s %-10s %s\n\n"%("variable", "inst_v", "delete")
 
             inp_str += "%-15s %i\n"%("unfix", id) 
             inp_str += "%-15s %i\n"%("unfix", fix1)
