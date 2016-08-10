@@ -1142,7 +1142,7 @@ class LammpsSimulation(object):
             temprange = np.linspace(temperature, self.options.max_dev, self.options.iter_count).tolist()
             temprange.append(298.0)
             temprange.insert(0,1.0) # add 1 and 298 K simulations.
-
+            
             inp_str += "\n%-15s %s\n"%("dump", "str all atom 1 initial_structure.dump")
             inp_str += "%-15s\n"%("run 0")
             inp_str += "%-15s %-10s %s\n"%("variable", "rs", "equal step")
@@ -1150,7 +1150,7 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "rs", "delete")
             inp_str += "%-15s %s\n"%("undump", "str")
 
-            inp_str += "%-15s %-10s %s\n"%("variable", "sim_temp", "index %s"%(" ".join(["%.2f"%i for i in temprange])))
+            inp_str += "%-15s %-10s %s\n"%("variable", "sim_temp", "index %s"%(" ".join(["%.2f"%i for i in sorted(temprange)])))
             inp_str += "%-15s %-10s %s\n"%("variable", "sim_press", "equal %.3f"%self.options.pressure) # atmospheres.
             inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
             inp_str += "%-15s %-10s %s\n"%("variable", "myVol", "equal vol")
