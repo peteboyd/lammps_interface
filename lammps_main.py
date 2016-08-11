@@ -1052,39 +1052,22 @@ class LammpsSimulation(object):
                                                 for key in sorted(self.unique_atom_types.keys())])))
     
         if (self.options.minimize):
-            box_min = "tri"
+            box_min = "iso"
             #inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %s\n"%("min_style","cg")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             
 
-            fix = self.fixcount()
-            #inp_str += "%-15s %s\n"%("min_style","sd")
-            inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.05"%(fix, box_min))
-            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-            inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
+            for j in range(10):
+                fix = self.fixcount()
+                inp_str += "\n%-15s %s\n"%("min_style","cg")
+                inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.5"%(fix, box_min))
+                inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+                inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
             
-            #inp_str += "%-15s %s\n"%("min_style","fire")
-            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+                inp_str += "%-15s %s\n"%("min_style","fire")
+                inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             
-            fix = self.fixcount()
-            #inp_str += "%-15s %s\n"%("min_style","sd")
-            inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.05"%(fix, box_min))
-            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-            inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
-            
-            #inp_str += "%-15s %s\n"%("min_style","fire")
-            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-            
-            fix = self.fixcount()
-            #inp_str += "%-15s %s\n"%("min_style","sd")
-            inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.05"%(fix, box_min))
-            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-            inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
-            
-            #inp_str += "%-15s %s\n"%("min_style","fire")
-            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-
         if (self.options.random_vel):
             inp_str += "%-15s %s\n"%("velocity", "all create %.2f %i"%(self.options.temp, np.random.randint(1,3000000)))
 
@@ -1111,6 +1094,16 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "readstep", "equal ${rs}")
             inp_str += "%-15s %-10s %s\n"%("variable", "rs", "delete")
             inp_str += "%-15s %s\n"%("undump", "str")
+            
+            inp_str += "%-15s %-10s %s\n"%("variable", "at", "equal cella")
+            inp_str += "%-15s %-10s %s\n"%("variable", "bt", "equal cellb")
+            inp_str += "%-15s %-10s %s\n"%("variable", "ct", "equal cellc")
+            inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal ${at}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "b", "equal ${bt}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "c", "equal ${ct}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "at", "delete")
+            inp_str += "%-15s %-10s %s\n"%("variable", "bt", "delete")
+            inp_str += "%-15s %-10s %s\n"%("variable", "ct", "delete")
 
             inp_str += "%-15s %-10s %s\n"%("variable", "N", "equal %i"%self.options.iter_count)
             inp_str += "%-15s %-10s %s\n"%("variable", "totDev", "equal %.5f"%self.options.max_dev)
@@ -1118,9 +1111,6 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "do", "loop ${N}")
             inp_str += "%-15s %s\n"%("label", "loop")
             inp_str += "%-15s %s\n"%("read_dump", "initial_structure.dump ${readstep} x y z box yes format native")
-            inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
-            inp_str += "%-15s %-10s %s\n"%("variable", "b", "equal cellb")
-            inp_str += "%-15s %-10s %s\n"%("variable", "c", "equal cellc")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleVar", "equal 1.00-${totDev}+${do}*${sf}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleA", "equal ${scaleVar}*${a}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "equal ${scaleVar}*${b}")
