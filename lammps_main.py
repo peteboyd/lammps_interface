@@ -1052,13 +1052,15 @@ class LammpsSimulation(object):
                                                 for key in sorted(self.unique_atom_types.keys())])))
     
         if (self.options.minimize):
+            box_min = "iso"
             #inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %s\n"%("min_style","sd")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             
+
             fix = self.fixcount()
             #inp_str += "%-15s %s\n"%("min_style","sd")
-            inp_str += "%-15s %s\n"%("fix","%i all box/relax tri 0.0 vmax 0.01"%fix)
+            inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.05"%(fix, box_min))
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
             
@@ -1067,7 +1069,7 @@ class LammpsSimulation(object):
             
             fix = self.fixcount()
             #inp_str += "%-15s %s\n"%("min_style","sd")
-            inp_str += "%-15s %s\n"%("fix","%i all box/relax tri 0.0 vmax 0.01"%fix)
+            inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.05"%(fix, box_min))
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
             
@@ -1076,7 +1078,7 @@ class LammpsSimulation(object):
             
             fix = self.fixcount()
             #inp_str += "%-15s %s\n"%("min_style","sd")
-            inp_str += "%-15s %s\n"%("fix","%i all box/relax tri 0.0 vmax 0.01"%fix)
+            inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.05"%(fix, box_min))
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
             
