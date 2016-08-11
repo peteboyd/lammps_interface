@@ -1104,6 +1104,16 @@ class LammpsSimulation(object):
             inp_str += "%-15s %i\n"%("unfix", id) 
 
         if(self.options.bulk_moduli):
+            inp_str += "\n%-15s %-10s %s\n"%("variable", "at", "equal cella")
+            inp_str += "%-15s %-10s %s\n"%("variable", "bt", "equal cellb")
+            inp_str += "%-15s %-10s %s\n"%("variable", "ct", "equal cellc")
+            inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal ${at}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "b", "equal ${ab}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "c", "equal ${ac}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "at", "delete")
+            inp_str += "%-15s %-10s %s\n"%("variable", "bt", "delete")
+            inp_str += "%-15s %-10s %s\n"%("variable", "ct", "delete")
+
             inp_str += "\n%-15s %s\n"%("dump", "str all atom 1 initial_structure.dump")
             inp_str += "%-15s\n"%("run 0")
             inp_str += "%-15s %-10s %s\n"%("variable", "rs", "equal step")
@@ -1117,9 +1127,6 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "do", "loop ${N}")
             inp_str += "%-15s %s\n"%("label", "loop")
             inp_str += "%-15s %s\n"%("read_dump", "initial_structure.dump ${readstep} x y z box yes format native")
-            inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
-            inp_str += "%-15s %-10s %s\n"%("variable", "b", "equal cellb")
-            inp_str += "%-15s %-10s %s\n"%("variable", "c", "equal cellc")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleVar", "equal 1.00-${totDev}+${do}*${sf}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleA", "equal ${scaleVar}*${a}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "equal ${scaleVar}*${b}")
