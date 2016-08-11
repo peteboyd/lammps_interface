@@ -1054,7 +1054,7 @@ class LammpsSimulation(object):
         if (self.options.minimize):
             box_min = "tri"
             #inp_str += "%-15s %s\n"%("min_style","fire")
-            inp_str += "%-15s %s\n"%("min_style","sd")
+            inp_str += "%-15s %s\n"%("min_style","cg")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             
 
@@ -1133,6 +1133,9 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleA", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleC", "delete")
+            inp_str += "%-15s %-10s %s\n"%("variable", "a", "delete")
+            inp_str += "%-15s %-10s %s\n"%("variable", "b", "delete")
+            inp_str += "%-15s %-10s %s\n"%("variable", "c", "delete")
             inp_str += "%-15s %s\n"%("next", "do")
             inp_str += "%-15s %s\n"%("jump", "SELF loop")
             inp_str += "%-15s %s\n"%("label", "break")
