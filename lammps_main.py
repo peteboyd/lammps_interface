@@ -1054,13 +1054,13 @@ class LammpsSimulation(object):
         if (self.options.minimize):
             box_min = "iso"
             #inp_str += "%-15s %s\n"%("min_style","fire")
-            inp_str += "%-15s %s\n"%("min_style","cg")
+            inp_str += "%-15s %s\n"%("min_style","sd")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             
 
-            for j in range(10):
+            for j in range(4):
                 fix = self.fixcount()
-                inp_str += "\n%-15s %s\n"%("min_style","cg")
+                inp_str += "\n%-15s %s\n"%("min_style","sd")
                 inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.5"%(fix, box_min))
                 inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
                 inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
