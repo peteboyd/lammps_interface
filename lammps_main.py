@@ -1173,7 +1173,7 @@ class LammpsSimulation(object):
                                         "tchain 5 pchain 5")
             inp_str += "%-15s %i\n"%("thermo", 0)
             inp_str += "%-15s %i\n"%("run", equil_steps)
-            inp_str += "%-15s %s\n"%("fix", "output print all", "\"$(step),${inst_t},${inst_a},${inst_v}\" append %s.output.csv"%(self.name))
+            inp_str += "%-15s %s %s\n"%("fix", "output print all 1", "\"$(step),${inst_t},${inst_a},${inst_v}\" append %s.output.csv"%(self.name))
             #inp_str += "%-15s %i\n"%("thermo", 10)
             inp_str += "%-15s %i\n"%("run", prod_steps)
             inp_str += "%-15s %s\n"%("unfix", "output")
