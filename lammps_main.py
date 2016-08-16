@@ -1095,6 +1095,10 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "rs", "delete")
             inp_str += "%-15s %s\n"%("undump", "str")
             
+            inp_str += "\n%-15s %-10s %s\n"%("variable", "simTemp", "equal %.4f"%(self.options.temp))
+            inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
+            inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
+
             inp_str += "%-15s %-10s %s\n"%("variable", "at", "equal cella")
             inp_str += "%-15s %-10s %s\n"%("variable", "bt", "equal cellb")
             inp_str += "%-15s %-10s %s\n"%("variable", "ct", "equal cellc")
@@ -1104,11 +1108,11 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "at", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "bt", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "ct", "delete")
-
+            
             inp_str += "%-15s %-10s %s\n"%("variable", "N", "equal %i"%self.options.iter_count)
             inp_str += "%-15s %-10s %s\n"%("variable", "totDev", "equal %.5f"%self.options.max_dev)
             inp_str += "%-15s %-10s %s\n"%("variable", "sf", "equal ${totDev}/${N}*2")
-            inp_str += "%-15s %s\n"%("print", "\"Loop,CellScale,Vol,Pressure,E_total\"" + 
+            inp_str += "%-15s %s\n"%("print", "\"Loop,CellScale,Vol,Pressure,E_total,E_pot,E_kin\"" + 
                                               " file %s.output.csv screen no"%(self.name))
             inp_str += "%-15s %-10s %s\n"%("variable", "do", "loop ${N}")
             inp_str += "%-15s %s\n"%("label", "loop")
@@ -1118,11 +1122,20 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "equal ${scaleVar}*${b}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleC", "equal ${scaleVar}*${c}")
             inp_str += "%-15s %s\n"%("change_box", "all x final 0.0 ${scaleA} y final 0.0 ${scaleB} z final 0.0 ${scaleC} remap")
-            inp_str += "%-15s %s\n"%("min_style","fire")
-            inp_str += "%-15s %s\n"%("minimize", "1.0e-15 1.0e-15 10000 100000")
+            inp_str += "%-15s %s\n"%("velocity", "all create ${simTemp} %i"%(np.random.randint(1,3000000)))
+            inp_str += "%-15s %s %s %s \n"%("fix", "bm", "all nvt", "temp ${simTemp} ${simTemp} ${tdamp} tchain 5")
+            inp_str += "%-15s %i\n"%("run", self.options.neqstp)
+            #inp_str += "%-15s %s\n"%("min_style","fire")
+            #inp_str += "%-15s %s\n"%("minimize", "1.0e-15 1.0e-15 10000 100000")
             #inp_str += "%-15s %s\n"%("print", "\"STEP ${do} ${scaleVar} $(vol) $(press) $(etotal)\"")
-            inp_str += "%-15s %s\n"%("print", "\"${do},${scaleVar},$(vol),$(press),$(etotal)\""+
-                                              " append %s.output.csv screen no"%(self.name))
+            inp_str += "%-15s %s %s\n"%("fix", "output all print 10", "\"${do},${scaleVar},$(vol),$(press),$(etotal),$(pe),$(ke)\"" +
+                                        " append %s.output.csv screen no"%(self.name))
+            #inp_str += "%-15s %i\n"%("thermo", 10)
+            inp_str += "%-15s %i\n"%("run", self.options.nprodstp)
+            inp_str += "%-15s %s\n"%("unfix", "output")
+            #inp_str += "%-15s %s\n"%("print", "\"${do},${scaleVar},$(vol),$(press),$(etotal)\""+
+            #                                  " append %s.output.csv screen no"%(self.name))
+            inp_str += "%-15s %s\n"%("unfix", "bm")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleVar", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleA", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "delete")
@@ -1149,9 +1162,9 @@ class LammpsSimulation(object):
 
             inp_str += "%-15s %-10s %s\n"%("variable", "sim_temp", "index %s"%(" ".join(["%.2f"%i for i in sorted(temprange)])))
             inp_str += "%-15s %-10s %s\n"%("variable", "sim_press", "equal %.3f"%self.options.pressure) # atmospheres.
-            inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
-            inp_str += "%-15s %-10s %s\n"%("variable", "myVol", "equal vol")
-            inp_str += "%-15s %-10s %s\n"%("variable", "t", "equal temp")
+            #inp_str += "%-15s %-10s %s\n"%("variable", "a", "equal cella")
+            #inp_str += "%-15s %-10s %s\n"%("variable", "myVol", "equal vol")
+            #inp_str += "%-15s %-10s %s\n"%("variable", "t", "equal temp")
             # timestep in femtoseconds
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
             inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 1000*${dt}")
@@ -1164,10 +1177,11 @@ class LammpsSimulation(object):
             inp_str += "%-15s %s\n"%("thermo_style", "custom step temp cella cellb cellc vol etotal")
             
             # the ave/time fix must be after read_dump, or the averages are reported as '0'
-            inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a v_myVol ave one"%(fix1, prod_steps,
-                                                                                               prod_steps + equil_steps))
+            #inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a v_myVol ave one"%(fix1, prod_steps,
+            #                                                                                   prod_steps + equil_steps))
             id = self.fixcount() 
-            inp_str += "%-15s %s\n"%("velocity", "all create ${sim_temp} %i"%(np.random.randint(1,3000000)))
+            # creating velocity may cause instability at high temperatures.
+            inp_str += "%-15s %s\n"%("velocity", "all create 50 %i"%(np.random.randint(1,3000000)))
             inp_str += "%-15s %i %s %s %s %s\n"%("fix", id,
                                         "all npt",
                                         "temp ${sim_temp} ${sim_temp} ${tdamp}",
@@ -1175,7 +1189,7 @@ class LammpsSimulation(object):
                                         "tchain 5 pchain 5")
             inp_str += "%-15s %i\n"%("thermo", 0)
             inp_str += "%-15s %i\n"%("run", equil_steps)
-            inp_str += "%-15s %s %s\n"%("fix", "output all print 1", "\"${sim_temp},$(temp),$(cella),$(vol)\"" +
+            inp_str += "%-15s %s %s\n"%("fix", "output all print 10", "\"${sim_temp},$(temp),$(cella),$(vol)\"" +
                                         " append %s.output.csv screen no"%(self.name))
             #inp_str += "%-15s %i\n"%("thermo", 10)
             inp_str += "%-15s %i\n"%("run", prod_steps)
