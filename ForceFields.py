@@ -2469,6 +2469,9 @@ class UFF(ForceField):
 
                     elif data['hybridization'] == "aromatic":
                         data['force_field_type'] = "%s_R"%data['element']
+                        # fix to make the angle 120
+                        if data['element'] == "O":
+                            data['force_field_type'] = "O_2"
                     elif data['hybridization'] == "sp2":
                         data['force_field_type'] = "%s_2"%data['element']
                     elif data['hybridization'] == "sp":
