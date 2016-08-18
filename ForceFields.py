@@ -2427,7 +2427,13 @@ class UFF(ForceField):
             c2 = 0.0
             koop = 6.0 
             if 'O_2' in (a_ff, c_ff, d_ff):
-                koop = 50.0 
+                # check to make sure an aldehyde (i.e. not carboxylate bonded to metal)
+                if a_ff == "O_2" and len(self.graph.neighbors(a)) == 1:
+                    koop = 50.0 
+                elif b_ff == "O_2" and len(self.graph.neighbors(b)) == 1:
+                    koop = 50.0 
+                elif c_ff == "O_2" and len(self.graph.neighbors(c)) == 1:
+                    koop = 50.0 
         else:
             return None
         
@@ -3376,9 +3382,9 @@ class UFF4MOF(ForceField):
                 # check to make sure an aldehyde (i.e. not carboxylate bonded to metal)
                 if a_ff == "O_2" and len(self.graph.neighbors(a)) == 1:
                     koop = 50.0 
-                elif b_ff == "O_2" and len(self.graph.neighbors(b)) == 1:
-                    koop = 50.0 
                 elif c_ff == "O_2" and len(self.graph.neighbors(c)) == 1:
+                    koop = 50.0 
+                elif d_ff == "O_2" and len(self.graph.neighbors(d)) == 1:
                     koop = 50.0 
         else:
             return None
