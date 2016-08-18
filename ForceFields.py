@@ -2376,10 +2376,12 @@ class UFF(ForceField):
             # angle.
             nphi0 = n*self.graph.compute_dihedral_between(a, b, c, d)
             data['potential'] = DihedralPotential.Charmm()
-            data['potential'].K = 0.5*V
+            data['potential'].K = 0.5
             data['potential'].d = 180 + nphi0 
             data['potential'].n = n
-            return 1 
+            return 1
+        if V==0.:
+            return None
         data['potential'] = DihedralPotential.Harmonic()
         data['potential'].K = 0.5*V
         data['potential'].d = -math.cos(nphi0*DEG2RAD)
@@ -3321,10 +3323,12 @@ class UFF4MOF(ForceField):
             # angle.
             nphi0 = n*self.graph.compute_dihedral_between(a, b, c, d)
             data['potential'] = DihedralPotential.Charmm()
-            data['potential'].K = 0.5*V
+            data['potential'].K = 0.5
             data['potential'].d = 180 + nphi0 
             data['potential'].n = n
             return 1 
+        if V==0.:
+            return None
         data['potential'] = DihedralPotential.Harmonic()
         data['potential'].K = 0.5*V
         data['potential'].d = -math.cos(nphi0*DEG2RAD)
@@ -3369,7 +3373,13 @@ class UFF4MOF(ForceField):
             c2 = 0.0
             koop = 6.0 
             if 'O_2' in (a_ff, c_ff, d_ff):
-                koop = 50.0 
+                # check to make sure an aldehyde (i.e. not carboxylate bonded to metal)
+                if a_ff == "O_2" and len(self.graph.neighbors(a)) == 1:
+                    koop = 50.0 
+                elif b_ff == "O_2" and len(self.graph.neighbors(b)) == 1:
+                    koop = 50.0 
+                elif c_ff == "O_2" and len(self.graph.neighbors(c)) == 1:
+                    koop = 50.0 
         else:
             return None
         
@@ -3433,6 +3443,9 @@ class UFF4MOF(ForceField):
                                 self.graph[node][n]['order'] = 0.5
                     elif data['special_flag'] == "C_Cu_pdw":
                         data['force_field_type'] = 'C_R'
+                        for n in self.graph.neighbors(node):
+                            if self.graph.node[n]['element'] == "O":
+                                self.graph[node][n]['order'] = 1.5 
 
                     # Zn Paddlewheel TODO(pboyd): generalize these cases...
                     elif data['special_flag'] == "O1_Zn_pdw" or data['special_flag'] == "O2_Zn_pdw":
@@ -3446,6 +3459,9 @@ class UFF4MOF(ForceField):
                                 self.graph[node][n]['order'] = 0.5
                     elif data['special_flag'] == "C_Zn_pdw":
                         data['force_field_type'] = 'C_R'
+                        for n in self.graph.neighbors(node):
+                            if self.graph.node[n]['element'] == "O":
+                                self.graph[node][n]['order'] = 1.5 
 
 
                 elif data['element'] in organics:
