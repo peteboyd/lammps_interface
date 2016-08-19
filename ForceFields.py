@@ -2184,7 +2184,7 @@ class UFF(ForceField):
         theta0 = UFF_DATA[buff][1]
 
         cosT0 = math.cos(theta0*DEG2RAD)
-        sinT0 = math.cos(theta0*DEG2RAD)
+        sinT0 = math.sin(theta0*DEG2RAD)
 
         c2 = 1.0 / (4.0*sinT0*sinT0)
         c1 = -4.0 * c2 * cosT0
@@ -2214,14 +2214,14 @@ class UFF(ForceField):
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
             if angle_type == 'linear':
                 kappa = ka
-                c0 = 1.
+                c0 = -1.
                 c1 = 1.
             # the description of the actual parameters for 'n' are not obvious
             # for the tetrahedral special case from the UFF paper or the write up in TOWHEE.
             # The values were found in the TOWHEE source code (eg. Bi3+3).
             if angle_type == 'tetrahedral': 
                 kappa = ka/4.
-                c0 = 1.
+                c0 = -1.
                 c1 = 2.
 
             if angle_type == 'trigonal-planar':
@@ -2312,6 +2312,8 @@ class UFF(ForceField):
                    c_data['hybridization'] == 'sp3')
 
         phi0 = 0
+        if (b_data['atomic_number'] in METALS or c_data['atomic_number'] in METALS):
+            return None
         if all_sp3:
             phi0 = 60.0
             n = 3
@@ -2430,9 +2432,9 @@ class UFF(ForceField):
                 # check to make sure an aldehyde (i.e. not carboxylate bonded to metal)
                 if a_ff == "O_2" and len(self.graph.neighbors(a)) == 1:
                     koop = 50.0 
-                elif b_ff == "O_2" and len(self.graph.neighbors(b)) == 1:
-                    koop = 50.0 
                 elif c_ff == "O_2" and len(self.graph.neighbors(c)) == 1:
+                    koop = 50.0 
+                elif d_ff == "O_2" and len(self.graph.neighbors(d)) == 1:
                     koop = 50.0 
         else:
             return None
@@ -3139,7 +3141,7 @@ class UFF4MOF(ForceField):
         theta0 = UFF4MOF_DATA[buff][1]
 
         cosT0 = math.cos(theta0*DEG2RAD)
-        sinT0 = math.cos(theta0*DEG2RAD)
+        sinT0 = math.sin(theta0*DEG2RAD)
 
         c2 = 1.0 / (4.0*sinT0*sinT0)
         c1 = -4.0 * c2 * cosT0
@@ -3169,14 +3171,14 @@ class UFF4MOF(ForceField):
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
             if angle_type == 'linear':
                 kappa = ka
-                c0 = 1.
+                c0 = -1.
                 c1 = 1.
             # the description of the actual parameters for 'n' are not obvious
             # for the tetrahedral special case from the UFF paper or the write up in TOWHEE.
             # The values were found in the TOWHEE source code (eg. Bi3+3).
             if angle_type == 'tetrahedral': 
                 kappa = ka/4.
-                c0 = 1.
+                c0 = -1.
                 c1 = 2.
 
             if angle_type == 'trigonal-planar':
@@ -3268,6 +3270,8 @@ class UFF4MOF(ForceField):
                    c_data['hybridization'] == 'sp3')
 
         phi0 = 0
+        if (b_data['atomic_number'] in METALS or c_data['atomic_number'] in METALS):
+            return None
         if all_sp3:
             phi0 = 60.0
             n = 3
@@ -3335,7 +3339,7 @@ class UFF4MOF(ForceField):
             data['potential'].K = 0.5
             data['potential'].d = 180 + nphi0 
             data['potential'].n = n
-            return 1 
+            return 1
         if V==0.:
             return None
         data['potential'] = DihedralPotential.Harmonic()
