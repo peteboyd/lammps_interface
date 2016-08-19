@@ -475,12 +475,13 @@ class LammpsSimulation(object):
     def merge_graphs(self):
         for mgraph in self.subgraphs:
             self.graph += mgraph
-        if sorted(self.graph.nodes()) != [i+1 for i in range(len(self.graph.nodes()))]:
-            print("Re-labelling atom indices.")
-            reorder_dic = {i:j+1 for i, j in zip(sorted(self.graph.nodes()), range(len(self.graph.nodes())))}
-            self.graph.reorder_labels(reorder_dic)
-            for mgraph in self.subgraphs:
-                mgraph.reorder_labels(reorder_dic)
+        # Re-ordering is broken.
+        #if sorted(self.graph.nodes()) != [i+1 for i in range(len(self.graph.nodes()))]:
+        #    print("Re-labelling atom indices.")
+        #    reorder_dic = {i:j+1 for i, j in zip(sorted(self.graph.nodes()), range(len(self.graph.nodes())))}
+        #    self.graph.reorder_labels(reorder_dic)
+        #    for mgraph in self.subgraphs:
+        #        mgraph.reorder_labels(reorder_dic)
 
 
     def write_lammps_files(self):
@@ -1061,7 +1062,7 @@ class LammpsSimulation(object):
             for j in range(3):
                 fix = self.fixcount()
                 inp_str += "\n%-15s %s\n"%("min_style","sd")
-                inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.5"%(fix, box_min))
+                inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.01"%(fix, box_min))
                 inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
                 inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
             
@@ -1171,7 +1172,7 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
             inp_str += "%-15s %s\n"%("print", "\"Step,Temp,CellA,Vol\" file %s.output.csv screen no"%(self.name))
             inp_str += "%-15s %s\n"%("label", "loop")
-            fix1 = self.fixcount()
+            #fix1 = self.fixcount()
 
             inp_str += "%-15s %s\n"%("read_dump", "initial_structure.dump ${readstep} x y z box yes format native")
             inp_str += "%-15s %s\n"%("thermo_style", "custom step temp cella cellb cellc vol etotal")
@@ -1194,15 +1195,15 @@ class LammpsSimulation(object):
             #inp_str += "%-15s %i\n"%("thermo", 10)
             inp_str += "%-15s %i\n"%("run", prod_steps)
             inp_str += "%-15s %s\n"%("unfix", "output")
-            inp_str += "\n%-15s %-10s %s\n"%("variable", "inst_t", "equal f_%i[1]"%(fix1))
-            inp_str += "%-15s %-10s %s\n"%("variable", "inst_a", "equal f_%i[2]"%(fix1))
-            inp_str += "%-15s %-10s %s\n"%("variable", "inst_v", "equal f_%i[3]"%(fix1))
+            #inp_str += "\n%-15s %-10s %s\n"%("variable", "inst_t", "equal f_%i[1]"%(fix1))
+            #inp_str += "%-15s %-10s %s\n"%("variable", "inst_a", "equal f_%i[2]"%(fix1))
+            #inp_str += "%-15s %-10s %s\n"%("variable", "inst_v", "equal f_%i[3]"%(fix1))
 
-            inp_str += "%-15s %-10s %s\n"%("variable", "inst_t", "delete")
-            inp_str += "%-15s %-10s %s\n"%("variable", "inst_a", "delete")
-            inp_str += "%-15s %-10s %s\n\n"%("variable", "inst_v", "delete")
+            #inp_str += "%-15s %-10s %s\n"%("variable", "inst_t", "delete")
+            #inp_str += "%-15s %-10s %s\n"%("variable", "inst_a", "delete")
+            #inp_str += "%-15s %-10s %s\n\n"%("variable", "inst_v", "delete")
             inp_str += "%-15s %i\n"%("unfix", id) 
-            inp_str += "%-15s %i\n"%("unfix", fix1)
+            #inp_str += "%-15s %i\n"%("unfix", fix1)
             inp_str += "\n%-15s %s\n"%("next", "sim_temp")
             inp_str += "%-15s %s\n"%("jump", "SELF loop")
             inp_str += "%-15s %s\n"%("label", "break")

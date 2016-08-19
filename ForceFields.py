@@ -2182,9 +2182,16 @@ class UFF(ForceField):
         auff, buff, cuff = a_data['force_field_type'], b_data['force_field_type'], c_data['force_field_type']
         
         theta0 = UFF_DATA[buff][1]
+        # just check if the central node is a metal, then apply a rigid angle term.
+        # NB: Functional form may change dynamics, but at this point we will not
+        # concern ourselves if the force constants are big.
+        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
+            theta0 = self.graph.compute_angle_between(a, b, c)
+            # should put this angle in the general - non-linear case
+            angle_type = "None"
 
         cosT0 = math.cos(theta0*DEG2RAD)
-        sinT0 = math.cos(theta0*DEG2RAD)
+        sinT0 = math.sin(theta0*DEG2RAD)
 
         c2 = 1.0 / (4.0*sinT0*sinT0)
         c1 = -4.0 * c2 * cosT0
@@ -2200,21 +2207,12 @@ class UFF(ForceField):
         beta = 664.12/r_ab/r_bc
         ka = beta*(za*zc /(r_ac**5.))
         ka *= (3.*r_ab*r_bc*(1. - cosT0*cosT0) - r_ac*r_ac*cosT0)
-        # just check if the central node is a metal, then apply a rigid angle term.
-        # NB: Functional form may change dynamics, but at this point we will not
-        # concern ourselves if the force constants are big.
-        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
-            theta0 = self.graph.compute_angle_between(a, b, c)
-            # just divide by the number of neighbours?
-            data['potential'] = AnglePotential.Harmonic()
-            data['potential'].K = ka/2.
-            data['potential'].theta0 = theta0
-            return 1
 
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
             if angle_type == 'linear':
                 kappa = ka
-                c0 = 1.
+                c0 = -1.
+                B  = 1
                 c1 = 1.
             # the description of the actual parameters for 'n' are not obvious
             # for the tetrahedral special case from the UFF paper or the write up in TOWHEE.
@@ -2222,21 +2220,27 @@ class UFF(ForceField):
             if angle_type == 'tetrahedral': 
                 kappa = ka/4.
                 c0 = 1.
+                B  = -1
                 c1 = 2.
 
             if angle_type == 'trigonal-planar':
                 kappa = ka/9.
                 c0 = -1.
+                B  = -1
                 c1 = 3.
 
             if angle_type == 'square-planar' or angle_type == 'octahedral':
                 kappa = ka/16.
                 c0 = -1.
+                B  = 1
                 c1 = 4.
 
-            data['potential'] = AnglePotential.FourierSimple()
-            data['potential'].K = kappa
-            data['potential'].c = c0
+            #data['potential'] = AnglePotential.FourierSimple()
+            data['potential'] = AnglePotential.CosinePeriodic()
+            #data['potential'].K = kappa
+            data['potential'].C = kappa*(c1**2)
+            #data['potential'].c = c0
+            data['potential'].B = B 
             data['potential'].n = c1
         # general-nonlinear
         else:
@@ -2244,9 +2248,6 @@ class UFF(ForceField):
             #TODO: a bunch of special cases which require molecular recognition here..
             # water, for example has it's own theta0 angle.
 
-            c2 = 1. / (4.*sinT0*sinT0)
-            c1 = -4.*c2*cosT0
-            c0 = c2*(2.*cosT0*cosT0 + 1)
             kappa = ka
             data['potential'] = AnglePotential.Fourier()
             data['potential'].K = kappa
@@ -2312,6 +2313,8 @@ class UFF(ForceField):
                    c_data['hybridization'] == 'sp3')
 
         phi0 = 0
+        if (b_data['atomic_number'] in METALS or c_data['atomic_number'] in METALS):
+            return None
         if all_sp3:
             phi0 = 60.0
             n = 3
@@ -2376,10 +2379,12 @@ class UFF(ForceField):
             # angle.
             nphi0 = n*self.graph.compute_dihedral_between(a, b, c, d)
             data['potential'] = DihedralPotential.Charmm()
-            data['potential'].K = 0.5*V
+            data['potential'].K = 0.5
             data['potential'].d = 180 + nphi0 
             data['potential'].n = n
-            return 1 
+            return 1
+        if V==0.:
+            return None
         data['potential'] = DihedralPotential.Harmonic()
         data['potential'].K = 0.5*V
         data['potential'].d = -math.cos(nphi0*DEG2RAD)
@@ -2425,7 +2430,13 @@ class UFF(ForceField):
             c2 = 0.0
             koop = 6.0 
             if 'O_2' in (a_ff, c_ff, d_ff):
-                koop = 50.0 
+                # check to make sure an aldehyde (i.e. not carboxylate bonded to metal)
+                if a_ff == "O_2" and len(self.graph.neighbors(a)) == 1:
+                    koop = 50.0 
+                elif c_ff == "O_2" and len(self.graph.neighbors(c)) == 1:
+                    koop = 50.0 
+                elif d_ff == "O_2" and len(self.graph.neighbors(d)) == 1:
+                    koop = 50.0 
         else:
             return None
         
@@ -2461,6 +2472,9 @@ class UFF(ForceField):
 
                     elif data['hybridization'] == "aromatic":
                         data['force_field_type'] = "%s_R"%data['element']
+                        # fix to make the angle 120
+                        if data['element'] == "O":
+                            data['force_field_type'] = "O_2"
                     elif data['hybridization'] == "sp2":
                         data['force_field_type'] = "%s_2"%data['element']
                     elif data['hybridization'] == "sp":
@@ -2598,7 +2612,7 @@ class Dreiding(ForceField):
             #     may be some unphysical effects of this parameterization
             data['potential'] = AnglePotential.CosinePeriodic()
             n = 4 # makes four minima in the angle range 0 - 360
-            data['potential'].C = K/n**2 
+            data['potential'].C = K #/n**2 
             data['potential'].B = 1.
             data['potential'].n = n 
 
@@ -3126,9 +3140,15 @@ class UFF4MOF(ForceField):
         auff, buff, cuff = a_data['force_field_type'], b_data['force_field_type'], c_data['force_field_type']
         
         theta0 = UFF4MOF_DATA[buff][1]
+        # just check if the central node is a metal, then apply a rigid angle term.
+        # NB: Functional form may change dynamics, but at this point we will not
+        # concern ourselves if the force constants are big.
+        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
+            theta0 = self.graph.compute_angle_between(a, b, c)
+            angle_type = "None"
 
         cosT0 = math.cos(theta0*DEG2RAD)
-        sinT0 = math.cos(theta0*DEG2RAD)
+        sinT0 = math.sin(theta0*DEG2RAD)
 
         c2 = 1.0 / (4.0*sinT0*sinT0)
         c1 = -4.0 * c2 * cosT0
@@ -3144,43 +3164,45 @@ class UFF4MOF(ForceField):
         beta = 664.12/r_ab/r_bc
         ka = beta*(za*zc /(r_ac**5.))
         ka *= (3.*r_ab*r_bc*(1. - cosT0*cosT0) - r_ac*r_ac*cosT0)
-        # just check if the central node is a metal, then apply a rigid angle term.
-        # NB: Functional form may change dynamics, but at this point we will not
-        # concern ourselves if the force constants are big.
-        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
-            theta0 = self.graph.compute_angle_between(a, b, c)
-            # just divide by the number of neighbours?
-            data['potential'] = AnglePotential.Harmonic()
-            data['potential'].K = ka/2.
-            data['potential'].theta0 = theta0
-            return 1
+        #if ("special_flag" in b_data.keys()) and b_data["special_flag"] == "Cu_pdw":
+        #    angle_type = "None"
+        #    print(self.graph.compute_angle_between(a, b, c))
+        #    # try the fourier expansion instead of the small term.
 
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
             if angle_type == 'linear':
                 kappa = ka
-                c0 = 1.
+                c0 = -1.
+                B = 1
                 c1 = 1.
             # the description of the actual parameters for 'n' are not obvious
             # for the tetrahedral special case from the UFF paper or the write up in TOWHEE.
             # The values were found in the TOWHEE source code (eg. Bi3+3).
             if angle_type == 'tetrahedral': 
                 kappa = ka/4.
-                c0 = 1.
+                c0 = -1.
+                B = -1
                 c1 = 2.
 
             if angle_type == 'trigonal-planar':
                 kappa = ka/9.
                 c0 = -1.
+                B = -1
                 c1 = 3.
 
             if angle_type == 'square-planar' or angle_type == 'octahedral':
                 kappa = ka/16.
                 c0 = -1.
+                B = 1
                 c1 = 4.
 
-            data['potential'] = AnglePotential.FourierSimple()
-            data['potential'].K = kappa
-            data['potential'].c = c0
+            #data['potential'] = AnglePotential.FourierSimple()
+            data['potential'] = AnglePotential.CosinePeriodic()
+            #data['potential'].K = kappa
+            # this is done for you in the source code of LAMMPS k[i] = c_one/(n_one*n_one);
+            data['potential'].C = kappa*(c1**2)
+            #data['potential'].c = c0
+            data['potential'].B = B 
             data['potential'].n = c1
             return 1
         # general-nonlinear
@@ -3189,9 +3211,6 @@ class UFF4MOF(ForceField):
             #TODO: a bunch of special cases which require molecular recognition here..
             # water, for example has it's own theta0 angle.
 
-            c2 = 1. / (4.*sinT0*sinT0)
-            c1 = -4.*c2*cosT0
-            c0 = c2*(2.*cosT0*cosT0 + 1)
             kappa = ka
             data['potential'] = AnglePotential.Fourier()
             data['potential'].K = kappa
@@ -3257,6 +3276,8 @@ class UFF4MOF(ForceField):
                    c_data['hybridization'] == 'sp3')
 
         phi0 = 0
+        if (b_data['atomic_number'] in METALS or c_data['atomic_number'] in METALS):
+            return None
         if all_sp3:
             phi0 = 60.0
             n = 3
@@ -3321,10 +3342,12 @@ class UFF4MOF(ForceField):
             # angle.
             nphi0 = n*self.graph.compute_dihedral_between(a, b, c, d)
             data['potential'] = DihedralPotential.Charmm()
-            data['potential'].K = 0.5*V
+            data['potential'].K = 0.5
             data['potential'].d = 180 + nphi0 
             data['potential'].n = n
-            return 1 
+            return 1
+        if V==0.:
+            return None
         data['potential'] = DihedralPotential.Harmonic()
         data['potential'].K = 0.5*V
         data['potential'].d = -math.cos(nphi0*DEG2RAD)
@@ -3369,7 +3392,13 @@ class UFF4MOF(ForceField):
             c2 = 0.0
             koop = 6.0 
             if 'O_2' in (a_ff, c_ff, d_ff):
-                koop = 50.0 
+                # check to make sure an aldehyde (i.e. not carboxylate bonded to metal)
+                if a_ff == "O_2" and len(self.graph.neighbors(a)) == 1:
+                    koop = 50.0 
+                elif c_ff == "O_2" and len(self.graph.neighbors(c)) == 1:
+                    koop = 50.0 
+                elif d_ff == "O_2" and len(self.graph.neighbors(d)) == 1:
+                    koop = 50.0 
         else:
             return None
         
@@ -3433,6 +3462,9 @@ class UFF4MOF(ForceField):
                                 self.graph[node][n]['order'] = 0.5
                     elif data['special_flag'] == "C_Cu_pdw":
                         data['force_field_type'] = 'C_R'
+                        for n in self.graph.neighbors(node):
+                            if self.graph.node[n]['element'] == "O":
+                                self.graph[node][n]['order'] = 1.5 
 
                     # Zn Paddlewheel TODO(pboyd): generalize these cases...
                     elif data['special_flag'] == "O1_Zn_pdw" or data['special_flag'] == "O2_Zn_pdw":
@@ -3446,6 +3478,9 @@ class UFF4MOF(ForceField):
                                 self.graph[node][n]['order'] = 0.5
                     elif data['special_flag'] == "C_Zn_pdw":
                         data['force_field_type'] = 'C_R'
+                        for n in self.graph.neighbors(node):
+                            if self.graph.node[n]['element'] == "O":
+                                self.graph[node][n]['order'] = 1.5 
 
 
                 elif data['element'] in organics:
