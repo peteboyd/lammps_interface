@@ -989,7 +989,7 @@ class BTW_FF(ForceField):
 
         if (data['force_field_type']=="170_185_170"):   ### in the case of square planar coordination of Cu-paddle-wheel, fourier angle must be used
             data['potential'] = AnglePotential.CosinePeriodic()
-            data['potential'].C = 100 #  Need to be parameterized!  
+            data['potential'].C = 126.64 # conversion from the K value in MOF-FF to the C value for LAMMPS in cosine/periodic 
             data['potential'].B = 1
             data['potential'].n = 4
             return 1
