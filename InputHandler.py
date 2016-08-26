@@ -34,6 +34,14 @@ class Options(object):
                                  " file can show the user how the structure "+
                                  "has been interpreted by the program.")
 
+        parser.add_argument("-or", "--outputraspa",
+                            action="store_true",
+                            dest="output_raspa",
+                            help="Write a .cif file for RASPA (FF types in _atom_site_label)"+
+                                 " Write pseudo_atoms.def file for this MOF"+
+                                 " Write force_field_mixing_rules.def file for this MOF"+
+                                 " Write force_field.def file for this MOF")
+
         #split the command line options into separate groups for nicer
         #visualization.
         force_field_group = parser.add_argument_group("Force Field options")
