@@ -144,6 +144,13 @@ class Options(object):
                                       help="Store trajectory of simulation in a "+
                                            "dcd format. If not requested, then no trajectory "+
                                            "file will be written.")
+        simulation_group.add_argument("--restart",
+                                      action="store_true",
+                                      default=False,
+                                      dest="restart",
+                                      help="Store last snapshot of trajectory of simulation in "+
+                                           "lammps traj file format. index of last snap = NEQSTP + NPRODSTP "+
+                                           " = 1 if NEQSTP and NPRODSTP not specified")
 
         parameter_group = parser.add_argument_group("Parameter options")
         parameter_group.add_argument("-t", "--tolerance",

@@ -1064,6 +1064,11 @@ class LammpsSimulation(object):
                                      self.name, 
                                      " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
                                                 for key in sorted(self.unique_atom_types.keys())])))
+
+        if self.options.restart:
+            num_steps = self.options.neqstp + self.options.nprodstp
+            inp_str += "%-15s %s\n"%("dump","%s_lammpstrj all atom %d %s_restart.lammpstrj"%
+                            (self.name, num_steps, self.name))
     
         if (self.options.minimize):
             box_min = "iso"
@@ -1088,7 +1093,7 @@ class LammpsSimulation(object):
         if (self.options.npt):
             id = self.fixcount()
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
-            inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 1000*${dt}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 100*${dt}")
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
 
             inp_str += "%-15s %s\n"%("fix", "%i all npt temp %.2f %.2f ${tdamp} tri %.2f %.2f ${pdamp}"%(id, self.options.temp, self.options.temp,
