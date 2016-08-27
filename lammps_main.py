@@ -14,6 +14,8 @@ import ForceFields
 import itertools
 import operator
 from structure_data import from_CIF, write_CIF, clean
+from structure_data import write_RASPA_CIF, write_RASPA_pseudo_atoms, \
+                           write_RASPA_ff_mixing, write_RASPA_ff
 from CIFIO import CIF
 from ccdc import CCDC_BOND_ORDERS
 from datetime import datetime
@@ -425,6 +427,17 @@ class LammpsSimulation(object):
     def compute_simulation_size(self):
 
         supercell = self.cell.minimum_supercell(self.options.cutoff)
+
+        if(self.options.replication != 'NA'):
+            parsed_replication = self.options.replication.split('x')
+            supercell = tuple(parsed_replication)
+            if(len(supercell) != 3):
+                if(supercell[0] < 1 or supercell[1] < 1 or supercell[2] < 1):
+                    print("Incorrect supercell requested: %s\n"%(supercell))
+                    print("Exiting...")
+                    sys.exit()
+
+
         if np.any(np.array(supercell) > 1):
             print("Warning: unit cell is not large enough to"
                   +" support a non-bonded cutoff of %.2f Angstroms\n"%self.options.cutoff +
@@ -1266,7 +1279,16 @@ def main():
         print("CIF file requested. Exiting...")
         write_CIF(graph, cell)
         sys.exit()
+
     sim.write_lammps_files()
+
+    # Additional capability to write RASPA files if requested
+    if options.output_raspa:
+        print("Writing RASPA files to current WD")
+        write_RASPA_CIF(graph, cell)
+        write_RASPA_ff_mixing(sim)
+        write_RASPA_pseudo_atoms(sim)
+        write_RASPA_ff(sim)
 
 if __name__ == "__main__": 
     main()

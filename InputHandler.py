@@ -115,6 +115,14 @@ class Options(object):
                                       " This will determine the size of "+
                                       "the supercell computed for the simulation. "+
                                       "Default is 12.5 angstroms.")
+        simulation_group.add_argument("--replication", action="store",
+                                      type=str, dest="replication",
+                                      default='NA',
+                                      help="Manually specify the replications to form the supercell "+
+                                      "Use 1x1x1 or 4x4x4x or 2x2x3" +
+                                      "This is useful when dealing with flexible materials " +
+                                      "where you know that structural collapse will result in " +
+                                      "the box decreasing past 2*rcut") 
         simulation_group.add_argument("--randomize-velocities",
                                       action="store_true",
                                       default=False,

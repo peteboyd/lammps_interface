@@ -3,7 +3,7 @@
 GENERIC_PSEUDO_ATOMS_HEADER = [
     ['# of pseudo atoms'],
     ['29'],
-    ['#type', 'print', 'as', 'chem' , 'oxidation', ' mass', 'charge', 'polarization', 'B-factor radii', 'connectivity', 'anisotropic', 'anisotropic-type', 'tinker-type']
+    ['#type ', 'print ', 'as ', 'chem ' , 'oxidation ', 'mass ', 'charge ', 'polarization ', 'B-factor radii ', 'connectivity ', 'anisotropic ', 'anisotropic-type ', 'tinker-type ']
 ]
 
 GENERIC_PSEUDO_ATOMS = [
