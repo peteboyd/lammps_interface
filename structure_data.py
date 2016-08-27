@@ -1487,6 +1487,9 @@ def write_RASPA_pseudo_atoms(lammps_sim):
             base_string += buff
         f.write(base_string + '\n')
 
+    for line in GENERIC_FF_MIXING_FOOTER:
+        f.write("".join(word for word in line) +'\n')
+
     f.close()
 
 def write_RASPA_ff_mixing(unique_atom_types):
