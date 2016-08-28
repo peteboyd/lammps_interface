@@ -15,6 +15,7 @@ from generic_raspa import GENERIC_PSEUDO_ATOMS_HEADER, GENERIC_PSEUDO_ATOMS, \
                           GENERIC_FF_MIXING_HEADER, GENERIC_FF_MIXING,\
                           GENERIC_FF_MIXING_FOOTER
 from uff import UFF_DATA
+import networkx as nx
 
 try:
     import networkx as nx
@@ -1278,8 +1279,8 @@ def write_RASPA_CIF(graph, cell):
                                 CIF.atom_site_label(data['force_field_type']))
         c.add_data("atoms", _atom_site_type_symbol=
                                 CIF.atom_site_type_symbol(data['element']))
-        c.add_data("atoms", _atom_site_description=
-                                CIF.atom_site_description(data['force_field_type']))
+        #c.add_data("atoms", _atom_site_description=
+        #                        CIF.atom_site_description(data['force_field_type']))
         coords = data['cartesian_coordinates']
         carts.append(coords)
         fc = np.dot(cell.inverse, coords) 
@@ -1289,7 +1290,7 @@ def write_RASPA_CIF(graph, cell):
                                 CIF.atom_site_fract_y(fc[1]))
         c.add_data("atoms", _atom_site_fract_z=
                                 CIF.atom_site_fract_z(fc[2]))
-        c.add_data("atoms", _atom_type_partial_charge=
+        c.add_data("atoms", _atom_site_charge=
                                 CIF.atom_type_partial_charge(data['charge']))
     # bond block
     # must re-sort them based on bond type (Mat Sudio)
@@ -1318,7 +1319,7 @@ def write_RASPA_CIF(graph, cell):
     file.writelines(str(c))
     file.close()
 
-def write_RASPA_pseudo_atoms(lammps_sim):
+def write_RASPA_sim_files(lammps_sim):
     """
     Write the RASPA pseudo_atoms.def file for this MOF
     All generic adsorbates info automatically included
@@ -1492,19 +1493,54 @@ def write_RASPA_pseudo_atoms(lammps_sim):
 
     f.close()
 
-def write_RASPA_ff_mixing(unique_atom_types):
+
+class MDMC_config(object):
     """
-    Write the RASPA force_field_mixing_rules.def file for this MOF
-    Generic LJ params for generic adsorbates read from file
-    Additional framework atoms LJ params taken from lammps_interface analysis
+    Very sloppy for now but just doing the bare minimum to get this up and running
+    for methane in flexible materials
     """
-    
-    pass
 
+    def __init__(self, lammps_sim):
+        
+        try:
+            f = open("MDMC.config","r")
+        except:
+            self.initialized = False
+            print("Warning! No MDMC.config file found.  LAMMPS sim files will not have guest molecule info")
+            return
 
-def write_RASPA_ff(unique_atom_types):
-    pass
+        lines = f.readlines()
 
+        outlines = ""
+        for line in lines:
+            parsed = line.strip().split()
+            print(parsed)
+
+            if(parsed[0] == "num_framework"):
+                outlines += "num_framework\t%d\n"%(nx.number_of_nodes(lammps_sim.graph))
+            if(parsed[0] == "type_framework"):
+                outlines += "type_framework\t%d\n"%(len(lammps_sim.unique_atom_types.keys()))
+            if(parsed[0] == "type_guest"):
+                self.type_guest = int(parsed[1])
+                outlines += "type_guest\t%d\n"%(self.type_guest)
+            if(parsed[0] == "pair_coeff"):
+                parsed[1] = str(len(lammps_sim.unique_atom_types.keys()) + self.type_guest)
+                for word in parsed:
+                    outlines += word + " "
+                outlines += "\n"
+            if(parsed[0] == "mass_guest"):
+                parsed[1] = str(len(lammps_sim.unique_atom_types.keys()) + self.type_guest)
+                for word in parsed:
+                    outlines += word + " "
+                outlines += "\n"
+
+        f.close()
+        
+        f = open("MDMC.config", "w")
+        f.write(outlines)
+        f.close()
+
+        return
 
 
 class Cell(object):

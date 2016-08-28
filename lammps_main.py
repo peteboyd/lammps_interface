@@ -14,8 +14,7 @@ import ForceFields
 import itertools
 import operator
 from structure_data import from_CIF, write_CIF, clean
-from structure_data import write_RASPA_CIF, write_RASPA_pseudo_atoms, \
-                           write_RASPA_ff_mixing, write_RASPA_ff
+from structure_data import write_RASPA_CIF, write_RASPA_sim_files, MDMC_config
 from CIFIO import CIF
 from ccdc import CCDC_BOND_ORDERS
 from datetime import datetime
@@ -42,6 +41,9 @@ class LammpsSimulation(object):
         self.separate_molecule_types = True
         self.type_molecules = {}
         self.no_molecule_pair = True  # ensure that h-bonding will not occur between molecules of the same type
+
+    def set_MDMC_config(self, MDMC_config):
+        self.MDMC_config = MDMC_config
 
     def unique_atoms(self):
         """Computes the number of unique atoms in the structure"""
@@ -837,7 +839,8 @@ class LammpsSimulation(object):
                 string += "%5i %s "%(key, pair['pair_potential'])
                 string += "# %s %s\n"%(self.graph.node[n]['force_field_type'], 
                                        self.graph.node[n]['force_field_type'])
-        
+       
+ 
         # Nest this in an if statement
         if any([no_bond, no_angle, no_dihedral, no_improper]):
         # WARNING MESSAGE for potentials we think are unique but have not been calculated
@@ -1065,10 +1068,7 @@ class LammpsSimulation(object):
                                      " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
                                                 for key in sorted(self.unique_atom_types.keys())])))
 
-        if self.options.restart:
-            num_steps = self.options.neqstp + self.options.nprodstp
-            inp_str += "%-15s %s\n"%("dump","%s_lammpstrj all atom %d %s_restart.lammpstrj"%
-                            (self.name, num_steps, self.name))
+
     
         if (self.options.minimize):
             box_min = "iso"
@@ -1231,6 +1231,13 @@ class LammpsSimulation(object):
             inp_str += "%-15s %s\n"%("undump", "%s_dcdmov"%(self.name))
         if self.options.dump_xyz:
             inp_str += "%-15s %s\n"%("undump", "%s_xyzmov"%(self.name))
+
+        if self.options.restart:
+            inp_str += "\n# Dump last snapshot for restart\n"
+            inp_str += "%-15s %s\n"%("dump","%s_restart all atom 1 %s_restart.lammpstrj"%
+                            (self.name, self.name))
+            inp_str += "run 0\n"
+            inp_str += "%-15s %s\n"%("undump", "%s_restart"%(self.name))
         return inp_str
     
     def groups(self, ints):
@@ -1291,9 +1298,9 @@ def main():
     if options.output_raspa:
         print("Writing RASPA files to current WD")
         write_RASPA_CIF(graph, cell)
-        write_RASPA_ff_mixing(sim)
-        write_RASPA_pseudo_atoms(sim)
-        write_RASPA_ff(sim)
+        write_RASPA_sim_files(sim)
+        this_config = MDMC_config(sim)
+        sim.set_MDMC_config(this_config)
 
 if __name__ == "__main__": 
     main()
