@@ -431,13 +431,14 @@ class LammpsSimulation(object):
         supercell = self.cell.minimum_supercell(self.options.cutoff)
 
         if(self.options.replication != 'NA'):
-            parsed_replication = self.options.replication.split('x')
-            supercell = tuple(parsed_replication)
+            supercell = tuple(map(int, self.options.replication.split('x')))
             if(len(supercell) != 3):
                 if(supercell[0] < 1 or supercell[1] < 1 or supercell[2] < 1):
                     print("Incorrect supercell requested: %s\n"%(supercell))
+                    print("Use <ixjxk> format")
                     print("Exiting...")
                     sys.exit()
+            print(supercell)
 
 
         if np.any(np.array(supercell) > 1):
