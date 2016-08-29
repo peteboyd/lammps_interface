@@ -1234,9 +1234,17 @@ class LammpsSimulation(object):
             inp_str += "%-15s %s\n"%("undump", "%s_xyzmov"%(self.name))
 
         if self.options.restart:
+            # for restart files we move xlo, ylo, zlo back to 0 so to have same origin as a cif file
+            # also we modify to have unscaled coords so we can directly compute scaled coordinates WITH CIF BASIS
             inp_str += "\n# Dump last snapshot for restart\n"
+
+            inp_str += "variable curr_lx equal lx\n"
+            inp_str += "variable curr_ly equal ly\n"
+            inp_str += "variable curr_lz equal lz\n"
+            inp_str += "change_box all x final 0 ${curr_lx} y final 0 ${curr_ly} z final 0 ${curr_lz}\n\n"
             inp_str += "%-15s %s\n"%("dump","%s_restart all atom 1 %s_restart.lammpstrj"%
                             (self.name, self.name))
+            inp_str += "dump_modify %s_restart scale no sort id\n"
             inp_str += "run 0\n"
             inp_str += "%-15s %s\n"%("undump", "%s_restart"%(self.name))
         return inp_str
