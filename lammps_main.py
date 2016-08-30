@@ -1088,6 +1088,8 @@ class LammpsSimulation(object):
             inp_str += "%-15s %i\n"%("unfix", id) 
 
         if(self.options.bulk_moduli):
+            min_style=True
+            thermo_style=False
 
             inp_str += "\n%-15s %s\n"%("dump", "str all atom 1 initial_structure.dump")
             inp_str += "%-15s\n"%("run 0")
@@ -1113,7 +1115,8 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "N", "equal %i"%self.options.iter_count)
             inp_str += "%-15s %-10s %s\n"%("variable", "totDev", "equal %.5f"%self.options.max_dev)
             inp_str += "%-15s %-10s %s\n"%("variable", "sf", "equal ${totDev}/${N}*2")
-            inp_str += "%-15s %s\n"%("print", "\"Loop,CellScale,Vol,Pressure,E_total,E_pot,E_kin\"" + 
+            inp_str += "%-15s %s\n"%("print", "\"Loop,CellScale,Vol,Pressure,E_total,E_pot,E_kin" + 
+                                              ",E_bond,E_angle,E_torsion,E_imp,E_vdw,E_coul\""+
                                               " file %s.output.csv screen no"%(self.name))
             inp_str += "%-15s %-10s %s\n"%("variable", "do", "loop ${N}")
             inp_str += "%-15s %s\n"%("label", "loop")
@@ -1123,20 +1126,23 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "equal ${scaleVar}*${b}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleC", "equal ${scaleVar}*${c}")
             inp_str += "%-15s %s\n"%("change_box", "all x final 0.0 ${scaleA} y final 0.0 ${scaleB} z final 0.0 ${scaleC} remap")
-            inp_str += "%-15s %s\n"%("velocity", "all create ${simTemp} %i"%(np.random.randint(1,3000000)))
-            inp_str += "%-15s %s %s %s \n"%("fix", "bm", "all nvt", "temp ${simTemp} ${simTemp} ${tdamp} tchain 5")
-            inp_str += "%-15s %i\n"%("run", self.options.neqstp)
-            #inp_str += "%-15s %s\n"%("min_style","fire")
-            #inp_str += "%-15s %s\n"%("minimize", "1.0e-15 1.0e-15 10000 100000")
-            #inp_str += "%-15s %s\n"%("print", "\"STEP ${do} ${scaleVar} $(vol) $(press) $(etotal)\"")
-            inp_str += "%-15s %s %s\n"%("fix", "output all print 10", "\"${do},${scaleVar},$(vol),$(press),$(etotal),$(pe),$(ke)\"" +
-                                        " append %s.output.csv screen no"%(self.name))
-            #inp_str += "%-15s %i\n"%("thermo", 10)
-            inp_str += "%-15s %i\n"%("run", self.options.nprodstp)
-            inp_str += "%-15s %s\n"%("unfix", "output")
-            #inp_str += "%-15s %s\n"%("print", "\"${do},${scaleVar},$(vol),$(press),$(etotal)\""+
-            #                                  " append %s.output.csv screen no"%(self.name))
-            inp_str += "%-15s %s\n"%("unfix", "bm")
+            if (min_style):
+                inp_str += "%-15s %s\n"%("min_style","fire")
+                inp_str += "%-15s %s\n"%("minimize", "1.0e-15 1.0e-15 10000 100000")
+                inp_str += "%-15s %s\n"%("print", "\"${do},${scaleVar},$(vol),$(press),$(etotal),$(pe),$(ke)"+
+                                              ",$(ebond),$(eangle),$(edihed),$(eimp),$(evdwl),$(ecoul)\""+
+                                              " append %s.output.csv screen no"%(self.name))
+            elif (thermo_style):
+                inp_str += "%-15s %s\n"%("velocity", "all create ${simTemp} %i"%(np.random.randint(1,3000000)))
+                inp_str += "%-15s %s %s %s \n"%("fix", "bm", "all nvt", "temp ${simTemp} ${simTemp} ${tdamp} tchain 5")
+                inp_str += "%-15s %i\n"%("run", self.options.neqstp)
+                inp_str += "%-15s %s\n"%("print", "\"STEP ${do} ${scaleVar} $(vol) $(press) $(etotal)\"")
+                inp_str += "%-15s %s %s\n"%("fix", "output all print 10", "\"${do},${scaleVar},$(vol),$(press),$(etotal),$(pe),$(ke)" +
+                                            "$(ebond),$(eangle),$(edihed),$(eimp),$(evdwl),$(ecoul)\""+
+                                            " append %s.output.csv screen no"%(self.name))
+                inp_str += "%-15s %i\n"%("run", self.options.nprodstp)
+                inp_str += "%-15s %s\n"%("unfix", "output")
+                inp_str += "%-15s %s\n"%("unfix", "bm")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleVar", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleA", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "delete")
