@@ -1253,6 +1253,13 @@ class LammpsSimulation(object):
             inp_str += "%-15s %s_restart scale no sort id\n"%("dump_modify",self.name)
             inp_str += "run 0\n"
             inp_str += "%-15s %s\n"%("undump", "%s_restart"%(self.name))
+
+            # write a string that tells you how to read the dump file for this structure
+            f=open("dump_restart_string.txt","w")
+            f.write("read_dump %s_restart.lammpstrj %d x y z box yes"%(self.name, 
+                                                                       self.options.neqstp+self.options.nprodstp))
+            f.close()
+
         return inp_str
     
     def groups(self, ints):
