@@ -5,12 +5,17 @@ from scipy.spatial import distance
 import math
 import shlex
 from CIFIO import CIF
-from atomic import METALS
+from atomic import METALS, MASS, COVALENT_RADII
 from copy import copy
 from mof_sbus import InorganicCluster, OrganicCluster
 from copy import deepcopy
 import itertools
-import os
+import os, sys
+from generic_raspa import GENERIC_PSEUDO_ATOMS_HEADER, GENERIC_PSEUDO_ATOMS, \
+                          GENERIC_FF_MIXING_HEADER, GENERIC_FF_MIXING,\
+                          GENERIC_FF_MIXING_FOOTER
+from uff import UFF_DATA
+import networkx as nx
 
 try:
     import networkx as nx
@@ -1231,6 +1236,310 @@ def write_CIF(graph, cell):
     file = open("%s.cif"%c.name, "w")
     file.writelines(str(c))
     file.close()
+
+def write_RASPA_CIF(graph, cell):
+    """
+    Same as debugging cif write routine
+        except _atom_site_label is now equal to _atom_site_description
+        b/c RASPA uses _atom_site_label as the type for assigning FF params
+    """
+    c = CIF(name="%s_raspa"%graph.name)
+    # data block
+    c.add_data("data", data_=graph.name)
+    c.add_data("data", _audit_creation_date=
+                        CIF.label(c.get_time()))
+    c.add_data("data", _audit_creation_method=
+                        CIF.label("Lammps Interface v.%s"%(str(0))))
+
+    # sym block
+    c.add_data("sym", _symmetry_space_group_name_H_M=
+                        CIF.label("P1"))
+    c.add_data("sym", _symmetry_Int_Tables_number=
+                        CIF.label("1"))
+    c.add_data("sym", _symmetry_cell_setting=
+                        CIF.label("triclinic"))
+
+    # sym loop block
+    c.add_data("sym_loop", _symmetry_equiv_pos_as_xyz=
+                        CIF.label("'x, y, z'"))
+
+    # cell block
+    c.add_data("cell", _cell_length_a=CIF.cell_length_a(cell.a))
+    c.add_data("cell", _cell_length_b=CIF.cell_length_b(cell.b))
+    c.add_data("cell", _cell_length_c=CIF.cell_length_c(cell.c))
+    c.add_data("cell", _cell_angle_alpha=CIF.cell_angle_alpha(cell.alpha))
+    c.add_data("cell", _cell_angle_beta=CIF.cell_angle_beta(cell.beta))
+    c.add_data("cell", _cell_angle_gamma=CIF.cell_angle_gamma(cell.gamma))
+    # atom block
+    element_counter = {}
+    carts = []
+    for node, data in graph.nodes_iter(data=True):
+        label = "%s%i"%(data['element'], node)
+        c.add_data("atoms", _atom_site_label=
+                                CIF.atom_site_label(data['force_field_type']))
+        c.add_data("atoms", _atom_site_type_symbol=
+                                CIF.atom_site_type_symbol(data['element']))
+        #c.add_data("atoms", _atom_site_description=
+        #                        CIF.atom_site_description(data['force_field_type']))
+        coords = data['cartesian_coordinates']
+        carts.append(coords)
+        fc = np.dot(cell.inverse, coords) 
+        c.add_data("atoms", _atom_site_fract_x=
+                                CIF.atom_site_fract_x(fc[0]))
+        c.add_data("atoms", _atom_site_fract_y=
+                                CIF.atom_site_fract_y(fc[1]))
+        c.add_data("atoms", _atom_site_fract_z=
+                                CIF.atom_site_fract_z(fc[2]))
+        c.add_data("atoms", _atom_site_charge=
+                                CIF.atom_type_partial_charge(data['charge']))
+    # bond block
+    # must re-sort them based on bond type (Mat Sudio)
+    tosort = [(data['order'], (n1, n2, data)) for n1, n2, data in graph.edges_iter2(data=True)]
+    for ord, (n1, n2, data) in sorted(tosort, key=lambda tup: tup[0]):
+        type = CCDC_BOND_ORDERS[data['order']]
+        dist = data['length'] 
+        sym = data['symflag']
+
+
+        label1 = "%s%i"%(graph.node[n1]['element'], n1)
+        label2 = "%s%i"%(graph.node[n2]['element'], n2) 
+        c.add_data("bonds", _geom_bond_atom_site_label_1=
+                                    CIF.geom_bond_atom_site_label_1(label1))
+        c.add_data("bonds", _geom_bond_atom_site_label_2=
+                                    CIF.geom_bond_atom_site_label_2(label2))
+        c.add_data("bonds", _geom_bond_distance=
+                                    CIF.geom_bond_distance(dist))
+        c.add_data("bonds", _geom_bond_site_symmetry_2=
+                                    CIF.geom_bond_site_symmetry_2(sym))
+        c.add_data("bonds", _ccdc_geom_bond_type=
+                                    CIF.ccdc_geom_bond_type(type))
+    
+    print('Output cif file written to %s.cif'%c.name)
+    file = open("%s.cif"%c.name, "w")
+    file.writelines(str(c))
+    file.close()
+
+def write_RASPA_sim_files(lammps_sim):
+    """
+    Write the RASPA pseudo_atoms.def file for this MOF
+    All generic adsorbates info automatically included
+    Additional framework atoms taken from lammps_interface anaylsis
+    """
+
+    MOF_PSEUDO_ATOMS = []
+    MOF_FF_MIXING = []
+
+    keys = []
+    for key, n in sorted(lammps_sim.unique_atom_types.items()):
+        keys.append(lammps_sim.graph.node[n]['force_field_type'])
+    
+    for key in sorted(keys):
+
+        ind = 0
+        for char in key:
+            if((ord(char) >= 65 and ord(char) <= 90) or (ord(char)>=97 and ord(char) <= 122)):
+                ind += 1
+            else:
+                break
+        atmtype_ = key[:ind]
+        #print(key,atmtype_)
+        #print(atmtype_ in MASS)
+        #print(atmtype_ in COVALENT_RADII)
+        #print(key in UFF_DATA)
+        try:
+            type_spec_ = key
+            print_ = 'yes'
+            as_ = atmtype_
+            chem_ = atmtype_
+            oxidation_ = '0'
+            mass_ = str(MASS[atmtype_])
+            charge_ = '0.0'
+            polarization_ = '0.0'
+            B_factor_ = '1.0'
+            radii_ = str(COVALENT_RADII[atmtype_])
+            connectivity_ = '0'
+            anisotropic_ = '0'
+            anisotropic_type_ = 'relative'
+            tinker_type_ = '0'
+
+            potential_ = 'lennard-jones'
+            eps_ = str(UFF_DATA[key][3]*500)
+            sig_ = str(UFF_DATA[key][2]*(2**(-1./6.)))
+        except:
+            print("%s %s not found!\n"%(key, atmtype_))
+            continue
+
+        MOF_PSEUDO_ATOMS.append([type_spec_, print_, as_,chem_, oxidation_,mass_, charge_, \
+                                 polarization_, B_factor_, radii_, connectivity_, \
+                                 anisotropic_, anisotropic_type_, tinker_type_])
+
+        MOF_FF_MIXING.append([type_spec_, potential_, eps_, sig_])
+
+    if(len(MOF_PSEUDO_ATOMS) == 0):
+        print("Error! No MOF atoms found. Exiting...")
+        sys.exit()
+
+    # Determine final column widths
+    col_widths = [0 for i in range(len(MOF_PSEUDO_ATOMS[0]))]
+    for i in range(len(MOF_PSEUDO_ATOMS[0])):
+        # num columns
+        max_width = 0
+        for j in range(len(MOF_PSEUDO_ATOMS)):
+            # num rows
+            if(len(MOF_PSEUDO_ATOMS[j][i]) > max_width):
+                max_width = len(MOF_PSEUDO_ATOMS[j][i])
+        col_widths[i] = max_width + 2
+
+    col_widths1 = [0 for i in range(len(GENERIC_PSEUDO_ATOMS[0]))]
+    for i in range(len(GENERIC_PSEUDO_ATOMS[0])):
+        # num columns
+        max_width = 0
+        for j in range(len(GENERIC_PSEUDO_ATOMS)):
+            # num rows
+            if(len(GENERIC_PSEUDO_ATOMS[j][i]) > max_width):
+                max_width = len(GENERIC_PSEUDO_ATOMS[j][i])
+        col_widths1[i] = max_width + 2
+
+    col_widths_final = [max(col_widths[i], col_widths1[i]) for i in range(len(col_widths))]
+
+
+    # Begin file writing
+    f = open('pseudo_atoms.def','w')
+
+    # write header 
+    num_psuedo_atoms =len(GENERIC_PSEUDO_ATOMS) + len(MOF_PSEUDO_ATOMS)
+    GENERIC_PSEUDO_ATOMS_HEADER[1] = str(num_psuedo_atoms)
+    for line in GENERIC_PSEUDO_ATOMS_HEADER:
+        f.write("".join(word for word in line) +'\n')
+
+    # write this MOFs pseudo atoms
+    for i in range(len(MOF_PSEUDO_ATOMS)):
+        base_string = ""
+        for j in range(len(MOF_PSEUDO_ATOMS[0])):
+            buff = "".join(" " for i in range(col_widths_final[j] - len(MOF_PSEUDO_ATOMS[i][j])))
+
+            base_string += MOF_PSEUDO_ATOMS[i][j]
+            base_string += buff
+        f.write(base_string + '\n')
+
+    # write the generic adsorbates
+    for i in range(len(GENERIC_PSEUDO_ATOMS)):
+        base_string = ""
+        for j in range(len(GENERIC_PSEUDO_ATOMS[0])):
+            buff = "".join(" " for i in range(col_widths_final[j] - len(GENERIC_PSEUDO_ATOMS[i][j])))
+
+            base_string += GENERIC_PSEUDO_ATOMS[i][j]
+            base_string += buff
+        f.write(base_string + '\n')
+
+    f.close()
+
+
+    # Determine column widths for FF MIXING
+    col_widths = [0 for i in range(len(MOF_FF_MIXING[0]))]
+    for i in range(len(MOF_FF_MIXING[0])):
+        # num columns
+        max_width = 0
+        for j in range(len(MOF_FF_MIXING)):
+            # num rows
+            if(len(MOF_FF_MIXING[j][i]) > max_width):
+                max_width = len(MOF_FF_MIXING[j][i])
+        col_widths[i] = max_width + 2
+
+    col_widths1 = [0 for i in range(len(GENERIC_FF_MIXING[0]))]
+    for i in range(len(GENERIC_FF_MIXING[0])):
+        # num columns
+        max_width = 0
+        for j in range(len(GENERIC_FF_MIXING)):
+            # num rows
+            if(len(GENERIC_FF_MIXING[j][i]) > max_width):
+                max_width = len(GENERIC_FF_MIXING[j][i])
+        col_widths1[i] = max_width + 2
+
+    col_widths_final = [max(col_widths[i], col_widths1[i]) for i in range(len(col_widths))]
+
+    # write ff mixing file
+    f = open('force_field_mixing_rules.def','w')
+
+    # write header
+    num_interactions = len(MOF_FF_MIXING) + len(GENERIC_FF_MIXING)
+    GENERIC_FF_MIXING_HEADER[5] = str(num_interactions)
+    for line in GENERIC_FF_MIXING_HEADER:
+        f.write("".join(word for word in line) +'\n')
+
+
+    # write this MOFs pseudo atoms
+    for i in range(len(MOF_FF_MIXING)):
+        base_string = ""
+        for j in range(len(MOF_FF_MIXING[0])):
+            buff = "".join(" " for i in range(col_widths_final[j] - len(MOF_FF_MIXING[i][j])))
+
+            base_string += MOF_FF_MIXING[i][j]
+            base_string += buff
+        f.write(base_string + '\n')
+
+    # write the generic adsorbates
+    for i in range(len(GENERIC_FF_MIXING)):
+        base_string = ""
+        for j in range(len(GENERIC_FF_MIXING[0])):
+            buff = "".join(" " for i in range(col_widths_final[j] - len(GENERIC_FF_MIXING[i][j])))
+
+            base_string += GENERIC_FF_MIXING[i][j]
+            base_string += buff
+        f.write(base_string + '\n')
+
+    for line in GENERIC_FF_MIXING_FOOTER:
+        f.write("".join(word for word in line) +'\n')
+
+    f.close()
+
+
+class MDMC_config(object):
+    """
+    Very sloppy for now but just doing the bare minimum to get this up and running
+    for methane in flexible materials
+    """
+
+    def __init__(self, lammps_sim):
+        
+        try:
+            f = open("MDMC.config","r")
+        except:
+            self.initialized = False
+            print("Warning! No MDMC.config file found.  LAMMPS sim files will not have guest molecule info")
+            return
+
+        lines = f.readlines()
+
+        outlines = ""
+        for line in lines:
+            parsed = line.strip().split()
+
+            if(parsed[0] == "num_framework"):
+                outlines += "num_framework\t%d\n"%(nx.number_of_nodes(lammps_sim.graph))
+            if(parsed[0] == "type_framework"):
+                outlines += "type_framework\t%d\n"%(len(lammps_sim.unique_atom_types.keys()))
+            if(parsed[0] == "type_guest"):
+                self.type_guest = int(parsed[1])
+                outlines += "type_guest\t%d\n"%(self.type_guest)
+            if(parsed[0] == "pair_coeff"):
+                parsed[1] = str(len(lammps_sim.unique_atom_types.keys()) + self.type_guest)
+                for word in parsed:
+                    outlines += word + " "
+                outlines += "\n"
+            if(parsed[0] == "mass_guest"):
+                parsed[1] = str(len(lammps_sim.unique_atom_types.keys()) + self.type_guest)
+                for word in parsed:
+                    outlines += word + " "
+                outlines += "\n"
+
+        f.close()
+        
+        f = open("MDMC.config", "w")
+        f.write(outlines)
+        f.close()
+
+        return
 
 
 class Cell(object):

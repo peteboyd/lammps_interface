@@ -14,6 +14,7 @@ import ForceFields
 import itertools
 import operator
 from structure_data import from_CIF, write_CIF, clean
+from structure_data import write_RASPA_CIF, write_RASPA_sim_files, MDMC_config
 from CIFIO import CIF
 from ccdc import CCDC_BOND_ORDERS
 from datetime import datetime
@@ -40,6 +41,9 @@ class LammpsSimulation(object):
         self.separate_molecule_types = True
         self.type_molecules = {}
         self.no_molecule_pair = True  # ensure that h-bonding will not occur between molecules of the same type
+
+    def set_MDMC_config(self, MDMC_config):
+        self.MDMC_config = MDMC_config
 
     def unique_atoms(self):
         """Computes the number of unique atoms in the structure"""
@@ -425,6 +429,18 @@ class LammpsSimulation(object):
     def compute_simulation_size(self):
 
         supercell = self.cell.minimum_supercell(self.options.cutoff)
+
+        if(self.options.replication != 'NA'):
+            supercell = tuple(map(int, self.options.replication.split('x')))
+            if(len(supercell) != 3):
+                if(supercell[0] < 1 or supercell[1] < 1 or supercell[2] < 1):
+                    print("Incorrect supercell requested: %s\n"%(supercell))
+                    print("Use <ixjxk> format")
+                    print("Exiting...")
+                    sys.exit()
+            print(supercell)
+
+
         if np.any(np.array(supercell) > 1):
             print("Warning: unit cell is not large enough to"
                   +" support a non-bonded cutoff of %.2f Angstroms\n"%self.options.cutoff +
@@ -824,7 +840,8 @@ class LammpsSimulation(object):
                 string += "%5i %s "%(key, pair['pair_potential'])
                 string += "# %s %s\n"%(self.graph.node[n]['force_field_type'], 
                                        self.graph.node[n]['force_field_type'])
-        
+       
+ 
         # Nest this in an if statement
         if any([no_bond, no_angle, no_dihedral, no_improper]):
         # WARNING MESSAGE for potentials we think are unique but have not been calculated
@@ -1051,6 +1068,8 @@ class LammpsSimulation(object):
                                      self.name, 
                                      " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
                                                 for key in sorted(self.unique_atom_types.keys())])))
+
+
     
         if (self.options.minimize):
             box_min = "iso"
@@ -1075,7 +1094,7 @@ class LammpsSimulation(object):
         if (self.options.npt):
             id = self.fixcount()
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
-            inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 1000*${dt}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 100*${dt}")
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
 
             inp_str += "%-15s %s\n"%("fix", "%i all npt temp %.2f %.2f ${tdamp} tri %.2f %.2f ${pdamp}"%(id, self.options.temp, self.options.temp,
@@ -1219,6 +1238,21 @@ class LammpsSimulation(object):
             inp_str += "%-15s %s\n"%("undump", "%s_dcdmov"%(self.name))
         if self.options.dump_xyz:
             inp_str += "%-15s %s\n"%("undump", "%s_xyzmov"%(self.name))
+
+        if self.options.restart:
+            # for restart files we move xlo, ylo, zlo back to 0 so to have same origin as a cif file
+            # also we modify to have unscaled coords so we can directly compute scaled coordinates WITH CIF BASIS
+            inp_str += "\n# Dump last snapshot for restart\n"
+
+            inp_str += "variable curr_lx equal lx\n"
+            inp_str += "variable curr_ly equal ly\n"
+            inp_str += "variable curr_lz equal lz\n"
+            inp_str += "change_box all x final 0 ${curr_lx} y final 0 ${curr_ly} z final 0 ${curr_lz}\n\n"
+            inp_str += "%-15s %s\n"%("dump","%s_restart all atom 1 %s_restart.lammpstrj"%
+                            (self.name, self.name))
+            inp_str += "%-15s %s_restart scale no sort id\n"%("dump_modify",self.name)
+            inp_str += "run 0\n"
+            inp_str += "%-15s %s\n"%("undump", "%s_restart"%(self.name))
         return inp_str
     
     def groups(self, ints):
@@ -1272,7 +1306,16 @@ def main():
         print("CIF file requested. Exiting...")
         write_CIF(graph, cell)
         sys.exit()
+
     sim.write_lammps_files()
+
+    # Additional capability to write RASPA files if requested
+    if options.output_raspa:
+        print("Writing RASPA files to current WD")
+        write_RASPA_CIF(graph, cell)
+        write_RASPA_sim_files(sim)
+        this_config = MDMC_config(sim)
+        sim.set_MDMC_config(this_config)
 
 if __name__ == "__main__": 
     main()

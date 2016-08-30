@@ -34,6 +34,14 @@ class Options(object):
                                  " file can show the user how the structure "+
                                  "has been interpreted by the program.")
 
+        parser.add_argument("-or", "--outputraspa",
+                            action="store_true",
+                            dest="output_raspa",
+                            help="Write a .cif file for RASPA (FF types in _atom_site_label)"+
+                                 " Write pseudo_atoms.def file for this MOF"+
+                                 " Write force_field_mixing_rules.def file for this MOF"+
+                                 " Write force_field.def file for this MOF")
+
         #split the command line options into separate groups for nicer
         #visualization.
         force_field_group = parser.add_argument_group("Force Field options")
@@ -107,6 +115,14 @@ class Options(object):
                                       " This will determine the size of "+
                                       "the supercell computed for the simulation. "+
                                       "Default is 12.5 angstroms.")
+        simulation_group.add_argument("--replication", action="store",
+                                      type=str, dest="replication",
+                                      default='NA',
+                                      help="Manually specify the replications to form the supercell "+
+                                      "Use 1x1x1 or 4x4x4x or 2x2x3" +
+                                      "This is useful when dealing with flexible materials " +
+                                      "where you know that structural collapse will result in " +
+                                      "the box decreasing past 2*rcut") 
         simulation_group.add_argument("--randomize-velocities",
                                       action="store_true",
                                       default=False,
@@ -128,6 +144,13 @@ class Options(object):
                                       help="Store trajectory of simulation in a "+
                                            "dcd format. If not requested, then no trajectory "+
                                            "file will be written.")
+        simulation_group.add_argument("--restart",
+                                      action="store_true",
+                                      default=False,
+                                      dest="restart",
+                                      help="Store last snapshot of trajectory of simulation in "+
+                                           "lammps traj file format. index of last snap = NEQSTP + NPRODSTP "+
+                                           " = 1 if NEQSTP and NPRODSTP not specified")
 
         parameter_group = parser.add_argument_group("Parameter options")
         parameter_group.add_argument("-t", "--tolerance",
