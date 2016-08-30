@@ -1172,6 +1172,9 @@ OrganicCluster['N']['CarboxylateImidazolate'].add_nodes_from([
         )  
     ])
 
+# Note, the special_flags for the organic linkers below are designed to be compatible 
+# with the Dubbeldam force field, so changing these values will break if one requests
+# the Dubbeldam FF. 
 OrganicCluster['C']['Benzene-2C'].add_nodes_from([
     (1, {'element':'C',
          'special_flag':'Cb',
