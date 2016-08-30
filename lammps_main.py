@@ -1157,7 +1157,7 @@ class LammpsSimulation(object):
                 inp_str += "%-15s %i\n"%("run", self.options.neqstp)
                 inp_str += "%-15s %s\n"%("print", "\"STEP ${do} ${scaleVar} $(vol) $(press) $(etotal)\"")
                 inp_str += "%-15s %s %s\n"%("fix", "output all print 10", "\"${do},${scaleVar},$(vol),$(press),$(etotal),$(pe),$(ke)" +
-                                            "$(ebond),$(eangle),$(edihed),$(eimp),$(evdwl),$(ecoul)\""+
+                                            ",$(ebond),$(eangle),$(edihed),$(eimp),$(evdwl),$(ecoul)\""+
                                             " append %s.output.csv screen no"%(self.name))
                 inp_str += "%-15s %i\n"%("run", self.options.nprodstp)
                 inp_str += "%-15s %s\n"%("unfix", "output")
