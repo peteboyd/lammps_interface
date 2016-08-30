@@ -2460,6 +2460,8 @@ class UFF(ForceField):
         # for each atom determine the ff type if it is None
         organics = ["C", "N", "O", "S"]
         halides = ["F", "Cl", "Br", "I"]
+        sqpl = ["He", "Ne", "Ar", "Ni", "Kr", "Pd", "Xe", "Pt", "Au", "Rn"]
+
         for node, data in self.graph.nodes_iter(data=True):
             if data['force_field_type'] is None:
                 if data['element'] in organics:
@@ -2487,9 +2489,15 @@ class UFF(ForceField):
                         data['force_field_type'] += "_"
                 else:
                     ffs = list(UFF_DATA.keys())
+                    valency = len(self.graph.neighbors(node))
+                    # temp fix for some real geometrical analysis
+                    if (valency == 4) and (data['element'] not in sqpl):
+                        valency = 3
                     for j in ffs:
                         if data['element'] == j[:2].strip("_"):
-                            data['force_field_type'] = j
+                            if valency == int(j[2]):
+                                data['force_field_type'] = j
+
             if data['force_field_type'] is None:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
