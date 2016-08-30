@@ -1244,7 +1244,7 @@ class LammpsSimulation(object):
             inp_str += "change_box all x final 0 ${curr_lx} y final 0 ${curr_ly} z final 0 ${curr_lz}\n\n"
             inp_str += "%-15s %s\n"%("dump","%s_restart all atom 1 %s_restart.lammpstrj"%
                             (self.name, self.name))
-            inp_str += "dump_modify %s_restart scale no sort id\n"
+            inp_str += "%-15s %s_restart scale no sort id\n"%("dump_modify",self.name)
             inp_str += "run 0\n"
             inp_str += "%-15s %s\n"%("undump", "%s_restart"%(self.name))
         return inp_str

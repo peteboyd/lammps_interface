@@ -1514,7 +1514,6 @@ class MDMC_config(object):
         outlines = ""
         for line in lines:
             parsed = line.strip().split()
-            print(parsed)
 
             if(parsed[0] == "num_framework"):
                 outlines += "num_framework\t%d\n"%(nx.number_of_nodes(lammps_sim.graph))
