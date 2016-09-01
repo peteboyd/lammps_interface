@@ -1248,6 +1248,7 @@ class LammpsSimulation(object):
             inp_str += "variable curr_ly equal ly\n"
             inp_str += "variable curr_lz equal lz\n"
             inp_str += "change_box all x final 0 ${curr_lx} y final 0 ${curr_ly} z final 0 ${curr_lz}\n\n"
+            inp_str += "reset_timestep 0"
             inp_str += "%-15s %s\n"%("dump","%s_restart all atom 1 %s_restart.lammpstrj"%
                             (self.name, self.name))
             inp_str += "%-15s %s_restart scale no sort id\n"%("dump_modify",self.name)
@@ -1257,7 +1258,7 @@ class LammpsSimulation(object):
             # write a string that tells you how to read the dump file for this structure
             f=open("dump_restart_string.txt","w")
             f.write("read_dump %s_restart.lammpstrj %d x y z box yes"%(self.name, 
-                                                                       self.options.neqstp+self.options.nprodstp))
+                                                                       0))
             f.close()
 
         return inp_str
