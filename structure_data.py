@@ -16,6 +16,7 @@ from generic_raspa import GENERIC_PSEUDO_ATOMS_HEADER, GENERIC_PSEUDO_ATOMS, \
                           GENERIC_FF_MIXING_FOOTER
 from uff import UFF_DATA
 import networkx as nx
+import operator
 
 try:
     import networkx as nx
@@ -1273,7 +1274,9 @@ def write_RASPA_CIF(graph, cell):
     # atom block
     element_counter = {}
     carts = []
-    for node, data in graph.nodes_iter(data=True):
+    
+    # slight modification to make sure atoms printed out in same order as in data and original cif
+    for node, data in sorted(graph.nodes_iter(data=True)):
         label = "%s%i"%(data['element'], node)
         c.add_data("atoms", _atom_site_label=
                                 CIF.atom_site_label(data['force_field_type']))

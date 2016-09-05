@@ -2499,9 +2499,21 @@ class UFF(ForceField):
                                 data['force_field_type'] = j
 
             if data['force_field_type'] is None:
-                print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
-                        " with element: '%s'"%(data['element']))
-                sys.exit()
+                assigned = False
+                # find the first entry that corresponds to this element and print a warning
+                for j in list(UFF_DATA.keys()):
+                    if data['element'] == j[:2].strip("_"):
+                        data['force_field_type'] = j
+                        neigh = len(self.graph.neighbors(node))
+                        print("WARNING: Atom %i element "%data['index'] + 
+                                "%s has %i neighbors, "%(data['element'], neigh)+
+                                "but was assigned %s as a force field type!"%(j))
+                        assigned = True
+
+                if not assigned:
+                    print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
+                            " with element: '%s'"%(data['element']))
+                    sys.exit()
 
 class Dreiding(ForceField):
 
