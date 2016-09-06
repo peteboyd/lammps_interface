@@ -1071,7 +1071,7 @@ class LammpsSimulation(object):
 
 
     
-        if (self.options.minimize):
+        if (self.opations.minimize):
             box_min = "iso"
             #inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %s\n"%("min_style","sd")
@@ -1094,7 +1094,7 @@ class LammpsSimulation(object):
         if (self.options.npt):
             id = self.fixcount()
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
-            inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 100*${dt}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 1000*${dt}")
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
 
             inp_str += "%-15s %s\n"%("fix", "%i all npt temp %.2f %.2f ${tdamp} tri %.2f %.2f ${pdamp}"%(id, self.options.temp, self.options.temp,
