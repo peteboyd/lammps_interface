@@ -1071,7 +1071,7 @@ class LammpsSimulation(object):
 
 
     
-        if (self.options.minimize):
+        if (self.opations.minimize):
             box_min = "iso"
             #inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %s\n"%("min_style","sd")
@@ -1094,7 +1094,7 @@ class LammpsSimulation(object):
         if (self.options.npt):
             id = self.fixcount()
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
-            inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 100*${dt}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 1000*${dt}")
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
 
             inp_str += "%-15s %s\n"%("fix", "%i all npt temp %.2f %.2f ${tdamp} tri %.2f %.2f ${pdamp}"%(id, self.options.temp, self.options.temp,
@@ -1248,11 +1248,19 @@ class LammpsSimulation(object):
             inp_str += "variable curr_ly equal ly\n"
             inp_str += "variable curr_lz equal lz\n"
             inp_str += "change_box all x final 0 ${curr_lx} y final 0 ${curr_ly} z final 0 ${curr_lz}\n\n"
+            inp_str += "reset_timestep 0\n"
             inp_str += "%-15s %s\n"%("dump","%s_restart all atom 1 %s_restart.lammpstrj"%
                             (self.name, self.name))
             inp_str += "%-15s %s_restart scale no sort id\n"%("dump_modify",self.name)
             inp_str += "run 0\n"
             inp_str += "%-15s %s\n"%("undump", "%s_restart"%(self.name))
+
+            # write a string that tells you how to read the dump file for this structure
+            f=open("dump_restart_string.txt","w")
+            f.write("read_dump %s_restart.lammpstrj %d x y z box yes"%(self.name, 
+                                                                       0))
+            f.close()
+
         return inp_str
     
     def groups(self, ints):
