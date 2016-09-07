@@ -1071,7 +1071,7 @@ class LammpsSimulation(object):
 
 
     
-        if (self.opations.minimize):
+        if (self.options.minimize):
             box_min = "iso"
             #inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %s\n"%("min_style","sd")
