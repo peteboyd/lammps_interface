@@ -1122,6 +1122,36 @@ class PairPotential(object):
         def __repr__(self):
             return "%s %.3f"%(self.name, self.cutoff)
 
+    class LjCharmmCoulLong(object):
+        """Potential defined as
+
+        E = 4*eps*[(sig/r)^12 - (sig/r)^6] r < rc
+
+        and coulombic terms dealt with a kspace solver
+        """
+        def __init__(self):
+            self.name = "lj/charmm/coul/long" 
+            self.eps = 0.
+            self.eps14 = 0.
+            self.sig = 0.
+            self.sig14 = 0.
+            self.reduced = False
+            self.cutoff = 0.
+        def __str__(self):
+            if self.reduced:
+                return "%15.6f %15.6f %15.6f %15.6f"%(self.eps,
+                                                      self.sig,
+                                                      self.eps14,
+                                                      self.sig14)
+            return "%28s %15.6f %15.6f %15.6f %15.6f"%(self.name,
+                                                       self.eps,
+                                                       self.sig,
+                                                       self.eps14,
+                                                       self.sig14)
+        def __repr__(self):
+            # typical to set the inner cutoff difference of about 1 angstrom
+            return "%s %.3f %.3f"%(self.name, self.cutoff - 1.0, self.cutoff)
+
     class Buck(object):
         """Potential defined as
 

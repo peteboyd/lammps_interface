@@ -2682,6 +2682,15 @@ class Dreiding(ForceField):
         non_oxygen_sp2 = ["C_R", "N_R", "B_2", "C_2", "N_2"]
 
         sp2 = ["aromatic", "sp2"]
+        # default is to include the full 1-4 non-bonded interactions.
+        # but this breaks Lammps unless extra work-arounds are in place.
+        # the weighting is added via a special_bonds keyword
+        w = 1.0
+        for ring in d_data['rings']:
+            if a in ring and len(ring) == 6:
+                w = 0.5
+            if a in ring and len(ring) < 6:
+                w = 0.0 # otherwise 1-2 and 1-3 non-bonded interactions would be counted.
 
         # g)
         if (b_hyb == 'sp' or c_hyb == 'sp') or (btype in monovalent or ctype in monovalent) or \
@@ -2774,10 +2783,6 @@ class Dreiding(ForceField):
         norm = float(b_neigh * c_neigh)
         V /= norm
         d = n*phi0 + 180
-        # default is to include the full 1-4 non-bonded interactions.
-        # but this breaks Lammps unless extra work-arounds are in place.
-        # the weighting is added via a special_bonds keyword
-        w = 0.0 
         data['potential'] = DihedralPotential.Charmm()
         data['potential'].K = V/2.
         data['potential'].n = n
@@ -2843,9 +2848,12 @@ class Dreiding(ForceField):
         sig = R*(2**(-1./6.))
 
         if nbpot == "LJ":
-            data['pair_potential'] = PairPotential.LjCutCoulLong()
+            #data['pair_potential'] = PairPotential.LjCutCoulLong()
+            data['pair_potential'] = PairPotential.LjCharmmCoulLong()
             data['pair_potential'].eps = eps 
             data['pair_potential'].sig = sig 
+            data['pair_potential'].eps14 = eps 
+            data['pair_potential'].sig14 = sig 
             
         else:
             S = DREIDING_DATA[data['force_field_type']][5]
@@ -3019,8 +3027,8 @@ class Dreiding(ForceField):
             st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic")]
         else:
             st = ["%-15s %s"%("pair_modify", "tail yes")]
-        st += ["%-15s %s"%("special_bonds", "dreiding"), # equivalent to 'special_bonds lj 0.0 0.0 1.0'
-              "%-15s %.1f"%('dielectric', 1.0)] 
+        st += ["%-15s %.1f"%('dielectric', 1.0)]#, 
+               #"%-15s %s"%("special_bonds", "dreiding")] # equivalent to 'special_bonds lj 0.0 0.0 1.0'
         return st
 
     def detect_ff_terms(self):
