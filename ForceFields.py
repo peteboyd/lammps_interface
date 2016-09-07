@@ -2377,12 +2377,13 @@ class UFF(ForceField):
             c_data['atomic_number'] in METALS):
             # must use different potential with minimum at the computed dihedral
             # angle.
-            nphi0 = n*self.graph.compute_dihedral_between(a, b, c, d)
-            data['potential'] = DihedralPotential.Charmm()
-            data['potential'].K = 0.5
-            data['potential'].d = 180 + nphi0 
-            data['potential'].n = n
-            return 1
+            #nphi0 = n*self.graph.compute_dihedral_between(a, b, c, d)
+            #data['potential'] = DihedralPotential.Charmm()
+            #data['potential'].K = 0.5
+            #data['potential'].d = 180 + nphi0 
+            #data['potential'].n = n
+            # NO torsional terms in UFF for non-main group elements
+            return None
         if V==0.:
             return None
         data['potential'] = DihedralPotential.Harmonic()
@@ -2698,6 +2699,7 @@ class Dreiding(ForceField):
             V = 0.0
             n = 2
             phi0 = 180.0
+            return None
         # a)
         elif((b_hyb == "sp3")and(c_hyb == "sp3")):
             V = 2.0
