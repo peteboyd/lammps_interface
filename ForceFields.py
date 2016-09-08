@@ -3662,7 +3662,7 @@ class Dubbeldam(ForceField):
 
         U(torsion) = k * (1 + cos(m*theta - theta0))
 
-        in LAMMPS this potential can be accessed by the dihedral_style cvff
+        in LAMMPS this potential can be accessed by the improper_style cvff
 
         E = K * [ 1 + d*cos(n*theta) ]
 
