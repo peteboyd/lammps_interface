@@ -1059,7 +1059,7 @@ class LammpsSimulation(object):
             inp_str += "#### END Atom Groupings ####\n\n"
     
         if self.options.dump_dcd:
-            inp_str += "%-15s %s\n"%("dump","%s_dcdmov all dcd 1 %s_mov.dcd"%
+            inp_str += "%-15s %s\n"%("dump","%s_dcdmov all dcd 10 %s_mov.dcd"%
                             (self.name, self.name))
         elif self.options.dump_xyz:
             inp_str += "%-15s %s\n"%("dump","%s_xyzmov all xyz 1 %s_mov.xyz"%
@@ -1072,21 +1072,37 @@ class LammpsSimulation(object):
 
     
         if (self.options.minimize):
-            box_min = "iso"
+            box_min = "tri"
+            min_style="cg"
+            nmins = 10
             #inp_str += "%-15s %s\n"%("min_style","fire")
-            inp_str += "%-15s %s\n"%("min_style","sd")
-            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-            
+            inp_str += "%-15s %i %s\n"%("compute", 1, "all msd com yes")
+            inp_str += "%-15s %-10s %s\n"%("variable", "Dx", "equal c_1[1]")
+            inp_str += "%-15s %-10s %s\n"%("variable", "Dy", "equal c_1[2]")
+            inp_str += "%-15s %-10s %s\n"%("variable", "Dz", "equal c_1[3]")
+            inp_str += "%-15s %-10s %s\n"%("variable", "MSD", "equal c_1[4]")
+            inp_str += "%-15s %s\n"%("print", "\"Vol,CellA,CellB,CellC,Dx,Dy,Dz,MSD\"" + 
+                                              " file %s.min.csv screen no"%(self.name))
+            inp_str += "%-15s %s %s\n"%("fix", "output all print 1", "\"$(vol),$(cella),$(cellb),$(cellc),${Dx},${Dy},${Dz},${MSD}\"" +
+                                            " append %s.min.csv screen no"%(self.name))
 
-            for j in range(3):
+            inp_str += "%-15s %s\n"%("min_style", min_style)
+            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+            inp_str += "%-15s %i\n"%("run", 1) 
+
+            for j in range(nmins):
                 fix = self.fixcount()
-                inp_str += "\n%-15s %s\n"%("min_style","sd")
+                #inp_str += "\n%-15s %s\n"%("min_style", min_style)
                 inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.01"%(fix, box_min))
                 inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
                 inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
             
-                inp_str += "%-15s %s\n"%("min_style","fire")
+                #inp_str += "%-15s %s\n"%("min_style","fire")
                 inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+                inp_str += "%-15s %i\n"%("run", 1) 
+            
+            inp_str += "%-15s %s\n"%("unfix", "output") 
+            
             
         if (self.options.random_vel):
             inp_str += "%-15s %s\n"%("velocity", "all create %.2f %i"%(self.options.temp, np.random.randint(1,3000000)))
