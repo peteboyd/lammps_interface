@@ -1081,10 +1081,8 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "Dy", "equal c_1[2]")
             inp_str += "%-15s %-10s %s\n"%("variable", "Dz", "equal c_1[3]")
             inp_str += "%-15s %-10s %s\n"%("variable", "MSD", "equal c_1[4]")
-            inp_str += "%-15s %s\n"%("print", "\"Vol,CellA,CellB,CellC,Dx,Dy,Dz,MSD\"" + 
-                                              " file %s.min.csv screen no"%(self.name))
             inp_str += "%-15s %s %s\n"%("fix", "output all print 1", "\"$(vol),$(cella),$(cellb),$(cellc),${Dx},${Dy},${Dz},${MSD}\"" +
-                                            " append %s.min.csv screen no"%(self.name))
+                                            " file %s.min.csv title \"Vol,CellA,CellB,CellC,Dx,Dy,Dz,MSD\" screen no"%(self.name))
 
             inp_str += "%-15s %s\n"%("min_style", min_style)
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
@@ -1171,7 +1169,7 @@ class LammpsSimulation(object):
                 inp_str += "%-15s %s\n"%("velocity", "all create ${simTemp} %i"%(np.random.randint(1,3000000)))
                 inp_str += "%-15s %s %s %s \n"%("fix", "bm", "all nvt", "temp ${simTemp} ${simTemp} ${tdamp} tchain 5")
                 inp_str += "%-15s %i\n"%("run", self.options.neqstp)
-                inp_str += "%-15s %s\n"%("print", "\"STEP ${do} ${scaleVar} $(vol) $(press) $(etotal)\"")
+                #inp_str += "%-15s %s\n"%("print", "\"STEP ${do} ${scaleVar} $(vol) $(press) $(etotal)\"")
                 inp_str += "%-15s %s %s\n"%("fix", "output all print 10", "\"${do},${scaleVar},$(vol),$(press),$(etotal),$(pe),$(ke)" +
                                             ",$(ebond),$(eangle),$(edihed),$(eimp),$(evdwl),$(ecoul)\""+
                                             " append %s.output.csv screen no"%(self.name))
