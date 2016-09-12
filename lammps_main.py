@@ -41,6 +41,7 @@ class LammpsSimulation(object):
         self.separate_molecule_types = True
         self.type_molecules = {}
         self.no_molecule_pair = True  # ensure that h-bonding will not occur between molecules of the same type
+        self.fix_shake = {}
 
     def set_MDMC_config(self, MDMC_config):
         self.MDMC_config = MDMC_config
@@ -103,11 +104,14 @@ class LammpsSimulation(object):
         bb_type = {}
         for n1, n2, data in self.graph.edges_iter2(data=True):
             btype = "%s"%data['potential']
+
             try:
                 type = bb_type[btype]
 
             except KeyError:
                 count += 1
+                if (hasattr(data['potential'], "special_flag")):
+                    spec = self.fix_shake.setdefault('bonds', []).append(count) 
                 type = count
                 bb_type[btype] = type
 
@@ -129,6 +133,8 @@ class LammpsSimulation(object):
 
                     except KeyError:
                         count += 1
+                        if (hasattr(data['potential'], "special_flag")):
+                            spec = self.fix_shake.setdefault('angles', []).append(count) 
                         type = count
                         ang_type[atype] = type
                         self.unique_angle_types[type] = (a, b, c, val) 
@@ -446,7 +452,6 @@ class LammpsSimulation(object):
                     print("Exiting...")
                     sys.exit()
             print(supercell)
-
 
         if np.any(np.array(supercell) > 1):
             print("Warning: unit cell is not large enough to"
@@ -1108,7 +1113,17 @@ class LammpsSimulation(object):
             
             inp_str += "%-15s %s\n"%("unfix", "output") 
             
-            
+        
+        if (self.fix_shake):
+            shake_tol = 0.0001
+            iterations = 20
+            print_every = 0  # maybe set to non-zero, but output files could become huge.
+            shk_fix = self.fixcount()
+            shake_str = "b "+" ".join(["%i "%i for i in self.fix_shake['bonds']]) + \
+                        " a " + " ".join(["%i "%i for i in self.fix_shake['angles']])
+                       # fix  id group tolerance iterations print_every [bonds + angles]
+            inp_str += "%-15s %i %s %f %i %i %s"%('fix', shk_fix, 'all', shake_tol, iterations, print_every, shake_str)
+
         if (self.options.random_vel):
             inp_str += "%-15s %s\n"%("velocity", "all create %.2f %i"%(self.options.temp, np.random.randint(1,3000000)))
 
@@ -1281,7 +1296,12 @@ class LammpsSimulation(object):
             f.write("read_dump %s_restart.lammpstrj %d x y z box yes"%(self.name, 
                                                                        0))
             f.close()
-
+        
+        try:
+            inp_str += "%-15s %i\n"%("unfix", shk_fix)
+        except NameError:
+            # no shake fix id in this input file.
+            pass
         return inp_str
     
     def groups(self, ints):

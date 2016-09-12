@@ -3794,7 +3794,8 @@ class SPC_E(ForceField):
 
         data['potential'] = BondPotential.Harmonic()
         data['potential'].K = 350.0 
-        data['potential'].R0 = 1.0 
+        data['potential'].R0 = 1.0
+        data['potential'].special_flag = "shake"
         return 1
 
     def angle_term(self, angle):
@@ -3822,6 +3823,7 @@ class SPC_E(ForceField):
         data['potential'].K = K/2. 
         data['potential'].theta0 = 109.47
         # extra flag?
+        data['potential'].special_flag = "shake"
         return 1
 
     def dihedral_term(self, dihedral):
@@ -3849,15 +3851,15 @@ class SPC_E(ForceField):
 
         """
         data['pair_potential'] = PairPotential.LjCutCoulLong()
-        data['pair_potential'].eps = SPC_E[data['force_field_type']][0]*kBtokcal 
+        data['pair_potential'].eps = SPC_E[data['force_field_type']][0]
         data['pair_potential'].sig = SPC_E[data['force_field_type']][1]
         data['pair_potential'].cutoff = cutoff
         data['charge'] = SPC_E[data['force_field_type']][2]
 
     def special_commands(self):
-        st = ["%-15s %s"%("pair_modify", "tail yes"),
-              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"), 
-              "%-15s %.1f"%('dielectric', 1.0)] 
+        st = [
+              "%-15s %s"%("pair_modify", "tail yes")
+             ] 
         return st
 
     def detect_ff_terms(self):
@@ -3867,9 +3869,12 @@ class SPC_E(ForceField):
         for node, data in self.graph.nodes_iter(data=True):
             if data['element'] == "O":
                 data['force_field_type'] = "OW"
+                data['mass'] = SPC_E[data['force_field_type'][0] 
+                data['charge'] = SPC_E[data['force_field_type'][3] 
             elif data['element'] == "H":
                 data['force_field_type'] = "HW"
-
+                data['mass'] = SPC_E[data['force_field_type'][0] 
+                data['charge'] = SPC_E[data['force_field_type'][3] 
             if data['force_field_type'] is None:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))

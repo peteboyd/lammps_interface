@@ -69,6 +69,14 @@ class BondPotential(object):
         E = K*(r - R0)^2
 
         Input parameters: K, R0
+        
+        special_flag is used to distinguish
+        any extra inputs required for LAMMPS
+        to run properly.
+
+        eg. special_flag="shake"
+        will flag this bond potential as
+        a shake bond.
         """
 
         def __init__(self):
@@ -76,11 +84,15 @@ class BondPotential(object):
             self.K = 0.
             self.R0 = 0.
             self.reduced = False
+            self.special_flag = ""
 
         def __str__(self):
+            special_flag = self.special_flag
+            if special_flag:
+                special_flag = "# "+self.special_flag
             if self.reduced:
-                return "%15.6f %15.6f"%(self.K, self.R0)
-            return "%28s %15.6f %15.6f"%(self.name, self.K, self.R0)
+                return "%15.6f %15.6f %s"%(self.K, self.R0, special_flag)
+            return "%28s %15.6f %15.6f %s"%(self.name, self.K, self.R0, special_flag)
 
     class Morse(object):
         """Potential defined as
@@ -359,18 +371,29 @@ class AnglePotential(object):
         E = K*(theta - theta0)^2
 
         Input parameters: K, theta0
+
+        special_flag is used to distinguish
+        any extra inputs required for LAMMPS
+        to run properly.
+
+        eg. special_flag="shake"
+        will flag this angle potential as
+        a shake angle.
         """
         def __init__(self):
             self.name = "harmonic" # harmonic/kk and harmonic/omp exist 
             self.K = 0.
             self.theta0 = 0.
             self.reduced = False
-
+            self.special_flag = ""
         def __str__(self):
+            special_flag = self.special_flag
+            if special_flag:
+                special_flag = "# "+self.special_flag
             if self.reduced:
-                return "%15.6f %15.6f"%(self.K,self.theta0)
+                return "%15.6f %15.6f %s"%(self.K, self.theta0, special_flag)
 
-            return "%28s %15.6f %15.6f"%(self.name,self.K,self.theta0)
+            return "%28s %15.6f %15.6f %s"%(self.name, self.K,self.theta0, special_flag)
 
     class Table(object):
         def __init__(self):
