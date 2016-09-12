@@ -3870,12 +3870,12 @@ class SPC_E(ForceField):
         for node, data in self.graph.nodes_iter(data=True):
             if data['element'] == "O":
                 data['force_field_type'] = "OW"
-                data['mass'] = SPC_E[data['force_field_type'][0] 
-                data['charge'] = SPC_E[data['force_field_type'][3] 
+                data['mass'] = SPC_E[data['force_field_type']][0] 
+                data['charge'] = SPC_E[data['force_field_type']][3] 
             elif data['element'] == "H":
                 data['force_field_type'] = "HW"
-                data['mass'] = SPC_E[data['force_field_type'][0] 
-                data['charge'] = SPC_E[data['force_field_type'][3] 
+                data['mass'] = SPC_E[data['force_field_type']][0] 
+                data['charge'] = SPC_E[data['force_field_type']][3] 
             if data['force_field_type'] is None:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
