@@ -400,16 +400,23 @@ class LammpsSimulation(object):
         # apply different force fields.
         for mtype in list(self.molecule_types.keys()):
             # prompt for ForceField?
-            rep = self.subgraphs[self.molecule_types[mtype][0]]
-            response = input("Would you like to apply a new force field to molecule type %i with atoms (%s)? [y/n]: "%
-                    (mtype, ", ".join([rep.node[j]['element'] for j in rep.nodes()])))
-            ff = self.options.force_field
-            if response.lower() in ['y','yes']:
-                ff = input("Please enter the name of the force field: ")
-            elif response.lower() in ['n', 'no']:
-                pass 
-            else:
-                print("Unrecognized command: %s"%response)
+            #rep = self.subgraphs[self.molecule_types[mtype][0]]
+            #response = input("Would you like to apply a new force field to molecule type %i with atoms (%s)? [y/n]: "%
+            #        (mtype, ", ".join([rep.node[j]['element'] for j in rep.nodes()])))
+            #ff = self.options.force_field
+            #if response.lower() in ['y','yes']:
+            #    ff = input("Please enter the name of the force field: ")
+            #elif response.lower() in ['n', 'no']:
+            #    pass 
+            #else:
+            #    print("Unrecognized command: %s"%response)
+
+            ff = self.options.mol_ff
+            if ff is None:
+                print("Warning: Molecule %s will be using the %s force field as no "+
+                      " value was set for molecules. To prevent this warning "+
+                      "set --molecule-ff=[some force field] on the command line.")
+                ff = self.options.force_field
             h_bonding = False
             if (ff == "Dreiding"):
                 hbonding = input("Would you like this molecule type to have hydrogen donor potentials? [y/n]: ")

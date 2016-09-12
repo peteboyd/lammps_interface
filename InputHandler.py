@@ -49,9 +49,21 @@ class Options(object):
                                        type=str, dest="force_field",
                                        default="UFF",
                                        help="Enter the requested force "+
-                                          "field to describe the system."+
-                                          " The default is the Universal "+
+                                          "field to describe the system. Current "+
+                                          "options are 'BTW_FF', 'Dreiding', 'UFF', "+
+                                          "'UFF4MOF', and 'Dubbeldam'."+
+                                          " The default is set to the Universal "+
                                           "Force Field [UFF].")
+        force_field_group.add_argument("--molecule-ff", action="store", 
+                                       dest="mol_ff",
+                                       default=None,
+                                       help="Chose a force field for any molecules "+
+                                          "found in the structure. This is applies a 'blanket' "+
+                                          "to all found molecules, so exercise with caution. Future "+
+                                          "iterations will consider an input file to differentiate "+
+                                          "force fields between different molecules. Default is the "+
+                                          "same force field requested for the framework (assumes some "+
+                                          "generalized FF like UFF or Dreiding).")
         force_field_group.add_argument("--h-bonding", action="store_true", 
                                        dest="h_bonding",
                                        default=False,
@@ -79,7 +91,7 @@ class Options(object):
                                           "Useful for structure minimizations. Currently only "+
                                           "applies to UFF and Dreiding Force Fields. Default is "+
                                           "off.")
-
+        
         simulation_group = parser.add_argument_group("Simulation options")
         simulation_group.add_argument("--minimize", action="store_true",
                                       dest="minimize",
@@ -120,7 +132,7 @@ class Options(object):
                                       default='NA',
                                       help="Manually specify the replications to form the supercell "+
                                       "Use 1x1x1 or 4x4x4x or 2x2x3" +
-                                      "This is useful when dealing with flexible materials " +
+                                      " This is useful when dealing with flexible materials " +
                                       "where you know that structural collapse will result in " +
                                       "the box decreasing past 2*rcut") 
         simulation_group.add_argument("--randomize-velocities",

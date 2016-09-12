@@ -3763,3 +3763,114 @@ class Dubbeldam(ForceField):
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
                 sys.exit()
+
+
+class SPC_E(ForceField):
+    def __init__(self, graph=None, **kwargs):
+        self.pair_in_data = True
+        # override existing arguments with kwargs
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+        if (graph is not None):
+            self.graph = graph
+            self.detect_ff_terms() 
+            self.compute_force_field_terms()
+
+    def bond_term(self, edge):
+        """Harmonic term
+        
+        E = 0.5 * K * (R - Req)^2
+        
+        just a placeholder in LAMMPS.
+        The bond is rigid and fixed by SHAKE in LAMMPS
+        therefore an unambiguous extra flag must be
+        added here to ensure the potential is not 
+        grouped with identical (however unlikely) potentials
+        which are not rigid.
+
+        """
+        n1, n2, data = edge
+
+        data['potential'] = BondPotential.Harmonic()
+        data['potential'].K = 350.0 
+        data['potential'].R0 = 1.0 
+        return 1
+
+    def angle_term(self, angle):
+        """Harmonic angle term.
+
+        E = 0.5 * K * (theta - theta0)^2
+        
+        just a placeholder in LAMMPS.
+        The angle is rigid and fixed by SHAKE in LAMMPS
+        therefore an unambiguous extra flag must be
+        added here to ensure the potential is not 
+        grouped with identical (however unlikely) potentials
+        which are not rigid.
+        """
+        a, b, c, data = angle
+        K = 100.0
+        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
+        atype = a_data['force_field_type']
+        btype = b_data['force_field_type']
+        ctype = c_data['force_field_type']
+       
+        assert (b_data['element'] == "O")
+
+        data['potential'] = AnglePotential.Harmonic()
+        data['potential'].K = K/2. 
+        data['potential'].theta0 = 109.47
+        # extra flag?
+        return 1
+
+    def dihedral_term(self, dihedral):
+        """
+        No dihedral potential in SPC/E water model.
+        """
+        return None
+
+    def improper_term(self, improper):
+        """
+        No improper potential in SPC/E water model.
+        """
+        return None
+    
+    def pair_terms(self, node, data, cutoff):
+        """ 
+        Lennard - Jones potential for OW and HW.
+        
+        cutoff should be set to 9 angstroms, but this may
+        be unrealistic.
+        Also, no long range treatment of coulombic 
+        term! Otherwise
+        this isn't technically the SPC/E model but
+        Ewald should be used for periodic materials.
+
+        """
+        data['pair_potential'] = PairPotential.LjCutCoulLong()
+        data['pair_potential'].eps = SPC_E[data['force_field_type']][0]*kBtokcal 
+        data['pair_potential'].sig = SPC_E[data['force_field_type']][1]
+        data['pair_potential'].cutoff = cutoff
+        data['charge'] = SPC_E[data['force_field_type']][2]
+
+    def special_commands(self):
+        st = ["%-15s %s"%("pair_modify", "tail yes"),
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"), 
+              "%-15s %.1f"%('dielectric', 1.0)] 
+        return st
+
+    def detect_ff_terms(self):
+        """Water consists of O and H, not too difficult. 
+
+        """
+        for node, data in self.graph.nodes_iter(data=True):
+            if data['element'] == "O":
+                data['force_field_type'] = "OW"
+            elif data['element'] == "H":
+                data['force_field_type'] = "HW"
+
+            if data['force_field_type'] is None:
+                print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
+                        " with element: '%s'"%(data['element']))
+                sys.exit()
