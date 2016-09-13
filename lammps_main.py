@@ -110,8 +110,11 @@ class LammpsSimulation(object):
 
             except KeyError:
                 count += 1
-                if (hasattr(data['potential'], "special_flag")):
-                    spec = self.fix_shake.setdefault('bonds', []).append(count) 
+                try: 
+                    if data['potential'].special_flag == 'shake':
+                        self.fix_shake.setdefault('bonds', []).append(count)
+                except AttributeError:
+                    pass
                 type = count
                 bb_type[btype] = type
 
@@ -126,6 +129,7 @@ class LammpsSimulation(object):
             # compute and store angle terms
             try:
                 ang_data = data['angles']
+            
                 for (a, c), val in ang_data.items():
                     atype = "%s"%val['potential']
                     try:
@@ -133,8 +137,11 @@ class LammpsSimulation(object):
 
                     except KeyError:
                         count += 1
-                        if (hasattr(data['potential'], "special_flag")):
-                            spec = self.fix_shake.setdefault('angles', []).append(count) 
+                        try: 
+                            if val['potential'].special_flag == 'shake':
+                                self.fix_shake.setdefault('angles', []).append(count)
+                        except AttributeError:
+                            pass
                         type = count
                         ang_type[atype] = type
                         self.unique_angle_types[type] = (a, b, c, val) 
