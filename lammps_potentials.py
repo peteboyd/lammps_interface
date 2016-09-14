@@ -1121,6 +1121,36 @@ class PairPotential(object):
         def __repr__(self):
             return "%s %s %i %s"%(self.name, self.style, self.N, self.keyword)
 
+    class LjCutTip4pLong(object):
+        """Potential defined as
+
+        E = 4*eps*[(sig/r)^12 - (sig/r)^6] r < rc
+
+        and coulombic terms dealt with a kspace solver
+        TIP4P water implicit charge points are included in
+        ewald sum. 
+        """
+        def __init__(self):
+            self.name = "lj/cut/tip4p/long" 
+            self.eps = 0.
+            self.sig = 0.
+            self.reduced = False
+            self.cutoff = 0.
+            self.otype = 0
+            self.htype = 0
+            self.btype = 0
+            self.atype = 0
+            self.qdist = 0.
+        def __str__(self):
+            if self.reduced:
+                return "%15.6f %15.6f"%(self.eps,
+                                        self.sig)
+            return "%28s %15.6f %15.6f"%(self.name,
+                                         self.eps,
+                                         self.sig)
+        def __repr__(self):
+            return "%s %i %i %i %i %.4f %.3f"%(self.name, self.otype, self.htype, self.btype,
+                              self.atype, self.qdist, self.cutoff)
 
     class LjCutCoulLong(object):
         """Potential defined as

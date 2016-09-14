@@ -426,7 +426,7 @@ class LammpsSimulation(object):
 
             ff = self.options.mol_ff
             if ff is None:
-                print("Warning: Molecule %s will be using the %s force field as no "+
+                print("Warning: Molecule %s will be using the %s force field as no "%ff+
                       " value was set for molecules. To prevent this warning "+
                       "set --molecule-ff=[some force field] on the command line.")
                 ff = self.options.force_field
@@ -1129,7 +1129,7 @@ class LammpsSimulation(object):
             shake_str = "b "+" ".join(["%i "%i for i in self.fix_shake['bonds']]) + \
                         " a " + " ".join(["%i "%i for i in self.fix_shake['angles']])
                        # fix  id group tolerance iterations print_every [bonds + angles]
-            inp_str += "%-15s %i %s %f %i %i %s"%('fix', shk_fix, 'all', shake_tol, iterations, print_every, shake_str)
+            inp_str += "%-15s %i %s %s %f %i %i %s\n"%('fix', shk_fix, 'all', 'shake', shake_tol, iterations, print_every, shake_str)
 
         if (self.options.random_vel):
             inp_str += "%-15s %s\n"%("velocity", "all create %.2f %i"%(self.options.temp, np.random.randint(1,3000000)))

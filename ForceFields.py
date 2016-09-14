@@ -6,7 +6,7 @@ from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds, BT
 from Dubbeldam import Dub_atoms, Dub_bonds, Dub_angles, Dub_dihedrals, Dub_impropers
 #from FMOFCu import FMOFCu_angles, FMOFCu_dihedrals, FMOFCu_opbends, FMOFCu_atoms, FMOFCu_bonds
 from MOFFF import MOFFF_angles, MOFFF_dihedrals, MOFFF_opbends, MOFFF_atoms, MOFFF_bonds
-from water_models import SPC_E, TIP3P, TIP4P 
+from water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms 
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
 from atomic import METALS
 import math
@@ -3852,10 +3852,10 @@ class SPC_E(ForceField):
 
         """
         data['pair_potential'] = PairPotential.LjCutCoulLong()
-        data['pair_potential'].eps = SPC_E[data['force_field_type']][0]
-        data['pair_potential'].sig = SPC_E[data['force_field_type']][1]
+        data['pair_potential'].eps = SPC_E_atoms[data['force_field_type']][0]
+        data['pair_potential'].sig = SPC_E_atoms[data['force_field_type']][1]
         data['pair_potential'].cutoff = cutoff
-        data['charge'] = SPC_E[data['force_field_type']][2]
+        data['charge'] = SPC_E_atoms[data['force_field_type']][2]
 
     def special_commands(self):
         st = [
@@ -3870,12 +3870,12 @@ class SPC_E(ForceField):
         for node, data in self.graph.nodes_iter(data=True):
             if data['element'] == "O":
                 data['force_field_type'] = "OW"
-                data['mass'] = SPC_E[data['force_field_type']][0] 
-                data['charge'] = SPC_E[data['force_field_type']][3] 
+                data['mass'] = SPC_E_atoms[data['force_field_type']][0] 
+                data['charge'] = SPC_E_atoms[data['force_field_type']][3] 
             elif data['element'] == "H":
                 data['force_field_type'] = "HW"
-                data['mass'] = SPC_E[data['force_field_type']][0] 
-                data['charge'] = SPC_E[data['force_field_type']][3] 
+                data['mass'] = SPC_E_atoms[data['force_field_type']][0] 
+                data['charge'] = SPC_E_atoms[data['force_field_type']][3] 
             if data['force_field_type'] is None:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
@@ -3971,10 +3971,10 @@ class TIP3P(ForceField):
 
         """
         data['pair_potential'] = PairPotential.LjCutCoulLong()
-        data['pair_potential'].eps = TIP3P[data['force_field_type']][0]
-        data['pair_potential'].sig = TIP3P[data['force_field_type']][1]
+        data['pair_potential'].eps = TIP3P_atoms[data['force_field_type']][0]
+        data['pair_potential'].sig = TIP3P_atoms[data['force_field_type']][1]
         data['pair_potential'].cutoff = cutoff
-        data['charge'] = TIP3P[data['force_field_type']][2]
+        data['charge'] = TIP3P_atoms[data['force_field_type']][2]
 
     def special_commands(self):
         st = [
@@ -3989,12 +3989,12 @@ class TIP3P(ForceField):
         for node, data in self.graph.nodes_iter(data=True):
             if data['element'] == "O":
                 data['force_field_type'] = "OW"
-                data['mass'] = TIP3P[data['force_field_type']][0] 
-                data['charge'] = TIP3P[data['force_field_type']][3] 
+                data['mass'] = TIP3P_atoms[data['force_field_type']][0] 
+                data['charge'] = TIP3P_atoms[data['force_field_type']][3] 
             elif data['element'] == "H":
                 data['force_field_type'] = "HW"
-                data['mass'] = TIP3P[data['force_field_type']][0] 
-                data['charge'] = TIP3P[data['force_field_type']][3] 
+                data['mass'] = TIP3P_atoms[data['force_field_type']][0] 
+                data['charge'] = TIP3P_atoms[data['force_field_type']][3] 
             if data['force_field_type'] is None:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
