@@ -3810,6 +3810,7 @@ class SPC_E(ForceField):
         added here to ensure the potential is not 
         grouped with identical (however unlikely) potentials
         which are not rigid.
+
         """
         a, b, c, data = angle
         K = 100.0
@@ -3830,12 +3831,14 @@ class SPC_E(ForceField):
     def dihedral_term(self, dihedral):
         """
         No dihedral potential in SPC/E water model.
+
         """
         return None
 
     def improper_term(self, improper):
         """
         No improper potential in SPC/E water model.
+
         """
         return None
     
@@ -3852,10 +3855,9 @@ class SPC_E(ForceField):
 
         """
         data['pair_potential'] = PairPotential.LjCutCoulLong()
-        data['pair_potential'].eps = SPC_E_atoms[data['force_field_type']][0]
+        data['pair_potential'].eps = SPC_E_atoms[data['force_field_type']][2]
         data['pair_potential'].sig = SPC_E_atoms[data['force_field_type']][1]
         data['pair_potential'].cutoff = cutoff
-        data['charge'] = SPC_E_atoms[data['force_field_type']][2]
 
     def special_commands(self):
         st = [
@@ -3869,17 +3871,19 @@ class SPC_E(ForceField):
         """
         for node, data in self.graph.nodes_iter(data=True):
             if data['element'] == "O":
-                data['force_field_type'] = "OW"
-                data['mass'] = SPC_E_atoms[data['force_field_type']][0] 
-                data['charge'] = SPC_E_atoms[data['force_field_type']][3] 
+                fftype = "OW"
             elif data['element'] == "H":
+                fftype = "HW"
                 data['force_field_type'] = "HW"
-                data['mass'] = SPC_E_atoms[data['force_field_type']][0] 
-                data['charge'] = SPC_E_atoms[data['force_field_type']][3] 
-            if data['force_field_type'] is None:
+                data['mass'] = SPC_E_atoms[data["HW"]][0] 
+                data['charge'] = SPC_E_atoms[data["HW"]][3] 
+            else:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
                 sys.exit()
+            data['force_field_type'] = fftype 
+            data['mass'] = SPC_E_atoms[fftype]][0] 
+            data['charge'] = SPC_E_atoms[data[fftype]][3] 
 
 class TIP3P(ForceField):
     def __init__(self, graph=None, **kwargs):
@@ -3930,6 +3934,7 @@ class TIP3P(ForceField):
         added here to ensure the potential is not 
         grouped with identical (however unlikely) potentials
         which are not rigid.
+
         """
         a, b, c, data = angle
         a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
@@ -3948,13 +3953,15 @@ class TIP3P(ForceField):
 
     def dihedral_term(self, dihedral):
         """
-        No dihedral potential in SPC/E water model.
+        No dihedral potential in TIP3P water model.
+
         """
         return None
 
     def improper_term(self, improper):
         """
-        No improper potential in SPC/E water model.
+        No improper potential in TIP3P water model.
+
         """
         return None
     
@@ -3962,19 +3969,11 @@ class TIP3P(ForceField):
         """ 
         Lennard - Jones potential for OW and HW.
         
-        cutoff should be set to 9 angstroms, but this may
-        be unrealistic.
-        Also, no long range treatment of coulombic 
-        term! Otherwise
-        this isn't technically the SPC/E model but
-        Ewald should be used for periodic materials.
-
         """
         data['pair_potential'] = PairPotential.LjCutCoulLong()
-        data['pair_potential'].eps = TIP3P_atoms[data['force_field_type']][0]
+        data['pair_potential'].eps = TIP3P_atoms[data['force_field_type']][2]
         data['pair_potential'].sig = TIP3P_atoms[data['force_field_type']][1]
         data['pair_potential'].cutoff = cutoff
-        data['charge'] = TIP3P_atoms[data['force_field_type']][2]
 
     def special_commands(self):
         st = [
@@ -3988,14 +3987,120 @@ class TIP3P(ForceField):
         """
         for node, data in self.graph.nodes_iter(data=True):
             if data['element'] == "O":
-                data['force_field_type'] = "OW"
-                data['mass'] = TIP3P_atoms[data['force_field_type']][0] 
-                data['charge'] = TIP3P_atoms[data['force_field_type']][3] 
+                fftype = "OW"
             elif data['element'] == "H":
-                data['force_field_type'] = "HW"
-                data['mass'] = TIP3P_atoms[data['force_field_type']][0] 
-                data['charge'] = TIP3P_atoms[data['force_field_type']][3] 
-            if data['force_field_type'] is None:
+                fftype = "HW"
+            else: 
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
                 sys.exit()
+            data['force_field_type'] = fftype 
+            data['mass'] = TIP3P_atoms[fftype]][0] 
+            data['charge'] = TIP3P_atoms[fftype]][3] 
+
+class TIP4P(ForceField):
+    def __init__(self, graph=None, **kwargs):
+        self.pair_in_data = True
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+        if (graph is not None):
+            self.graph = graph
+            self.detect_ff_terms() 
+            self.compute_force_field_terms()
+
+    def bond_term(self, edge):
+        """Harmonic term
+        
+        E = 0.5 * K * (R - Req)^2
+        
+        just a placeholder in LAMMPS.
+        The bond is rigid and fixed by SHAKE in LAMMPS
+        therefore an unambiguous extra flag must be
+        added here to ensure the potential is not 
+        grouped with identical (however unlikely) potentials
+        which are not rigid.
+
+        """
+        n1, n2, data = edge
+
+        data['potential'] = BondPotential.Harmonic()
+        data['potential'].K = 450.0 
+        data['potential'].R0 = 0.9572
+        data['potential'].special_flag = "shake"
+        return 1
+
+    def angle_term(self, angle):
+        """Harmonic angle term.
+
+        E = 0.5 * K * (theta - theta0)^2
+        
+        just a placeholder in LAMMPS.
+        The angle is rigid and fixed by SHAKE in LAMMPS
+        therefore an unambiguous extra flag must be
+        added here to ensure the potential is not 
+        grouped with identical (however unlikely) potentials
+        which are not rigid.
+
+        """
+        a, b, c, data = angle
+        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
+        atype = a_data['force_field_type']
+        btype = b_data['force_field_type']
+        ctype = c_data['force_field_type']
+       
+        assert (b_data['element'] == "O")
+
+        data['potential'] = AnglePotential.Harmonic()
+        data['potential'].K = 55.0 
+        data['potential'].theta0 = 104.52
+        data['potential'].special_flag = "shake"
+        return 1
+
+    def dihedral_term(self, dihedral):
+        """
+        No dihedral potential in TIP4P water model.
+
+        """
+        return None
+
+    def improper_term(self, improper):
+        """
+        No improper potential in TIP4P water model.
+
+        """
+        return None
+    
+    def pair_terms(self, node, data, cutoff):
+        """ 
+        Lennard - Jones potential for OW and HW.
+
+        """
+        data['pair_potential'] = PairPotential.LjCutTip4pLong()
+        data['pair_potential'].qdist = 0.1250 
+        data['pair_potential'].eps = TIP4P_atoms[data['force_field_type']][2]
+        data['pair_potential'].sig = TIP4P_atoms[data['force_field_type']][1]
+        data['pair_potential'].cutoff = cutoff
+
+    def special_commands(self):
+        st = [
+              "%-15s %s"%("pair_modify", "tail yes")
+             ] 
+        return st
+
+    def detect_ff_terms(self):
+        """Water consists of O and H, not too difficult. 
+
+        """
+        for node, data in self.graph.nodes_iter(data=True):
+            if data['element'] == "O":
+                fftype = "OW"
+            elif data['element'] == "H":
+                fftype = "HW"
+            else: 
+                print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
+                        " with element: '%s'"%(data['element']))
+                sys.exit()
+            data['force_field_type'] = fftype 
+            data['mass'] = TIP4P_atoms[fftype]][0] 
+            data['charge'] = TIP4P_atoms[fftype]][3] 

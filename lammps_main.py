@@ -426,10 +426,11 @@ class LammpsSimulation(object):
 
             ff = self.options.mol_ff
             if ff is None:
-                print("Warning: Molecule %s will be using the %s force field as no "%ff+
+                ff = self.options.force_field
+                atoms = ", ".join([rep.node[j]['element'] for j in rep.nodes()])
+                print("Warning: Molecule %s with atoms (%s) will be using the %s force field as no "%(mtype,atoms,ff)+
                       " value was set for molecules. To prevent this warning "+
                       "set --molecule-ff=[some force field] on the command line.")
-                ff = self.options.force_field
             h_bonding = False
             if (ff == "Dreiding"):
                 hbonding = input("Would you like this molecule type to have hydrogen donor potentials? [y/n]: ")
