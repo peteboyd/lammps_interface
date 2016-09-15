@@ -1624,18 +1624,27 @@ class Cell(object):
     params = property(get_params, set_params)
 
     def minimum_supercell(self, cutoff):
-        """Calculate the smallest supercell with a half-cell width cutoff."""
-        a_cross_b = np.cross(self.cell[0], self.cell[1])
-        b_cross_c = np.cross(self.cell[1], self.cell[2])
-        c_cross_a = np.cross(self.cell[2], self.cell[0])
+        """Calculate the smallest supercell with a half-cell width cutoff.
+        
+        Increment from smallest cell vector to largest. So the supercell
+        is not considering the 'unit cell' for each cell dimension.
 
-        volume = np.dot(self.cell[0], b_cross_c)
+        """
 
-        widths = [volume / np.linalg.norm(b_cross_c),
-                  volume / np.linalg.norm(c_cross_a),
-                  volume / np.linalg.norm(a_cross_b)]
+        diag = np.diag(self.cell)
+        #print(np.ceil(cutoff/diag*2.))
+        return tuple(int(i) for i in np.ceil(cutoff/diag*2.))
+        #a_cross_b = np.cross(self.cell[0], self.cell[1])
+        #b_cross_c = np.cross(self.cell[1], self.cell[2])
+        #c_cross_a = np.cross(self.cell[2], self.cell[0])
 
-        return tuple(int(math.ceil(2*cutoff/x)) for x in widths)
+        #volume = np.dot(self.cell[0], b_cross_c)
+
+        #widths = [volume / np.linalg.norm(b_cross_c),
+        #          volume / np.linalg.norm(c_cross_a),
+        #          volume / np.linalg.norm(a_cross_b)]
+
+        #return tuple(int(math.ceil(2*cutoff/x)) for x in widths)
 
     def update_supercell(self, tuple):
         self._cell = np.multiply(self._cell.T, tuple).T
