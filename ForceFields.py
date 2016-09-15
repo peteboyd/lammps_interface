@@ -3874,9 +3874,6 @@ class SPC_E(ForceField):
                 fftype = "OW"
             elif data['element'] == "H":
                 fftype = "HW"
-                data['force_field_type'] = "HW"
-                data['mass'] = SPC_E_atoms[data["HW"]][0] 
-                data['charge'] = SPC_E_atoms[data["HW"]][3] 
             else:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
