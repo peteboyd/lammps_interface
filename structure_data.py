@@ -195,6 +195,27 @@ class MolecularGraph(nx.Graph):
         """Computes bonds between atoms based on covalent radii."""
         # here assume bonds exist, populate data with lengths and 
         # symflags if needed.
+        organic = set(["H", "C", "N", "O", "S"])
+        non_metals = set(["H", "He", "C", "N", "O", "F", "Ne",
+                          "P", "S", "Cl", "Ar", "Se", "Br", "Kr",
+                          "I", "Xe", "Rn"])
+        noble_gases = set(["He", "Ne", "Ar", "Kr", "Xe", "Rn"])
+        metalloids = set(["B", "Si", "Ge", "As", "Sb", "Te", "At"])
+        lanthanides = set(["La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu",
+                           "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu"])
+        actinides = set(["Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk",
+                         "Cf", "Es", "Fm", "Md", "No", "Lr"])
+        transition_metals = set(["Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni",
+                                 "Cu", "Zn", "Y", "Zr", "Nb", "Mo", "Tc", "Ru",
+                                 "Rh", "Pd", "Ag", "Cd", "Hf", "Ta", "W", "Re",
+                                 "Os", "Ir", "Pt", "Ir", "Pt", "Au", "Hg", "Rf",
+                                 "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn"])
+        alkali = set(["Li", "Na", "K", "Rb", "Cs", "Fr"])
+        alkaline_earth = set(["Be", "Mg", "Ca", "Sr", "Ba", "Ra"])
+        main_group = set(["Al", "Ga", "Ge", "In", "Sn", "Sb", "Tl", "Pb", "Bi",
+                          "Po", "At", "Cn", "Uut", "Fl", "Uup", "Lv", "Uus"])
+
+        metals = main_group | alkaline_earth | alkali | transition_metals | metalloids
         if (self.number_of_edges() > 0):
             # bonding found in cif file
             sf = []
@@ -245,13 +266,18 @@ class MolecularGraph(nx.Graph):
             node1, node2 = self.node[n1], self.node[n2]
             e1, e2 = node1['element'],\
                     node2['element']
+            elements = set([e1, e2])
             i1,i2 = node1['index']-1, node2['index']-1
             rad = (COVALENT_RADII[e1] + COVALENT_RADII[e2])
             dist = self.distance_matrix[i1,i2]
             tempsf = scale_factor
             # probably a better way to fix these kinds of issues..
-            if ("F" in [e1, e2]) and ("Cu" in [e1, e2]):
+            if (set("F") < elements) and  (len(elements & metals)): 
                 tempsf = 0.8
+
+            if (set("O") < elements) and (len(elements & metals)):
+                tempsf = 0.85
+
             if dist*tempsf < rad:
 
                 flag = self.compute_bond_image_flag(n1, n2, cell)
@@ -485,11 +511,13 @@ class MolecularGraph(nx.Graph):
         """ 
         #TODO(pboyd) return if bonds already 'typed' in the .cif file
         organic = set(["H", "C", "N", "O", "S"])
+
         for n1, n2, data in self.edges_iter2(data=True):
             elements = [self.node[a]['element'] for a in (n1,n2)]
             hybridization = [self.node[a]['hybridization'] for a in (n1, n2)]
             rings = [self.node[a]['rings'] for a in (n1, n2)]
             samering = False
+
             if set(hybridization) == set(['aromatic']):
                 for r in rings[0]:
                     if n2 in r:
