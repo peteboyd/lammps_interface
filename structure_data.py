@@ -166,6 +166,11 @@ class MolecularGraph(nx.Graph):
                     kwargs['charge'] = float(kwargs[key])
                 except KeyError:
                     pass
+                except ValueError:
+                    print("Warning %s could not be converted "%(kwargs[key]) + 
+                          "to a charge value for atom %s"%(element) + 
+                          ", setting charge as 0.0 for this atom")
+                    kwargs['charge'] = 0.0
         else:
             kwargs['charge'] = 0.0
         try:

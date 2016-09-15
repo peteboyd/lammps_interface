@@ -3882,8 +3882,8 @@ class SPC_E(ForceField):
                         " with element: '%s'"%(data['element']))
                 sys.exit()
             data['force_field_type'] = fftype 
-            data['mass'] = SPC_E_atoms[fftype]][0] 
-            data['charge'] = SPC_E_atoms[data[fftype]][3] 
+            data['mass'] = SPC_E_atoms[fftype][0]
+            data['charge'] = SPC_E_atoms[fftype][3] 
 
 class TIP3P(ForceField):
     def __init__(self, graph=None, **kwargs):
@@ -3995,8 +3995,8 @@ class TIP3P(ForceField):
                         " with element: '%s'"%(data['element']))
                 sys.exit()
             data['force_field_type'] = fftype 
-            data['mass'] = TIP3P_atoms[fftype]][0] 
-            data['charge'] = TIP3P_atoms[fftype]][3] 
+            data['mass'] = TIP3P_atoms[fftype][0] 
+            data['charge'] = TIP3P_atoms[fftype][3] 
 
 class TIP4P(ForceField):
     def __init__(self, graph=None, **kwargs):
@@ -4102,5 +4102,5 @@ class TIP4P(ForceField):
                         " with element: '%s'"%(data['element']))
                 sys.exit()
             data['force_field_type'] = fftype 
-            data['mass'] = TIP4P_atoms[fftype]][0] 
-            data['charge'] = TIP4P_atoms[fftype]][3] 
+            data['mass'] = TIP4P_atoms[fftype][0] 
+            data['charge'] = TIP4P_atoms[fftype][3] 
