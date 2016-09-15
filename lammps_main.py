@@ -413,7 +413,7 @@ class LammpsSimulation(object):
         # apply different force fields.
         for mtype in list(self.molecule_types.keys()):
             # prompt for ForceField?
-            #rep = self.subgraphs[self.molecule_types[mtype][0]]
+            rep = self.subgraphs[self.molecule_types[mtype][0]]
             #response = input("Would you like to apply a new force field to molecule type %i with atoms (%s)? [y/n]: "%
             #        (mtype, ", ".join([rep.node[j]['element'] for j in rep.nodes()])))
             #ff = self.options.force_field
