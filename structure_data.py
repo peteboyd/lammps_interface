@@ -141,7 +141,11 @@ class MolecularGraph(nx.Graph):
                         " column.")
                 sys.exit()
 
-        charge_keywords = ["_atom_type_partial_charge", "_atom_type_parital_charge", "_atom_type_charge"]
+        charge_keywords = ["_atom_type_partial_charge", 
+                           "_atom_type_parital_charge", 
+                           "_atom_type_charge", 
+                           "_atom_site_charge" # RASPA cif file
+                           ]
         element = kwargs.pop(label)
 
         # replacing Atom.__init__
