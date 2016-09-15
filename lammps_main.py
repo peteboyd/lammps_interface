@@ -519,7 +519,6 @@ class LammpsSimulation(object):
         #    for mgraph in self.subgraphs:
         #        mgraph.reorder_labels(reorder_dic)
 
-
     def write_lammps_files(self):
         self.unique_atoms()
         self.unique_bonds()

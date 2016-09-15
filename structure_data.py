@@ -132,6 +132,7 @@ class MolecularGraph(nx.Graph):
         #update keywords with more atom info
         # rename this to something more intuitive
         label="_atom_site_type_symbol"
+        orig_keys = list(kwargs.keys())
         if(label not in kwargs):
             label = "_atom_site_label"
             if (label not in kwargs):
@@ -140,7 +141,7 @@ class MolecularGraph(nx.Graph):
                         " column.")
                 sys.exit()
 
-
+        charge_keywords = ["_atom_type_partial_charge", "_atom_type_parital_charge", "_atom_type_charge"]
         element = kwargs.pop(label)
 
         # replacing Atom.__init__
@@ -154,9 +155,14 @@ class MolecularGraph(nx.Graph):
         kwargs.update({'h_bond_potential':None})
         kwargs.update({'tabulated_potential':False})
         kwargs.update({'table_potential':None})
-        try:
-            kwargs['charge'] = float(kwargs['_atom_type_partial_charge'])
-        except KeyError:
+        if set(orig_keys) & set(charge_keywords):
+
+            for key in charge_keywords:
+                try:
+                    kwargs['charge'] = float(kwargs[key])
+                except KeyError:
+                    pass
+        else:
             kwargs['charge'] = 0.0
         try:
             fftype = kwargs.pop('_atom_site_description')
