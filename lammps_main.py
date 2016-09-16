@@ -1021,9 +1021,18 @@ class LammpsSimulation(object):
                 except IndexError:
                     pass
             inp_str += "#### END Pair Coefficients ####\n\n"
-   
         
         if(self.molecules):
+            if (len(self.molecule_types.keys()) > 31):
+                # lammps cannot handle more than 32 groups including 'all' 
+                continue
+            total_count = 0 
+            for k,v in self.molecule_types.items():
+                total_count += len(v)
+            list_individual_molecules = True 
+            if total_count > 31:
+                list_individual_molecules = False
+
             inp_str += "\n#### Atom Groupings ####\n"
             idx = 1
             framework_atoms = self.graph.nodes()
@@ -1043,11 +1052,23 @@ class LammpsSimulation(object):
                 for atom in reversed(sorted(all_atoms)):
                     del framework_atoms[framework_atoms.index(atom)]
                 mcount = 0
-                for j in self.molecule_types[mtype]:
-                    if (self.subgraphs[j].molecule_images):
-                        for molecule in self.subgraphs[j].molecule_images:
+                if list_individual_molecules:
+                    for j in self.molecule_types[mtype]:
+                        if (self.subgraphs[j].molecule_images):
+                            for molecule in self.subgraphs[j].molecule_images:
+                                mcount += 1
+                                inp_str += "%-15s %-8s %s  "%("group", "%i-%i"%(mtype, mcount), "id")
+                                for x in self.groups(molecule):
+                                    x = list(x)
+                                    if(len(x)>1):
+                                        inp_str += " %i:%i"%(x[0], x[-1])
+                                    else:
+                                        inp_str += " %i"%(x[0])
+                                inp_str += "\n"
+                        else:
                             mcount += 1
                             inp_str += "%-15s %-8s %s  "%("group", "%i-%i"%(mtype, mcount), "id")
+                            molecule = self.subgraphs[j].nodes()
                             for x in self.groups(molecule):
                                 x = list(x)
                                 if(len(x)>1):
@@ -1055,17 +1076,6 @@ class LammpsSimulation(object):
                                 else:
                                     inp_str += " %i"%(x[0])
                             inp_str += "\n"
-                    else:
-                        mcount += 1
-                        inp_str += "%-15s %-8s %s  "%("group", "%i-%i"%(mtype, mcount), "id")
-                        molecule = self.subgraphs[j].nodes()
-                        for x in self.groups(molecule):
-                            x = list(x)
-                            if(len(x)>1):
-                                inp_str += " %i:%i"%(x[0], x[-1])
-                            else:
-                                inp_str += " %i"%(x[0])
-                        inp_str += "\n"
             if(framework_atoms):
                 inp_str += "%-15s %-8s %s  "%("group", "fram", "id")
                 for x in self.groups(framework_atoms):
