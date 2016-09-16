@@ -109,12 +109,12 @@ class LammpsSimulation(object):
                 type = bb_type[btype]
 
             except KeyError:
-                count += 1
                 try: 
                     if data['potential'].special_flag == 'shake':
-                        self.fix_shake.setdefault('bonds', []).append(count)
+                        self.fix_shake.setdefault('bonds', []).append(count+1)
                 except AttributeError:
                     pass
+                count += 1
                 type = count
                 bb_type[btype] = type
 
