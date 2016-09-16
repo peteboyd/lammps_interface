@@ -1022,10 +1022,8 @@ class LammpsSimulation(object):
                     pass
             inp_str += "#### END Pair Coefficients ####\n\n"
         
-        if(self.molecules):
-            if (len(self.molecule_types.keys()) > 31):
-                # lammps cannot handle more than 32 groups including 'all' 
-                continue
+        if(self.molecules)and(len(self.molecule_types.keys()) < 32):
+            # lammps cannot handle more than 32 groups including 'all' 
             total_count = 0 
             for k,v in self.molecule_types.items():
                 total_count += len(v)
