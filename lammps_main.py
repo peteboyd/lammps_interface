@@ -451,6 +451,9 @@ class LammpsSimulation(object):
     def compute_simulation_size(self):
 
         supercell = self.cell.minimum_supercell(self.options.cutoff)
+        if np.any(np.array(supercell) > 1):
+            print("Warning: unit cell is not large enough to"
+                  +" support a non-bonded cutoff of %.2f Angstroms."%self.options.cutoff) 
 
         if(self.options.replication is not None):
             supercell = tuple(map(int, re.split('x| |, |,',self.options.replication)))
@@ -460,12 +463,9 @@ class LammpsSimulation(object):
                     print("Use <ixjxk> format")
                     print("Exiting...")
                     sys.exit()
-            print(supercell)
 
         if np.any(np.array(supercell) > 1):
-            print("Warning: unit cell is not large enough to"
-                  +" support a non-bonded cutoff of %.2f Angstroms\n"%self.options.cutoff +
-                   "Re-sizing to a %i x %i x %i supercell. "%(supercell))
+            print("Re-sizing to a %i x %i x %i supercell. "%(supercell))
             
             #TODO(pboyd): apply to subgraphs as well, if requested.
             self.graph.build_supercell(supercell, self.cell)
@@ -513,12 +513,12 @@ class LammpsSimulation(object):
         for mgraph in self.subgraphs:
             self.graph += mgraph
         # Re-ordering is broken.
-        #if sorted(self.graph.nodes()) != [i+1 for i in range(len(self.graph.nodes()))]:
-        #    print("Re-labelling atom indices.")
-        #    reorder_dic = {i:j+1 for i, j in zip(sorted(self.graph.nodes()), range(len(self.graph.nodes())))}
-        #    self.graph.reorder_labels(reorder_dic)
-        #    for mgraph in self.subgraphs:
-        #        mgraph.reorder_labels(reorder_dic)
+        if sorted(self.graph.nodes()) != [i+1 for i in range(len(self.graph.nodes()))]:
+            print("Re-labelling atom indices.")
+            reorder_dic = {i:j+1 for i, j in zip(sorted(self.graph.nodes()), range(len(self.graph.nodes())))}
+            self.graph.reorder_labels(reorder_dic)
+            for mgraph in self.subgraphs:
+                mgraph.reorder_labels(reorder_dic)
 
     def write_lammps_files(self):
         self.unique_atoms()
@@ -1064,7 +1064,7 @@ class LammpsSimulation(object):
                                     else:
                                         inp_str += " %i"%(x[0])
                                 inp_str += "\n"
-                        else:
+                        elif len(self.molecule_types[mtype]) > 1:
                             mcount += 1
                             inp_str += "%-15s %-8s %s  "%("group", "%i-%i"%(mtype, mcount), "id")
                             molecule = self.subgraphs[j].nodes()

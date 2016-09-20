@@ -89,12 +89,13 @@ class MolecularGraph(nx.Graph):
         old_edges = list(self.edges_iter2(data=True))
         for node, data in old_nodes:
             if 'angles' in data:
-                ang_data = data['angles'].items()
+                
+                ang_data = list(data['angles'].items())
                 for (a,c), val in ang_data:
                     data['angles'].pop((a,c))
                     data['angles'][(reorder_dic[a], reorder_dic[c])] = val
             if 'impropers' in data:
-                imp_data = data['impropers'].items()
+                imp_data = list(data['impropers'].items())
                 for (a, c, d), val in imp_data:
                     data['impropers'].pop((a,c,d))
                     data['impropers'][(reorder_dic[a], reorder_dic[c], reorder_dic[d])] = val
@@ -105,7 +106,7 @@ class MolecularGraph(nx.Graph):
 
         for b, c, data in old_edges:
             if 'dihedrals' in data:
-                dihed_data = data['dihedrals'].items()
+                dihed_data = list(data['dihedrals'].items())
                 for (a, d), val in dihed_data:
                     data['dihedrals'].pop((a,d))
                     data['dihedrals'][(reorder_dic[a], reorder_dic[d])] = val
@@ -933,7 +934,6 @@ class MolecularGraph(nx.Graph):
 
             for i in range(1, totatomlen+1):
                 graph_image.node[unit_node_ids[i-1]+offset]['image'] = unit_node_ids[i-1]
-
             if track_molecule:
                 self.molecule_images.append(graph_image.nodes())
             # update cartesian coordinates for each node in the image
@@ -978,11 +978,11 @@ class MolecularGraph(nx.Graph):
                         order_bd = graph_image.sorted_edge_dict[(node, did)]
                         bd_symflag = e_bd['symflag']
                         if order_ba != (node, aid) and e_ba['symflag'] != '.':
-                            ba_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_ba['symflag'][2:]])))
+                            ba_symflag = "1_%i%i%i"%(tuple([10 - int(j) for j in e_ba['symflag'][2:]]))
                         if order_bc != (node, cid) and e_bc['symflag'] != '.':
-                            bc_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_bc['symflag'][2:]])))
+                            bc_symflag = "1_%i%i%i"%(tuple([10 - int(j) for j in e_bc['symflag'][2:]]))
                         if order_bd != (node, did) and e_bd['symflag'] != '.':
-                            bd_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_bd['symflag'][2:]])))
+                            bd_symflag = "1_%i%i%i"%(tuple([10 - int(j) for j in e_bd['symflag'][2:]])) 
 
                         os_a = self.img_offset(cells, newcell, maxcell, ba_symflag) * unitatomlen
                         os_c = self.img_offset(cells, newcell, maxcell, bc_symflag) * unitatomlen
