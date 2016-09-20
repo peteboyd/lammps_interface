@@ -129,9 +129,9 @@ class Options(object):
                                       "Default is 12.5 angstroms.")
         simulation_group.add_argument("--replication", action="store",
                                       type=str, dest="replication",
-                                      default='NA',
+                                      default=None,
                                       help="Manually specify the replications to form the supercell "+
-                                      "Use 1x1x1 or 4x4x4x or 2x2x3" +
+                                      "Use comma, space or 'x' delimited values for the a,b,c directions." + 
                                       " This is useful when dealing with flexible materials " +
                                       "where you know that structural collapse will result in " +
                                       "the box decreasing past 2*rcut") 
@@ -154,7 +154,7 @@ class Options(object):
                                       default=False,
                                       dest="dump_xyz",
                                       help="Store trajectory of simulation in a "+
-                                           "dcd format. If not requested, then no trajectory "+
+                                           "xyz format. If not requested, then no trajectory "+
                                            "file will be written.")
         simulation_group.add_argument("--restart",
                                       action="store_true",

@@ -8,6 +8,7 @@ the program starts here.
 
 import sys
 import math
+import re
 import numpy as np
 import networkx as nx
 import ForceFields
@@ -451,8 +452,8 @@ class LammpsSimulation(object):
 
         supercell = self.cell.minimum_supercell(self.options.cutoff)
 
-        if(self.options.replication != 'NA'):
-            supercell = tuple(map(int, self.options.replication.split('x')))
+        if(self.options.replication is not None):
+            supercell = tuple(map(int, re.split('x| |, |,',self.options.replication)))
             if(len(supercell) != 3):
                 if(supercell[0] < 1 or supercell[1] < 1 or supercell[2] < 1):
                     print("Incorrect supercell requested: %s\n"%(supercell))
