@@ -40,6 +40,7 @@ class LammpsSimulation(object):
         self.unique_pair_types = {}
         self.pair_in_data = True
         self.separate_molecule_types = True
+        self.framework = False # Flag if a framework exists in the simulation. 
         self.type_molecules = {}
         self.no_molecule_pair = True  # ensure that h-bonding will not occur between molecules of the same type
         self.fix_shake = {}
@@ -1075,7 +1076,9 @@ class LammpsSimulation(object):
                                 else:
                                     inp_str += " %i"%(x[0])
                             inp_str += "\n"
+
             if(framework_atoms):
+                self.framework = True
                 inp_str += "%-15s %-8s %s  "%("group", "fram", "id")
                 for x in self.groups(framework_atoms):
                     x = list(x)
@@ -1102,19 +1105,19 @@ class LammpsSimulation(object):
         if (self.options.minimize):
             box_min = "tri"
             min_style="cg"
-            nmins = 10
+            nmins = 2 
             #inp_str += "%-15s %s\n"%("min_style","fire")
-            inp_str += "%-15s %i %s\n"%("compute", 1, "all msd com yes")
-            inp_str += "%-15s %-10s %s\n"%("variable", "Dx", "equal c_1[1]")
-            inp_str += "%-15s %-10s %s\n"%("variable", "Dy", "equal c_1[2]")
-            inp_str += "%-15s %-10s %s\n"%("variable", "Dz", "equal c_1[3]")
-            inp_str += "%-15s %-10s %s\n"%("variable", "MSD", "equal c_1[4]")
-            inp_str += "%-15s %s %s\n"%("fix", "output all print 1", "\"$(vol),$(cella),$(cellb),$(cellc),${Dx},${Dy},${Dz},${MSD}\"" +
-                                            " file %s.min.csv title \"Vol,CellA,CellB,CellC,Dx,Dy,Dz,MSD\" screen no"%(self.name))
+            #inp_str += "%-15s %i %s\n"%("compute", 1, "all msd com yes")
+            #inp_str += "%-15s %-10s %s\n"%("variable", "Dx", "equal c_1[1]")
+            #inp_str += "%-15s %-10s %s\n"%("variable", "Dy", "equal c_1[2]")
+            #inp_str += "%-15s %-10s %s\n"%("variable", "Dz", "equal c_1[3]")
+            #inp_str += "%-15s %-10s %s\n"%("variable", "MSD", "equal c_1[4]")
+            #inp_str += "%-15s %s %s\n"%("fix", "output all print 1", "\"$(vol),$(cella),$(cellb),$(cellc),${Dx},${Dy},${Dz},${MSD}\"" +
+            #                                " file %s.min.csv title \"Vol,CellA,CellB,CellC,Dx,Dy,Dz,MSD\" screen no"%(self.name))
 
             inp_str += "%-15s %s\n"%("min_style", min_style)
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-            inp_str += "%-15s %i\n"%("run", 1) 
+            #inp_str += "%-15s %i\n"%("run", 1) 
 
             for j in range(nmins):
                 fix = self.fixcount()
@@ -1125,9 +1128,9 @@ class LammpsSimulation(object):
             
                 #inp_str += "%-15s %s\n"%("min_style","fire")
                 inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-                inp_str += "%-15s %i\n"%("run", 1) 
+                #inp_str += "%-15s %i\n"%("run", 1) 
             
-            inp_str += "%-15s %s\n"%("unfix", "output") 
+           # inp_str += "%-15s %s\n"%("unfix", "output") 
             
         
         if (self.fix_shake):
@@ -1142,6 +1145,63 @@ class LammpsSimulation(object):
 
         if (self.options.random_vel):
             inp_str += "%-15s %s\n"%("velocity", "all create %.2f %i"%(self.options.temp, np.random.randint(1,3000000)))
+
+        if (self.options.nvt):
+            inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
+            inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
+            molecule_fixes = []
+            mollist = sorted(list(self.molecule_types.keys()))
+            for molid in mollist: 
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                inp_str += "%-15s %s\n"%("fix", "%i %s langevin %.2f %.2f ${tdamp} %i"%(id, 
+                                                                                        str(molid), 
+                                                                                        self.options.temp, 
+                                                                                        self.options.temp,
+                                                                                        np.random.randint(1,3000000)
+                                                                                        ))
+            if self.framework:
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                inp_str += "%-15s %s\n"%("fix", "%i %s langevin %.2f %.2f ${tdamp} %i"%(id, 
+                                                                                        "fram", 
+                                                                                        self.options.temp, 
+                                                                                        self.options.temp,
+                                                                                        np.random.randint(1,3000000)
+                                                                                        ))
+            id = self.fixcount()
+            inp_str += "%-15s %s\n"%("fix", "%i all nve"%id)
+            inp_str += "%-15s %i\n"%("thermo", 0)
+            inp_str += "%-15s %i\n"%("run", self.options.neqstp)
+            inp_str += "%-15s %i\n"%("unfix", id)
+            for molid in mollist:
+                fid = molecule_fixes.pop(0)
+                inp_str += "%-15s %i\n"%("unfix", fid) 
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                inp_str += "%-15s %s\n"%("fix", "%i %s nvt %.2f %.2f ${tdamp} %i"%(id, 
+                                                                                   str(molid), 
+                                                                                   self.options.temp, 
+                                                                                   self.options.temp,
+                                                                                   np.random.randint(1,3000000)
+                                                                                   ))
+            if self.framework:
+                fid = molecule_fixes.pop(0)
+                inp_str += "%-15s %i\n"%("unfix", fid) 
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                inp_str += "%-15s %s\n"%("fix", "%i %s nvt %.2f %.2f ${tdamp} %i"%(id, 
+                                                                                   "fram", 
+                                                                                   self.options.temp, 
+                                                                                   self.options.temp,
+                                                                                   np.random.randint(1,3000000)
+                                                                                   ))
+            
+            inp_str += "%-15s %i\n"%("thermo", 1)
+            inp_str += "%-15s %i\n"%("run", self.options.nprodstp)
+            
+            for idx in molecule_fixes:
+                inp_str += "%-15s %i\n"%("unfix", idx) 
 
         if (self.options.npt):
             id = self.fixcount()

@@ -119,6 +119,14 @@ class Options(object):
                                       + " an isothermal-isobaric simulation. This will use "+
                                       "values from TEMP and PRESSURE, NEQSTP, and NPRODSTP to "+
                                       "produce the input file.")
+        simulation_group.add_argument("--nvt", action="store_true",
+                                      dest="nvt",
+                                      default=False,
+                                      help="Request input files necessary for"
+                                      + " an canonical simulation. This will use "+
+                                      "values from TEMP, NEQSTP, and NPRODSTP to "+
+                                      "produce the input file. Equilibration with a "+
+                                      "Langevin thermostat, Production with Nose-Hoover.")
         simulation_group.add_argument("--cutoff", action="store",
                                       type=float, dest="cutoff",
                                       default=12.5,
