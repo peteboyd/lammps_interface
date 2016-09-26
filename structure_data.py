@@ -1241,8 +1241,13 @@ def write_CIF(graph, cell):
                                 CIF.atom_site_label(label))
         c.add_data("atoms", _atom_site_type_symbol=
                                 CIF.atom_site_type_symbol(data['element']))
-        c.add_data("atoms", _atom_site_description=
+        try:
+            c.add_data("atoms", _atom_site_description=
                                 CIF.atom_site_description(data['force_field_type']))
+        except KeyError:
+            c.add_data("atoms", _atom_site_description=
+                                CIF.atom_site_description(data['element']))
+
         coords = data['cartesian_coordinates']
         carts.append(coords)
         fc = np.dot(cell.inverse, coords) 
@@ -1252,8 +1257,11 @@ def write_CIF(graph, cell):
                                 CIF.atom_site_fract_y(fc[1]))
         c.add_data("atoms", _atom_site_fract_z=
                                 CIF.atom_site_fract_z(fc[2]))
-        c.add_data("atoms", _atom_type_partial_charge=
+        try:
+            c.add_data("atoms", _atom_type_partial_charge=
                                 CIF.atom_type_partial_charge(data['charge']))
+        except KeyError:
+            c.add_data("atoms", _atom_type_partial_charge="0.0")
     # bond block
     # must re-sort them based on bond type (Mat Sudio)
     tosort = [(data['order'], (n1, n2, data)) for n1, n2, data in graph.edges_iter2(data=True)]
