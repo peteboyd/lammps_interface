@@ -60,11 +60,13 @@ class MolecularGraph(nx.Graph):
         self.coordinates = None
         self.distance_matrix = None
         self.original_size = 0
+        self.molecule_id = 444
         self.inorganic_sbus = {}
         self.find_metal_sbus = False
         self.organic_sbus = {}
         self.find_organic_sbus = False
         self.cell = None
+        self.rigid = False
         #TODO(pboyd): networkx edges do not store the nodes in order!
         # Have to keep a dictionary lookup to make sure the nodes 
         # are referenced properly (particularly across periodic images)
@@ -151,6 +153,7 @@ class MolecularGraph(nx.Graph):
 
         # replacing Atom.__init__
         kwargs.update({'mass':MASS[element]})
+        kwargs.update({'molid':self.molecule_id})
         kwargs.update({'element':element})
         kwargs.update({'cycle':False})
         kwargs.update({'rings':[]})
@@ -317,9 +320,13 @@ class MolecularGraph(nx.Graph):
         coordl = self.node[l]['cartesian_coordinates']
         coordm = self.node[m]['cartesian_coordinates']
         coordr = self.node[r]['cartesian_coordinates']
-        
-        v1 = self.min_img(coordl - coordm)
-        v2 = self.min_img(coordr - coordm)
+       
+        try:
+            v1 = self.min_img(coordl - coordm)
+            v2 = self.min_img(coordr - coordm)
+        except AttributeError:
+            v1 = coordl - coordm
+            v2 = coordr - coordm
 
         v1 /= np.linalg.norm(v1)
         v2 /= np.linalg.norm(v2)
@@ -895,7 +902,7 @@ class MolecularGraph(nx.Graph):
             print ("No recognizable %s clusters for %i elements %s"%(type.lower(), no_cluster.count(j),  j))
 
 
-    def build_supercell(self, sc, lattice, track_molecule=False):
+    def build_supercell(self, sc, lattice, track_molecule=False, molecule_len=0):
         """Construct a graph with nodes supporting the size of the 
         supercell (sc)
         Oh man.. so ugly.        
@@ -918,7 +925,9 @@ class MolecularGraph(nx.Graph):
         orig_copy = deepcopy(self)
         for count, cell in enumerate(cells):
             newcell = np.array(cell).flatten()
-            offset = count * unitatomlen 
+            offset = count * unitatomlen
+            mol_offset = count * molecule_len
+
             cartesian_offset = np.dot(newcell, lattice.cell) 
             if (count == 0):
                 graph_image = self
@@ -936,9 +945,12 @@ class MolecularGraph(nx.Graph):
                 graph_image.node[unit_node_ids[i-1]+offset]['image'] = unit_node_ids[i-1]
             if track_molecule:
                 self.molecule_images.append(graph_image.nodes())
+                graph_image.molecule_id = orig_copy.molecule_id + mol_offset
             # update cartesian coordinates for each node in the image
             for node, data in graph_image.nodes_iter(data=True):
                 n_orig = data['image']
+                if track_molecule:
+                    data['molid'] = graph_image.molecule_id
                 data['cartesian_coordinates'] = data['cartesian_coordinates'] + cartesian_offset
                 # update all angle and improper terms to the curent image indices. Dihedrals will be done in the edge loop
                 # angle check

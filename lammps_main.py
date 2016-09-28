@@ -21,6 +21,7 @@ from ccdc import CCDC_BOND_ORDERS
 from datetime import datetime
 from InputHandler import Options
 from copy import deepcopy
+import Molecules
 if sys.version_info < (3,0):
     input = raw_input
 
@@ -44,6 +45,7 @@ class LammpsSimulation(object):
         self.type_molecules = {}
         self.no_molecule_pair = True  # ensure that h-bonding will not occur between molecules of the same type
         self.fix_shake = {}
+        self.fix_rigid = {}
 
     def set_MDMC_config(self, MDMC_config):
         self.MDMC_config = MDMC_config
@@ -68,7 +70,6 @@ class LammpsSimulation(object):
 
         for node, data in self.graph.nodes_iter(data=True):
             # add factor for h_bond donors
-
             if self.separate_molecule_types:
                 molid = [j for j,mol in enumerate(molecule_nodes) if node in mol]
                 if(len(molid) != 1):
@@ -369,8 +370,11 @@ class LammpsSimulation(object):
         self.compute_molecules()
         if (self.molecules): 
             print("Molecules found in the framework, separating.")
+            molid=0
             for molecule in self.molecules:
+                molid += 1
                 sg = self.cut_molecule(molecule)
+                sg.molecule_id = molid
                 # unwrap coordinates
                 sg.unwrap_node_coordinates(self.cell)
                 self.subgraphs.append(sg)
@@ -444,10 +448,97 @@ class LammpsSimulation(object):
                     print("Unrecognized command: %s"%hbonding)
                     sys.exit()
             for m in self.molecule_types[mtype]:
+                # Water check
+                # currently only works on bare water without dummy atoms.
+                ngraph = self.subgraphs[m]
+                self.assign_molecule_ids(ngraph)
+                if ff[-5:] == "Water":
+                    self.add_water_model(ngraph, ff)
+                    ff = ff[:-6] # remove _Water from end of name
                 p = getattr(ForceFields, ff)(graph=self.subgraphs[m], 
                                          cutoff=self.options.cutoff, 
                                          h_bonding=h_bonding)
                 self.special_commands += p.special_commands()
+
+    def assign_molecule_ids(self, graph):
+        for node in graph.nodes():
+            graph.node[node]['molid'] = graph.molecule_id
+
+
+    def add_water_model(self, ngraph, ff):
+        size = ngraph.number_of_nodes()
+        if size < 3 or size > 3:
+            print("Error: cannot assign %s "%(ff) +
+                  "to molecule of size %i, with "%(size)+
+                  "atoms (%s)"%(", ".join([ngraph.node[kk]['element'] for
+                                           kk in ngraph.nodes()])))
+            print("If this is a water molecule with pre-existing "+
+                    "dummy atoms for a particular force field, "+
+                    "please remove them and re-run this code.")
+            sys.exit()
+        for node in ngraph.nodes():
+            if ngraph.node[node]['element'] == "O":
+                oid = node
+                oatom = ngraph.node[node]
+            elif ngraph.node[node]['element'] == "H":
+                try:
+                    hatom1
+                    h2id = node
+                    hatom2 = ngraph.node[node]
+                except NameError:
+                    h1id = node
+                    hatom1 = ngraph.node[node]
+
+        h2o = getattr(Molecules, ff)()
+        h2o.approximate_positions(O_pos  = oatom['cartesian_coordinates'],
+                                  H_pos1 = hatom1['cartesian_coordinates'],
+                                  H_pos2 = hatom2['cartesian_coordinates'])
+        # replace the current H positions with the force-field assigned
+        # ones
+        oatom['mass'] = h2o.O_mass
+        oatom['force_field_type'] = "OW"
+        hatom1['cartesian_coordinates'] = h2o.H_coord[0]
+        hatom1['mass'] = h2o.H_mass
+        hatom1['force_field_type'] = "HW"
+        hatom2['cartesian_coordinates'] = h2o.H_coord[1]
+        hatom2['mass'] = h2o.H_mass
+        hatom2['force_field_type'] = "HW"
+        for j in h2o.dummy:
+            # increment graph size
+            self.increment_graph_sizes()
+            os = ngraph.original_size
+            args = {'element': 'X',
+                    'force_field_type': 'X',
+                    'cartesian_coordinates': j,
+                    'potential': None,
+                    'rings': [],
+                    'molid': ngraph.molecule_id,
+                    'atomic_number': 0,
+                    'h_bond_donor': False,
+                    'h_bond_potential': None,
+                    'tabulated_potential': False,
+                    'table_potential': None,
+                    'pair_potential': None
+                    }
+            ngraph.add_node(os, **args)
+            ngraph.add_edge(oid, os, order=1.,
+                            weight=1.,
+                            length=h2o.Rdum,
+                            symflag='1_555',
+                            )
+            ngraph.sorted_edge_dict.update({(oid, os): (oid, os)})
+            ngraph.sorted_edge_dict.update({(os, oid): (oid, os)})
+            
+        # compute new angles between dummy atoms
+        ngraph.compute_angles()
+
+
+    def increment_graph_sizes(self, inc=1):
+        self.graph.original_size += inc
+        for mtype in list(self.molecule_types.keys()):
+            for m in self.molecule_types[mtype]:
+                graph = self.subgraphs[m]
+                graph.original_size += 1
 
     def compute_simulation_size(self):
 
@@ -470,6 +561,7 @@ class LammpsSimulation(object):
             
             #TODO(pboyd): apply to subgraphs as well, if requested.
             self.graph.build_supercell(supercell, self.cell)
+            molcount = max([g.molecule_id for g in self.subgraphs])
             for mtype in list(self.molecule_types.keys()):
                 # prompt for replication of this molecule in the supercell.
                 rep = self.subgraphs[self.molecule_types[mtype][0]]
@@ -477,7 +569,7 @@ class LammpsSimulation(object):
                         (mtype, ", ".join([rep.node[j]['element'] for j in rep.nodes()])))
                 if response in ['y', 'Y', 'yes']:
                     for m in self.molecule_types[mtype]:
-                        self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True)
+                        self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True, molecule_len=molcount)
             self.cell.update_supercell(supercell)
 
     def count_dihedrals(self):
@@ -513,7 +605,6 @@ class LammpsSimulation(object):
     def merge_graphs(self):
         for mgraph in self.subgraphs:
             self.graph += mgraph
-        # Re-ordering is broken.
         if sorted(self.graph.nodes()) != [i+1 for i in range(len(self.graph.nodes()))]:
             print("Re-labelling atom indices.")
             reorder_dic = {i:j+1 for i, j in zip(sorted(self.graph.nodes()), range(len(self.graph.nodes())))}
@@ -586,7 +677,7 @@ class LammpsSimulation(object):
             for key in sorted(self.unique_atom_types.keys()):
                 unq_atom = self.graph.node[self.unique_atom_types[key]]
                 mass, type = unq_atom['mass'], unq_atom['force_field_type']
-                string += "%5i %8.4f # %s\n"%(key, mass, type)
+                string += "%5i %15.9f # %s\n"%(key, mass, type)
     
         if(len(self.unique_bond_types.keys()) > 0):
             string += "\nBond Coeffs\n\n"
@@ -894,9 +985,8 @@ class LammpsSimulation(object):
             string += "\nAtoms\n\n"
             for node in sorted_nodes:
                 atom = self.graph.node[node]
-                molid = 444
                 string += "%8i %8i %8i %11.5f %10.5f %10.5f %10.5f\n"%(node, 
-                                                                       molid, 
+                                                                       atom['molid'], 
                                                                        atom['ff_type_index'],
                                                                        atom['charge'],
                                                                        atom['cartesian_coordinates'][0], 
@@ -1131,15 +1221,23 @@ class LammpsSimulation(object):
                 #inp_str += "%-15s %i\n"%("run", 1) 
             
            # inp_str += "%-15s %s\n"%("unfix", "output") 
-            
-        
+        # delete bond types etc, for molecules that are rigid
+        for mol in sorted(self.molecule_types.keys()):
+            rep = self.subgraphs[self.molecule_types[mol][0]]
+            if rep.rigid:
+                inp_str += "%-15s %s\n"%("neigh_modify", "exclude molecule %i"%(mol))
+                # find and delete all bonds, angles, dihedrals, and impropers associated
+                # with this molecule, as they will consume unnecessary amounts of CPU time
+                inp_str += "%-15s %i %s\n"%("delete_bonds", mol, "multi remove") 
+
+
         if (self.fix_shake):
             shake_tol = 0.0001
             iterations = 20
             print_every = 0  # maybe set to non-zero, but output files could become huge.
             shk_fix = self.fixcount()
-            shake_str = "b "+" ".join(["%i "%i for i in self.fix_shake['bonds']]) + \
-                        " a " + " ".join(["%i "%i for i in self.fix_shake['angles']])
+            shake_str = "b "+" ".join(["%i"%i for i in self.fix_shake['bonds']]) + \
+                        " a " + " ".join(["%i"%i for i in self.fix_shake['angles']])
                        # fix  id group tolerance iterations print_every [bonds + angles]
             inp_str += "%-15s %i %s %s %f %i %i %s\n"%('fix', shk_fix, 'all', 'shake', shake_tol, iterations, print_every, shake_str)
 
@@ -1154,12 +1252,24 @@ class LammpsSimulation(object):
             for molid in mollist: 
                 id = self.fixcount()
                 molecule_fixes.append(id)
-                inp_str += "%-15s %s\n"%("fix", "%i %s langevin %.2f %.2f ${tdamp} %i"%(id, 
+                rep = self.subgraphs[self.molecule_types[molid][0]]
+                if(rep.rigid):
+                    inp_str += "%-15s %s\n"%("fix", "%i %s rigid/small molecule langevin %.2f %.2f ${tdamp} %i"%(id, 
+                                                                                            str(molid), 
+                                                                                            self.options.temp, 
+                                                                                            self.options.temp,
+                                                                                            np.random.randint(1,3000000)
+                                                                                            ))
+                else:
+                    inp_str += "%-15s %s\n"%("fix", "%i %s langevin %.2f %.2f ${tdamp} %i"%(id, 
                                                                                         str(molid), 
                                                                                         self.options.temp, 
                                                                                         self.options.temp,
                                                                                         np.random.randint(1,3000000)
                                                                                         ))
+                    id = self.fixcount()
+                    molecule_fixes.append(id)
+                    inp_str += "%-15s %s\n"%("fix", "%i %i nve"%(id,molid))
             if self.framework:
                 id = self.fixcount()
                 molecule_fixes.append(id)
@@ -1169,39 +1279,46 @@ class LammpsSimulation(object):
                                                                                         self.options.temp,
                                                                                         np.random.randint(1,3000000)
                                                                                         ))
-            id = self.fixcount()
-            inp_str += "%-15s %s\n"%("fix", "%i all nve"%id)
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                inp_str += "%-15s %s\n"%("fix", "%i fram nve"%id)
             inp_str += "%-15s %i\n"%("thermo", 0)
             inp_str += "%-15s %i\n"%("run", self.options.neqstp)
-            inp_str += "%-15s %i\n"%("unfix", id)
-            for molid in mollist:
+            while(molecule_fixes):
                 fid = molecule_fixes.pop(0)
-                inp_str += "%-15s %i\n"%("unfix", fid) 
+                inp_str += "%-15s %i\n"%("unfix", fid)
+
+            for molid in mollist:
                 id = self.fixcount()
                 molecule_fixes.append(id)
-                inp_str += "%-15s %s\n"%("fix", "%i %s nvt %.2f %.2f ${tdamp} %i"%(id, 
+                rep = self.subgraphs[self.molecule_types[molid][0]]
+                if(rep.rigid):
+                    inp_str += "%-15s %s\n"%("fix", "%i %s rigid/nvt/small molecule temp %.2f %.2f ${tdamp}"%(id, 
+                                                                                            str(molid), 
+                                                                                            self.options.temp, 
+                                                                                            self.options.temp
+                                                                                            ))
+                else:
+                    inp_str += "%-15s %s\n"%("fix", "%i %s nvt temp %.2f %.2f ${tdamp}"%(id, 
                                                                                    str(molid), 
                                                                                    self.options.temp, 
-                                                                                   self.options.temp,
-                                                                                   np.random.randint(1,3000000)
+                                                                                   self.options.temp
                                                                                    ))
             if self.framework:
-                fid = molecule_fixes.pop(0)
-                inp_str += "%-15s %i\n"%("unfix", fid) 
                 id = self.fixcount()
                 molecule_fixes.append(id)
-                inp_str += "%-15s %s\n"%("fix", "%i %s nvt %.2f %.2f ${tdamp} %i"%(id, 
+                inp_str += "%-15s %s\n"%("fix", "%i %s nvt temp %.2f %.2f ${tdamp}"%(id, 
                                                                                    "fram", 
                                                                                    self.options.temp, 
-                                                                                   self.options.temp,
-                                                                                   np.random.randint(1,3000000)
+                                                                                   self.options.temp
                                                                                    ))
             
             inp_str += "%-15s %i\n"%("thermo", 1)
             inp_str += "%-15s %i\n"%("run", self.options.nprodstp)
             
-            for idx in molecule_fixes:
-                inp_str += "%-15s %i\n"%("unfix", idx) 
+            while(molecule_fixes):
+                fid = molecule_fixes.pop(0)
+                inp_str += "%-15s %i\n"%("unfix", fid)
 
         if (self.options.npt):
             id = self.fixcount()
