@@ -464,6 +464,19 @@ class LammpsSimulation(object):
         for node in graph.nodes():
             graph.node[node]['molid'] = graph.molecule_id
 
+    def molecule_template(self, mol):
+        """ Construct a molecule template for
+        reading and insertions in a LAMMPS simulation.
+
+        Not sure how the bonding, angle, dihedral, improper,
+        and pair terms will be dealt with yet..
+
+        """
+        
+        #I think the Molecule class should be generalized so that
+        #this kind of input can be generated easily
+        molecule = getattr(Molecule, mol)()
+
 
     def add_water_model(self, ngraph, ff):
         size = ngraph.number_of_nodes()
@@ -561,7 +574,10 @@ class LammpsSimulation(object):
             
             #TODO(pboyd): apply to subgraphs as well, if requested.
             self.graph.build_supercell(supercell, self.cell)
-            molcount = max([g.molecule_id for g in self.subgraphs])
+            molcount = 0
+            if self.subgraphs:
+                molcount = max([g.molecule_id for g in self.subgraphs])
+            
             for mtype in list(self.molecule_types.keys()):
                 # prompt for replication of this molecule in the supercell.
                 rep = self.subgraphs[self.molecule_types[mtype][0]]
