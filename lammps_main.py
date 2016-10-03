@@ -1196,11 +1196,11 @@ class LammpsSimulation(object):
             inp_str += "#### END Atom Groupings ####\n\n"
     
         if self.options.dump_dcd:
-            inp_str += "%-15s %s\n"%("dump","%s_dcdmov all dcd 10 %s_mov.dcd"%
-                            (self.name, self.name))
+            inp_str += "%-15s %s\n"%("dump","%s_dcdmov all dcd %i %s_mov.dcd"%
+                            (self.name, self.options.dump_dcd, self.name))
         elif self.options.dump_xyz:
-            inp_str += "%-15s %s\n"%("dump","%s_xyzmov all xyz 1 %s_mov.xyz"%
-                                (self.name, self.name))
+            inp_str += "%-15s %s\n"%("dump","%s_xyzmov all xyz %i %s_mov.xyz"%
+                                (self.name, self.options.dump_xyz, self.name))
             inp_str += "%-15s %s\n"%("dump_modify", "%s_xyzmov element %s"%(
                                      self.name, 
                                      " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
@@ -1210,8 +1210,10 @@ class LammpsSimulation(object):
     
         if (self.options.minimize):
             box_min = "tri"
-            min_style="cg"
-            nmins = 2 
+            min_style = "cg"
+            min_eval = 1e-11  # HKUST-1 will not minimize past 1e-11
+            max_iterations = 100000 # if the minimizer can't reach a minimum in this many steps,
+                                    # change the min_eval to something higher.
             #inp_str += "%-15s %s\n"%("min_style","fire")
             #inp_str += "%-15s %i %s\n"%("compute", 1, "all msd com yes")
             #inp_str += "%-15s %-10s %s\n"%("variable", "Dx", "equal c_1[1]")
@@ -1220,22 +1222,35 @@ class LammpsSimulation(object):
             #inp_str += "%-15s %-10s %s\n"%("variable", "MSD", "equal c_1[4]")
             #inp_str += "%-15s %s %s\n"%("fix", "output all print 1", "\"$(vol),$(cella),$(cellb),$(cellc),${Dx},${Dy},${Dz},${MSD}\"" +
             #                                " file %s.min.csv title \"Vol,CellA,CellB,CellC,Dx,Dy,Dz,MSD\" screen no"%(self.name))
-
             inp_str += "%-15s %s\n"%("min_style", min_style)
+            inp_str += "%-15s %s\n"%("print", "\"MinStep,CellMinStep,AtomMinStep,FinalStep,Energy,EDiff\"" + 
+                                              " file %s.min.csv screen no"%(self.name))
+            inp_str += "%-15s %-10s %s\n"%("variable", "min_eval", "equal %.2e"%(min_eval))
+            inp_str += "%-15s %-10s %s\n"%("variable", "prev_E", "equal %.2f"%(50000.)) # set unreasonably high for first loop
+            inp_str += "%-15s %-10s %s\n"%("variable", "iter", "loop %i"%(max_iterations))
+            inp_str += "%-15s %s\n"%("label", "loop")
+            
+            fix = self.fixcount() 
+            inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.01"%(fix, box_min))
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-            #inp_str += "%-15s %i\n"%("run", 1) 
+            inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
+            inp_str += "%-15s %-10s %s\n"%("variable", "tempstp", "equal $(step)")
+            inp_str += "%-15s %-10s %s\n"%("variable", "CellMinStep", "equal ${tempstp}")
+            inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
+            inp_str += "%-15s %-10s %s\n"%("variable", "AtomMinStep", "equal ${tempstp}")
+            inp_str += "%-15s %-10s %s\n"%("variable", "min_E", "equal ${prev_E}-$(pe)")
+            inp_str += "%-15s %s\n"%("print", "\"${iter},${CellMinStep},${AtomMinStep},${AtomMinStep}," + 
+                                              "$(pe),${min_E}\"" +
+                                              " append %s.min.csv screen no"%(self.name))
 
-            for j in range(nmins):
-                fix = self.fixcount()
-                #inp_str += "\n%-15s %s\n"%("min_style", min_style)
-                inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.01"%(fix, box_min))
-                inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-                inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
+            inp_str += "%-15s %s\n"%("if","\"${min_E} < ${min_eval}\" then \"jump SELF break\"")
             
-                #inp_str += "%-15s %s\n"%("min_style","fire")
-                inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-                #inp_str += "%-15s %i\n"%("run", 1) 
-            
+            inp_str += "%-15s %-10s %s\n"%("variable", "temppe", "equal $(pe)")
+            inp_str += "%-15s %-10s %s\n"%("variable", "prev_E", "equal ${temppe}")
+            inp_str += "%-15s %s\n"%("next", "iter")
+            inp_str += "%-15s %s\n"%("jump", "SELF loop")
+            inp_str += "%-15s %s\n"%("label", "break")
+
            # inp_str += "%-15s %s\n"%("unfix", "output") 
         # delete bond types etc, for molecules that are rigid
         for mol in sorted(self.molecule_types.keys()):
@@ -1244,8 +1259,7 @@ class LammpsSimulation(object):
                 inp_str += "%-15s %s\n"%("neigh_modify", "exclude molecule %i"%(mol))
                 # find and delete all bonds, angles, dihedrals, and impropers associated
                 # with this molecule, as they will consume unnecessary amounts of CPU time
-                inp_str += "%-15s %i %s\n"%("delete_bonds", mol, "multi remove") 
-
+                inp_str += "%-15s %i %s\n"%("delete_bonds", mol, "multi remove")
 
         if (self.fix_shake):
             shake_tol = 0.0001

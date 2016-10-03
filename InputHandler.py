@@ -151,18 +151,20 @@ class Options(object):
                                            "prior to finite temperature simulation. The velocities are "+
                                            "randomized to TEMP.")
         simulation_group.add_argument("--dcd",
-                                      action="store_true",
-                                      default=False,
+                                      action="store",
+                                      default=0,
+                                      type=int,
                                       dest="dump_dcd",
                                       help="Store trajectory of simulation in a "+
-                                           "dcd format. If not requested, then no trajectory "+
+                                           "dcd format every DUMP_DCD steps. Default is no trajectory "+
                                            "file will be written.")
         simulation_group.add_argument("--xyz",
-                                      action="store_true",
-                                      default=False,
+                                      action="store",
+                                      default=0,
+                                      type=int,
                                       dest="dump_xyz",
                                       help="Store trajectory of simulation in a "+
-                                           "xyz format. If not requested, then no trajectory "+
+                                           "xyz format every DUMP_XYZ steps. If not requested, then no trajectory "+
                                            "file will be written.")
         simulation_group.add_argument("--restart",
                                       action="store_true",
