@@ -1464,9 +1464,43 @@ class LammpsSimulation(object):
             # the ave/time fix must be after read_dump, or the averages are reported as '0'
             #inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a v_myVol ave one"%(fix1, prod_steps,
             #                                                                                   prod_steps + equil_steps))
+            molecule_fixes = []
+            mollist = sorted(list(self.molecule_types.keys()))
+            for molid in mollist: 
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                rep = self.subgraphs[self.molecule_types[molid][0]]
+                if(rep.rigid):
+                    inp_str += "%-15s %s\n"%("fix", "%i %s rigid/small molecule langevin ${sim_temp} ${sim_temp} ${tdamp} %i"%(id, 
+                                                                                            str(molid), 
+                                                                                            np.random.randint(1,3000000)
+                                                                                            ))
+                else:
+                    inp_str += "%-15s %s\n"%("fix", "%i %s langevin ${sim_temp} ${sim_temp} ${tdamp} %i"%(id, 
+                                                                                        str(molid), 
+                                                                                        np.random.randint(1,3000000)
+                                                                                        ))
+                    id = self.fixcount()
+                    molecule_fixes.append(id)
+                    inp_str += "%-15s %s\n"%("fix", "%i %i nve"%(id,molid))
+            if self.framework:
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                inp_str += "%-15s %s\n"%("fix", "%i %s langevin ${sim_temp} ${sim_temp} ${tdamp} %i"%(id, 
+                                                                                        "fram", 
+                                                                                        np.random.randint(1,3000000)
+                                                                                        ))
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                inp_str += "%-15s %s\n"%("fix", "%i fram nve"%id)
+            inp_str += "%-15s %i\n"%("thermo", 0)
+            inp_str += "%-15s %i\n"%("run", equil_steps)
+            while(molecule_fixes):
+                fid = molecule_fixes.pop(0)
+                inp_str += "%-15s %i\n"%("unfix", fid)
             id = self.fixcount() 
             # creating velocity may cause instability at high temperatures.
-            inp_str += "%-15s %s\n"%("velocity", "all create 50 %i"%(np.random.randint(1,3000000)))
+            #inp_str += "%-15s %s\n"%("velocity", "all create 50 %i"%(np.random.randint(1,3000000)))
             inp_str += "%-15s %i %s %s %s %s\n"%("fix", id,
                                         "all npt",
                                         "temp ${sim_temp} ${sim_temp} ${tdamp}",
