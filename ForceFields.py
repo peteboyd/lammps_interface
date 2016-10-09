@@ -983,8 +983,8 @@ class BTW_FF(ForceField):
         return 1
          
     def angle_term(self, angle):
-        """class2 angle"""
-        """
+        """class2 angle
+        
         NOTE: We ignored the 5and6 order terms of polynomial since the functional is not implemented in LAMMPS!! 
         """
         a, b, c, data = angle
@@ -1042,7 +1042,6 @@ class BTW_FF(ForceField):
         K3 = -0.014*K2/(DEG2RAD**1)
         K4 = 5.6e-5*K2/(DEG2RAD**2)
 
-
         data['potential'] = AnglePotential.Class2()
         data['potential'].theta0 = theta0 
         data['potential'].K2 = K2
@@ -1096,6 +1095,7 @@ class BTW_FF(ForceField):
         Kopb = BTW_opbends[data['force_field_type']][0]/(DEG2RAD**2)*0.02191418
         c0 =  BTW_opbends[data['force_field_type']][1]
         #Angle-Angle term
+        # units should be energy/distance
         M1 = BTW_opbends[data['force_field_type']][2]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Dividing by three to get rid of overcounting of angle-angle terms
         M2 = BTW_opbends[data['force_field_type']][3]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Dividing by three to get rid of overcounting of angle-angle terms
         M3 = BTW_opbends[data['force_field_type']][4]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Dividing by three to get rid of overcounting of angle-angle terms
