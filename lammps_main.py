@@ -41,7 +41,7 @@ class LammpsSimulation(object):
         self.unique_pair_types = {}
         self.pair_in_data = True
         self.separate_molecule_types = True
-        self.framework = False # Flag if a framework exists in the simulation. 
+        self.framework = True # Flag if a framework exists in the simulation. 
         self.type_molecules = {}
         self.no_molecule_pair = True  # ensure that h-bonding will not occur between molecules of the same type
         self.fix_shake = {}
@@ -1130,6 +1130,8 @@ class LammpsSimulation(object):
                     pass
             inp_str += "#### END Pair Coefficients ####\n\n"
         
+        inp_str += "\n#### Atom Groupings ####\n"
+        framework_atoms = self.graph.nodes()
         if(self.molecules)and(len(self.molecule_types.keys()) < 32):
             # lammps cannot handle more than 32 groups including 'all' 
             total_count = 0 
@@ -1139,9 +1141,7 @@ class LammpsSimulation(object):
             if total_count > 31:
                 list_individual_molecules = False
 
-            inp_str += "\n#### Atom Groupings ####\n"
             idx = 1
-            framework_atoms = self.graph.nodes()
             for mtype in list(self.molecule_types.keys()): 
                 
                 inp_str += "%-15s %-8s %s  "%("group", "%i"%(mtype), "id")
@@ -1183,17 +1183,18 @@ class LammpsSimulation(object):
                                     inp_str += " %i"%(x[0])
                             inp_str += "\n"
 
-            if(framework_atoms):
-                self.framework = True
-                inp_str += "%-15s %-8s %s  "%("group", "fram", "id")
-                for x in self.groups(framework_atoms):
-                    x = list(x)
-                    if(len(x)>1):
-                        inp_str += " %i:%i"%(x[0], x[-1])
-                    else:
-                        inp_str += " %i"%(x[0])
-                inp_str += "\n"
-            inp_str += "#### END Atom Groupings ####\n\n"
+            if(not framework_atoms):
+                self.framework = False
+        if(self.framework):
+            inp_str += "%-15s %-8s %s  "%("group", "fram", "id")
+            for x in self.groups(framework_atoms):
+                x = list(x)
+                if(len(x)>1):
+                    inp_str += " %i:%i"%(x[0], x[-1])
+                else:
+                    inp_str += " %i"%(x[0])
+            inp_str += "\n"
+        inp_str += "#### END Atom Groupings ####\n\n"
     
         if self.options.dump_dcd:
             inp_str += "%-15s %s\n"%("dump","%s_dcdmov all dcd %i %s_mov.dcd"%
@@ -1228,7 +1229,7 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "min_eval", "equal %.2e"%(min_eval))
             inp_str += "%-15s %-10s %s\n"%("variable", "prev_E", "equal %.2f"%(50000.)) # set unreasonably high for first loop
             inp_str += "%-15s %-10s %s\n"%("variable", "iter", "loop %i"%(max_iterations))
-            inp_str += "%-15s %s\n"%("label", "loop")
+            inp_str += "%-15s %s\n"%("label", "loop_min")
             
             fix = self.fixcount() 
             inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.01"%(fix, box_min))
@@ -1238,18 +1239,17 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "CellMinStep", "equal ${tempstp}")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             inp_str += "%-15s %-10s %s\n"%("variable", "AtomMinStep", "equal ${tempstp}")
-            inp_str += "%-15s %-10s %s\n"%("variable", "min_E", "equal ${prev_E}-$(pe)")
+            inp_str += "%-15s %-10s %s\n"%("variable", "temppe", "equal $(pe)")
+            inp_str += "%-15s %-10s %s\n"%("variable", "min_E", "equal abs(${prev_E}-${temppe})")
             inp_str += "%-15s %s\n"%("print", "\"${iter},${CellMinStep},${AtomMinStep},${AtomMinStep}," + 
                                               "$(pe),${min_E}\"" +
                                               " append %s.min.csv screen no"%(self.name))
 
-            inp_str += "%-15s %s\n"%("if","\"${min_E} < ${min_eval}\" then \"jump SELF break\"")
-            
-            inp_str += "%-15s %-10s %s\n"%("variable", "temppe", "equal $(pe)")
+            inp_str += "%-15s %s\n"%("if","\"${min_E} < ${min_eval}\" then \"jump SELF break_min\"")
             inp_str += "%-15s %-10s %s\n"%("variable", "prev_E", "equal ${temppe}")
             inp_str += "%-15s %s\n"%("next", "iter")
-            inp_str += "%-15s %s\n"%("jump", "SELF loop")
-            inp_str += "%-15s %s\n"%("label", "break")
+            inp_str += "%-15s %s\n"%("jump", "SELF loop_min")
+            inp_str += "%-15s %s\n"%("label", "break_min")
 
            # inp_str += "%-15s %s\n"%("unfix", "output") 
         # delete bond types etc, for molecules that are rigid
@@ -1397,7 +1397,7 @@ class LammpsSimulation(object):
                                               ",E_bond,E_angle,E_torsion,E_imp,E_vdw,E_coul\""+
                                               " file %s.output.csv screen no"%(self.name))
             inp_str += "%-15s %-10s %s\n"%("variable", "do", "loop ${N}")
-            inp_str += "%-15s %s\n"%("label", "loop")
+            inp_str += "%-15s %s\n"%("label", "loop_bulk")
             inp_str += "%-15s %s\n"%("read_dump", "initial_structure.dump ${readstep} x y z box yes format native")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleVar", "equal 1.00-${totDev}+${do}*${sf}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleA", "equal ${scaleVar}*${a}")
@@ -1426,8 +1426,7 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleC", "delete")
             inp_str += "%-15s %s\n"%("next", "do")
-            inp_str += "%-15s %s\n"%("jump", "SELF loop")
-            inp_str += "%-15s %s\n"%("label", "break")
+            inp_str += "%-15s %s\n"%("jump", "SELF loop_bulk")
             inp_str += "%-15s %-10s %s\n"%("variable", "do", "delete")
 
         if (self.options.thermal_scaling):
@@ -1455,7 +1454,7 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "pdamp", "equal 1000*${dt}")
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
             inp_str += "%-15s %s\n"%("print", "\"Step,Temp,CellA,Vol\" file %s.output.csv screen no"%(self.name))
-            inp_str += "%-15s %s\n"%("label", "loop")
+            inp_str += "%-15s %s\n"%("label", "loop_thermal")
             #fix1 = self.fixcount()
 
             inp_str += "%-15s %s\n"%("read_dump", "initial_structure.dump ${readstep} x y z box yes format native")
@@ -1523,8 +1522,7 @@ class LammpsSimulation(object):
             inp_str += "%-15s %i\n"%("unfix", id) 
             #inp_str += "%-15s %i\n"%("unfix", fix1)
             inp_str += "\n%-15s %s\n"%("next", "sim_temp")
-            inp_str += "%-15s %s\n"%("jump", "SELF loop")
-            inp_str += "%-15s %s\n"%("label", "break")
+            inp_str += "%-15s %s\n"%("jump", "SELF loop_thermal")
             inp_str += "%-15s %-10s %s\n"%("variable", "sim_temp", "delete")
 
         if self.options.dump_dcd: 

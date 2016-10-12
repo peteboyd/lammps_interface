@@ -1038,6 +1038,7 @@ class BTW_FF(ForceField):
         bbM = bbM *71.94   
         baN1 = 2.51118 * baN1 / (DEG2RAD) 
         baN2 = 2.51118 * baN2/ (DEG2RAD) 
+        # 0.021914 is 143.82/2 * (pi/180)**2
         K2 = 0.021914*Ktheta/(DEG2RAD**2)
         K3 = -0.014*K2/(DEG2RAD**1)
         K4 = 5.6e-5*K2/(DEG2RAD**2)
@@ -1092,6 +1093,7 @@ class BTW_FF(ForceField):
         atom_b_fflabel=b_data['force_field_type']
         atom_c_fflabel=c_data['force_field_type']
         atom_d_fflabel=d_data['force_field_type']
+        # 0.021914 is 143.82/2 * (pi/180)**-2
         Kopb = BTW_opbends[data['force_field_type']][0]/(DEG2RAD**2)*0.02191418
         c0 =  BTW_opbends[data['force_field_type']][1]
         #Angle-Angle term
@@ -3616,7 +3618,8 @@ class Dubbeldam(ForceField):
             sys.exit()
 
         data['potential'] = AnglePotential.Harmonic()
-        data['potential'].K = Dub_angles[string][0]*kBtokcal/2.
+        # check to make sure to divide by DEG2RAD**2
+        data['potential'].K = Dub_angles[string][0]*kBtokcal/2. / DEG2RAD**2
         data['potential'].theta0 = Dub_angles[string][1]
         return 1
 
