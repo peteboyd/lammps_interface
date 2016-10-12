@@ -2476,6 +2476,9 @@ class UFF(ForceField):
                             neigh_elem = set([self.graph.node[i]['element'] for i in self.graph.neighbors(node)])
                             if not neigh_elem <= set(organics) | set(halides):
                                 data['force_field_type'] = "O_3_z"
+                        elif data['element'] == "S":
+                            # default sp3 hybridized sulphur set to S_3+6
+                            data['force_field_type'] = "S_3+6"
 
                     elif data['hybridization'] == "aromatic":
                         data['force_field_type'] = "%s_R"%data['element']
@@ -2492,6 +2495,8 @@ class UFF(ForceField):
                     data['force_field_type'] = data['element']
                     if data['element'] == "F":
                         data['force_field_type'] += "_"
+                elif data['element'] == "Li":
+                    data['force_field_type'] = data['element']
                 else:
                     ffs = list(UFF_DATA.keys())
                     valency = len(self.graph.neighbors(node))

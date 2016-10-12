@@ -491,10 +491,12 @@ class MolecularGraph(nx.Graph):
                 elif len(neighbours) == 1:
                     self.node[label].update({'hybridization':'sp2'})
             elif element == "S":
-                if len(neighbours) == 2:
+                if len(neighbours) >= 2:
                     self.node[label].update({'hybridization':'sp3'})
                 elif len(neighbours) == 1:
                     self.node[label].update({'hybridization':'sp2'})
+                else:
+                    print(len(neighbours))
 
             else:
                 #default sp3
