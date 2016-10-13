@@ -281,8 +281,8 @@ class MolecularGraph(nx.Graph):
 
             if (set("O") < elements) and (len(elements & metals)):
                 tempsf = 0.85
-
-            if dist*tempsf < rad and not alkali | elements:
+            
+            if dist*tempsf < rad and not alkali & elements:
 
                 flag = self.compute_bond_image_flag(n1, n2, cell)
                 self.sorted_edge_dict.update({(n1,n2): (n1, n2), (n2, n1):(n1, n2)})
