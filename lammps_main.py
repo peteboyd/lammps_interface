@@ -682,7 +682,7 @@ class LammpsSimulation(object):
         string += "%19.6f %10.6f %s %s\n"%(0., self.cell.lx, "xlo", "xhi")
         string += "%19.6f %10.6f %s %s\n"%(0., self.cell.ly, "ylo", "yhi")
         string += "%19.6f %10.6f %s %s\n"%(0., self.cell.lz, "zlo", "zhi")
-        if (np.any(np.array([self.cell.xy, self.cell.xz, self.cell.yz]) > 0.0)):
+        if not (np.allclose(np.array([self.cell.xy, self.cell.xz, self.cell.yz]), 0.0)):
             string += "%19.6f %10.6f %10.6f %s %s %s\n"%(self.cell.xy, self.cell.xz, self.cell.yz, "xy", "xz", "yz")
     
         # Let's track the forcefield potentials that haven't been calc'd or user specified
