@@ -292,27 +292,29 @@ class LammpsSimulation(object):
         bonds = set([j['potential'].name for n1, n2, j in list(self.unique_bond_types.values())])
         if len(list(bonds)) > 1:
             self.bond_style = "hybrid %s"%" ".join(list(bonds))
-        else:
+        elif len(list(bonds)) == 1:
             self.bond_style = "%s"%list(bonds)[0]
             for n1, n2, b in list(self.unique_bond_types.values()):
                 b['potential'].reduced = True
-
+        else:
+            self.bond_style = ""
         angles = set([j['potential'].name for a,b,c,j in list(self.unique_angle_types.values())])
         if len(list(angles)) > 1:
             self.angle_style = "hybrid %s"%" ".join(list(angles))
-        else:
+        elif len(list(angles)) == 1:
             self.angle_style = "%s"%list(angles)[0]
             for a,b,c,ang in list(self.unique_angle_types.values()):
                 ang['potential'].reduced = True
                 if (ang['potential'].name == "class2"):
                     ang['potential'].bb.reduced=True
                     ang['potential'].ba.reduced=True
-
+        else:
+            self.angle_style = ""
 
         dihedrals = set([j['potential'].name for a,b,c,d,j in list(self.unique_dihedral_types.values())])
         if len(list(dihedrals)) > 1:
             self.dihedral_style = "hybrid %s"%" ".join(list(dihedrals))
-        else:
+        elif len(list(dihedrals)) == 1:
             self.dihedral_style = "%s"%list(dihedrals)[0]
             for a,b,c,d, di in list(self.unique_dihedral_types.values()):
                 di['potential'].reduced = True
@@ -322,6 +324,8 @@ class LammpsSimulation(object):
                     di['potential'].at.reduced=True
                     di['potential'].aat.reduced=True
                     di['potential'].bb13.reduced=True
+        else:
+            self.dihedral_style = ""
 
         impropers = set([j['potential'].name for a,b,c,d,j in list(self.unique_improper_types.values())])
         if len(list(impropers)) > 1:

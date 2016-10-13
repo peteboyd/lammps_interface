@@ -496,7 +496,7 @@ class MolecularGraph(nx.Graph):
                 elif len(neighbours) == 1:
                     self.node[label].update({'hybridization':'sp2'})
                 else:
-                    print(len(neighbours))
+                    self.node[label].update({'hybridization':'sp3'})
 
             else:
                 #default sp3
@@ -1168,6 +1168,8 @@ class MolecularGraph(nx.Graph):
         return self
 
     def __or__(self, graph):
+        if (len(graph.nodes()) == 1) and len(self.nodes()) == 1:
+            return list([0]) 
         cg = self.correspondence_graph(graph, 0.4)
         cliques = list(nx.find_cliques(cg))
         cliques.sort(key=len)
