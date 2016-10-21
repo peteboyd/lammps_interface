@@ -170,7 +170,7 @@ class Options(object):
                                       action="store",
                                       default=0,
                                       type=int,
-                                      dest="dump_xyz",
+                                      dest="dump_lammpstrj",
                                       help="Store trajectory of simulation in a "+
                                            "lammpstrj format every DUMP_LAMMPSTRJ" +
                                            " steps. If not requested, then no trajectory "+
