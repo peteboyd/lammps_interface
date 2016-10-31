@@ -4,7 +4,6 @@ from structure_data import MolecularGraph
 import networkx as nx
 
 class Molecule(MolecularGraph):
-    template_file = "%s.molecule"%__name__
 
     def rotation_from_vectors(self, v1, v2):
         """Obtain rotation matrix from sets of vectors.
@@ -49,36 +48,35 @@ class Molecule(MolecularGraph):
         Ideal for using fix gcmc or fix deposit in LAMMPS.
 
         """
-
-        for node in self.nodes_iter(data=True):
-            print(node, data)
-
+       
         line = ""
+        line =  "%6i atoms\n"%len(self)
+        if(self.number_of_edges()):
+            line += "%6i bonds\n"%self.number_of_edges()
+        if(self.count_angles() > 0):
+            line += "%6i angles\n"%(self.count_angles())
+        if(self.count_dihedrals() > 0):
+            line += "%6i dihedrals\n"%(self.count_dihedrals())
+        if(self.count_impropers() > 0):
+            line += "%6i impropers\n"%(self.count_impropers())
+        #line += "%12.5f mass"%()
+        #line += "%12.5f %12.5f %12.5f com"%()
+        types = {}
+        line += "\nCoords\n\n"
+        for node, data in self.nodes_iter(data=True):
+            line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([node]+data['cartesian_coordinates'].tolist()))
+            types.setdefault(data['force_field_type'], len(types)+1) 
+        
 
-        #line += "Coords\n\n"
+        line += "\nTypes\n\n"
+        for node, data in self.nodes_iter(data=True):
+            line += "%6i %6i  # %s\n"%(node, types[data['force_field_type']], data['force_field_type'])
 
-        #line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([1]+self.O_coord.tolist()))  
-        #line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([2]+self.H_coord[0].tolist()))
-        #line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([3]+self.H_coord[1].tolist()))
-        #line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([4]+self.dummy[0].tolist()))
-        #line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([5]+self.dummy[1].tolist()))
-
-        #line += "\nTypes\n\n"
-        #line += "%6i %i  # OW\n"%(1, 1)
-        #line += "%6i %i  # HW\n"%(2, 2)
-        #line += "%6i %i  # HW\n"%(3, 2)
-        #line += "%6i %i  # Dummy\n"%(4, 3)
-        #line += "%6i %i  # Dummy\n"%(5, 3)
-
-        #line += "\nCharges\n\n"
-        #line += "%6i %12.5f\n"%(1, TIP5P_atoms["OW"][3]) 
-        #line += "%6i %12.5f\n"%(2, TIP5P_atoms["HW"][3])
-        #line += "%6i %12.5f\n"%(3, TIP5P_atoms["HW"][3])
-        #line += "%6i %12.5f\n"%(4, TIP5P_atoms["X"][3])
-        #line += "%6i %12.5f\n"%(5, TIP5P_atoms["X"][3])
+        line += "\nCharges\n\n"
+        for node, data in self.nodes_iter(data=True):
+            line += "%6i %12.5f\n"%(node, data['charge']) 
 
         return line
-
 
 class Water(Molecule):
     """Water parent class, containing functions applicable

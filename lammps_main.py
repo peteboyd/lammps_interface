@@ -50,44 +50,44 @@ class LammpsSimulation(object):
     def set_MDMC_config(self, MDMC_config):
         self.MDMC_config = MDMC_config
 
-    def unique_atoms(self):
+    def unique_atoms(self, g):
         """Computes the number of unique atoms in the structure"""
         count = 0
         ff_type = {}
-        fwk_nodes = sorted(self.graph.nodes())
+        fwk_nodes = sorted(g.nodes())
         molecule_nodes = []
-        for k in sorted(self.molecule_types.keys()):
-            nds = []
-            for m in self.molecule_types[k]:
-            
-                jnodes = sorted(self.subgraphs[m].nodes())
-                nds += jnodes
+        # check if this is the main graph
+        if g == self.graph:
+            for k in sorted(self.molecule_types.keys()):
+                nds = []
+                for m in self.molecule_types[k]:
+                
+                    jnodes = sorted(self.subgraphs[m].nodes())
+                    nds += jnodes
 
-                for n in jnodes:
-                    del fwk_nodes[fwk_nodes.index(n)]
-            molecule_nodes.append(nds)
-        molecule_nodes.append(fwk_nodes)
+                    for n in jnodes:
+                        del fwk_nodes[fwk_nodes.index(n)]
+                molecule_nodes.append(nds)
+            molecule_nodes.append(fwk_nodes)
 
-        for node, data in self.graph.nodes_iter(data=True):
-            # add factor for h_bond donors
-            if self.separate_molecule_types:
+        for node, data in g.nodes_iter(data=True):
+            if self.separate_molecule_types and molecule_nodes:
                 molid = [j for j,mol in enumerate(molecule_nodes) if node in mol]
-                if(len(molid) != 1):
-                    print("ERROR!")
                 molid = molid[0]
             else:
                 molid = 0
 
+            # add factor for h_bond donors
             if data['force_field_type'] is None:
                 if data['h_bond_donor']:
                     # add neighbors to signify type of hbond donor
-                    label = (data['element'], data['h_bond_donor'], molid, tuple(sorted([self.graph.node[j]['element'] for j in self.graph.neighbors(node)])))
+                    label = (data['element'], data['h_bond_donor'], molid, tuple(sorted([g.node[j]['element'] for j in g.neighbors(node)])))
                 else:
                     label = (data['element'], data['h_bond_donor'], molid)
             else:
                 if data['h_bond_donor']:
                     # add neighbors to signify type of hbond donor
-                    label = (data['force_field_type'], data['h_bond_donor'], molid, tuple(sorted([self.graph.node[j]['element'] for j in self.graph.neighbors(node)])))
+                    label = (data['force_field_type'], data['h_bond_donor'], molid, tuple(sorted([g.node[j]['element'] for j in g.neighbors(node)])))
                 else:
                     label = (data['force_field_type'], data['h_bond_donor'], molid)
 
@@ -101,11 +101,11 @@ class LammpsSimulation(object):
                 self.type_molecules[type] = molid
             data['ff_type_index'] = type
 
-    def unique_bonds(self):
+    def unique_bonds(self, g):
         """Computes the number of unique bonds in the structure"""
         count = 0
         bb_type = {}
-        for n1, n2, data in self.graph.edges_iter2(data=True):
+        for n1, n2, data in g.edges_iter2(data=True):
             btype = "%s"%data['potential']
 
             try:
@@ -125,10 +125,10 @@ class LammpsSimulation(object):
 
             data['ff_type_index'] = type
     
-    def unique_angles(self):
+    def unique_angles(self, g):
         ang_type = {}
         count = 0
-        for b, data in self.graph.nodes_iter(data=True):
+        for b, data in g.nodes_iter(data=True):
             # compute and store angle terms
             try:
                 ang_data = data['angles']
@@ -155,10 +155,10 @@ class LammpsSimulation(object):
                 # no angle associated with this node.
                 pass
 
-    def unique_dihedrals(self):
+    def unique_dihedrals(self, g):
         count = 0
         dihedral_type = {}
-        for b, c, data in self.graph.edges_iter2(data=True):
+        for b, c, data in g.edges_iter2(data=True):
             try:
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
@@ -177,11 +177,11 @@ class LammpsSimulation(object):
                 # no dihedrals associated with this edge
                 pass
 
-    def unique_impropers(self):
+    def unique_impropers(self, g):
         count = 0
         improper_type = {}
         
-        for b, data in self.graph.nodes_iter(data=True):
+        for b, data in g.nodes_iter(data=True):
             try:
                 rem = []
                 imp_data = data['impropers']
@@ -482,11 +482,17 @@ class LammpsSimulation(object):
         molecule = getattr(Molecules, mol)()
         # somehow update atom, bond, angle, dihedral, improper etc. types to 
         # include atomic species that don't exist yet..
-        file = open(molecule.template_file, 'w')
+        template_file = "%s.molecule"%molecule.__class__.__name__
+        file = open(template_file, 'w')
         file.writelines(str(molecule))
         file.close()
-        print('Molecule template file written as %s'%molecule.template_file)
+        # add the unique potentials to the unique_dictionaries.
+        self.unique_atoms(molecule)
+        self.unique_bonds(molecule)
+        self.unique_dihedrals(molecule)
+        self.unique_impropers(molecule)
 
+        print('Molecule template file written as %s'%template_file)
 
     def add_water_model(self, ngraph, ff):
         size = ngraph.number_of_nodes()
@@ -590,36 +596,6 @@ class LammpsSimulation(object):
                         self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True, molecule_len=molcount)
             self.cell.update_supercell(supercell)
 
-    def count_dihedrals(self):
-        count = 0
-        for n1, n2, data in self.graph.edges_iter(data=True):
-            try:
-                for dihed in data['dihedrals'].keys():
-                    count += 1
-            except KeyError:
-                pass
-        return count
-
-    def count_angles(self):
-        count = 0
-        for node, data in self.graph.nodes_iter(data=True):
-            try:
-                for angle in data['angles'].keys():
-                    count += 1
-            except KeyError:
-                pass
-        return count
-
-    def count_impropers(self):
-        count = 0
-        for node, data in self.graph.nodes_iter(data=True):
-            try:
-                for angle in data['impropers'].keys():
-                    count += 1
-            except KeyError:
-                pass
-        return count
-
     def merge_graphs(self):
         for mgraph in self.subgraphs:
             self.graph += mgraph
@@ -635,11 +611,11 @@ class LammpsSimulation(object):
     def write_lammps_files(self):
         if self.options.molecule_insert:
             self.molecule_template(self.options.molecule_insert)
-        self.unique_atoms()
-        self.unique_bonds()
-        self.unique_angles()
-        self.unique_dihedrals()
-        self.unique_impropers()
+        self.unique_atoms(self.graph)
+        self.unique_bonds(self.graph)
+        self.unique_angles(self.graph)
+        self.unique_dihedrals(self.graph)
+        self.unique_impropers(self.graph)
         self.unique_pair_terms()
         self.define_styles()
 
@@ -664,11 +640,11 @@ class LammpsSimulation(object):
         if(len(self.unique_bond_types.keys()) > 0):
             string += "%12i bonds\n"%(nx.number_of_edges(self.graph))
         if(len(self.unique_angle_types.keys()) > 0):
-            string += "%12i angles\n"%(self.count_angles())
+            string += "%12i angles\n"%(self.graph.count_angles())
         if(len(self.unique_dihedral_types.keys()) > 0):
-            string += "%12i dihedrals\n"%(self.count_dihedrals())
+            string += "%12i dihedrals\n"%(self.graph.count_dihedrals())
         if (len(self.unique_improper_types.keys()) > 0):
-            string += "%12i impropers\n"%(self.count_impropers())
+            string += "%12i impropers\n"%(self.graph.count_impropers())
     
         if(len(self.unique_atom_types.keys()) > 0):
             string += "\n%12i atom types\n"%(len(self.unique_atom_types.keys()))

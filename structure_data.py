@@ -77,6 +77,36 @@ class MolecularGraph(nx.Graph):
     def edges_iter2(self, **kwargs):
         for n1, n2, d in self.edges_iter(**kwargs):
             yield (self.sorted_edge_dict[(n1, n2)][0], self.sorted_edge_dict[(n1,n2)][1], d)
+    
+    def count_dihedrals(self):
+        count = 0
+        for n1, n2, data in self.edges_iter(data=True):
+            try:
+                for dihed in data['dihedrals'].keys():
+                    count += 1
+            except KeyError:
+                pass
+        return count
+
+    def count_angles(self):
+        count = 0
+        for node, data in self.nodes_iter(data=True):
+            try:
+                for angle in data['angles'].keys():
+                    count += 1
+            except KeyError:
+                pass
+        return count
+
+    def count_impropers(self):
+        count = 0
+        for node, data in self.nodes_iter(data=True):
+            try:
+                for angle in data['impropers'].keys():
+                    count += 1
+            except KeyError:
+                pass
+        return count
 
     def reorder_labels(self, reorder_dic):
         """Re-order the labels of the nodes so that LAMMPS doesn't complain.

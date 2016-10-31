@@ -409,8 +409,6 @@ class UserFF(ForceField):
         # been specified in user_input.txt
         pass
 
-
-
     def map_user_to_unique_atom(self, descriptor):
         for key, atom in list(self.unique_atom_types.items()):
             if descriptor == atom.force_field_type:
