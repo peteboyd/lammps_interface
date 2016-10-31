@@ -480,6 +480,12 @@ class LammpsSimulation(object):
         #I think the Molecule class should be generalized so that
         #this kind of input can be generated easily
         molecule = getattr(Molecule, mol)()
+        # somehow update atom, bond, angle, dihedral, improper etc. types to 
+        # include atomic species that don't exist yet..
+        file = open(molecule.template_file, 'w')
+        file.writelines(str(molecule))
+        file.close()
+        print('Molecule template file written as %s'%molecule.template_file)
 
 
     def add_water_model(self, ngraph, ff):
