@@ -632,17 +632,7 @@ class LammpsSimulation(object):
         for mgraph in self.subgraphs:
             self.graph += mgraph
         for node in self.graph.nodes():
-            if node == 421:
-                print("HERE0")
             data=self.graph.node[node]
-            try:
-                for ang in data['angles']:
-                    if ang[0] == 421:
-                        print("HERE")
-                    if ang[1] == 421:
-                        print("HERE2")
-            except KeyError:
-                pass
         if sorted(self.graph.nodes()) != [i+1 for i in range(len(self.graph.nodes()))]:
             print("Re-labelling atom indices.")
             reorder_dic = {i:j+1 for i, j in zip(sorted(self.graph.nodes()), range(len(self.graph.nodes())))}
