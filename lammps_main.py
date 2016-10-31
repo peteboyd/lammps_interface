@@ -479,7 +479,7 @@ class LammpsSimulation(object):
         
         #I think the Molecule class should be generalized so that
         #this kind of input can be generated easily
-        molecule = getattr(Molecule, mol)()
+        molecule = getattr(Molecules, mol)()
         # somehow update atom, bond, angle, dihedral, improper etc. types to 
         # include atomic species that don't exist yet..
         file = open(molecule.template_file, 'w')
@@ -501,7 +501,6 @@ class LammpsSimulation(object):
             sys.exit()
         for node in ngraph.nodes():
             if ngraph.node[node]['element'] == "O":
-                oid = node
                 oatom = ngraph.node[node]
             elif ngraph.node[node]['element'] == "H":
                 try:
@@ -516,41 +515,34 @@ class LammpsSimulation(object):
         h2o.approximate_positions(O_pos  = oatom['cartesian_coordinates'],
                                   H_pos1 = hatom1['cartesian_coordinates'],
                                   H_pos2 = hatom2['cartesian_coordinates'])
-        # replace the current H positions with the force-field assigned
-        # ones
-        oatom['mass'] = h2o.O_mass
-        oatom['force_field_type'] = "OW"
-        hatom1['cartesian_coordinates'] = h2o.H_coord[0]
-        hatom1['mass'] = h2o.H_mass
-        hatom1['force_field_type'] = "HW"
-        hatom2['cartesian_coordinates'] = h2o.H_coord[1]
-        hatom2['mass'] = h2o.H_mass
-        hatom2['force_field_type'] = "HW"
-        for j in h2o.dummy:
-            # increment graph size
-            self.increment_graph_sizes()
-            os = ngraph.original_size
-            args = {'element': 'X',
-                    'force_field_type': 'X',
-                    'cartesian_coordinates': j,
-                    'potential': None,
-                    'rings': [],
-                    'molid': ngraph.molecule_id,
-                    'atomic_number': 0,
-                    'h_bond_donor': False,
-                    'h_bond_potential': None,
-                    'tabulated_potential': False,
-                    'table_potential': None,
-                    'pair_potential': None
-                    }
-            ngraph.add_node(os, **args)
-            ngraph.add_edge(oid, os, order=1.,
-                            weight=1.,
-                            length=h2o.Rdum,
-                            symflag='1_555',
-                            )
-            ngraph.sorted_edge_dict.update({(oid, os): (oid, os)})
-            ngraph.sorted_edge_dict.update({(os, oid): (oid, os)})
+
+        # update the water atoms in the graph with the force field molecule 
+        for node in ngraph.nodes():
+            data = ngraph.node[node]
+            if data['element'] == "O":
+                oid = node 
+                data = h2o.node[1]
+            elif data['element'] == "H":
+                try:
+                    htm1
+                    data = h2o.node[3]
+                except NameError:
+                    htm1 = node
+                    data = h2o.node[2]
+
+        # add dummy particles
+        for dx in h2o.nodes():
+            if dx > 3:
+                self.increment_graph_sizes()
+                os = ngraph.original_size
+                ngraph.add_node(os, **h2o.node[dx])
+                ngraph.add_edge(oid, os, order=1.,
+                                weight=1.,
+                                length=h2o.Rdum,
+                                symflag='1_555',
+                                )
+                ngraph.sorted_edge_dict.update({(oid, os): (oid, os)})
+                ngraph.sorted_edge_dict.update({(os, oid): (oid, os)})
             
         # compute new angles between dummy atoms
         ngraph.compute_angles()
@@ -641,6 +633,8 @@ class LammpsSimulation(object):
                 mgraph.reorder_labels(reorder_dic)
 
     def write_lammps_files(self):
+        if self.options.molecule_insert:
+            self.molecule_template(self.options.molecule_insert)
         self.unique_atoms()
         self.unique_bonds()
         self.unique_angles()

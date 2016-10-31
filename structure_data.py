@@ -165,17 +165,14 @@ class MolecularGraph(nx.Graph):
         kwargs.update({'tabulated_potential':False})
         kwargs.update({'table_potential':None})
         if set(orig_keys) & set(charge_keywords):
-
-            for key in charge_keywords:
-                try:
-                    kwargs['charge'] = float(kwargs[key])
-                except KeyError:
-                    pass
-                except ValueError:
-                    print("Warning %s could not be converted "%(kwargs[key]) + 
-                          "to a charge value for atom %s"%(element) + 
-                          ", setting charge as 0.0 for this atom")
-                    kwargs['charge'] = 0.0
+            key = list(set(orig_keys)&set(charge_keywords))[0]
+            try:
+                kwargs['charge'] = float(kwargs[key])
+            except ValueError:
+                print("Warning %s could not be converted "%(kwargs[key]) + 
+                      "to a charge value for atom %s"%(element) + 
+                      ", setting charge as 0.0 for this atom")
+                kwargs['charge'] = 0.0
         else:
             kwargs['charge'] = 0.0
         try:
@@ -277,13 +274,13 @@ class MolecularGraph(nx.Graph):
             dist = self.distance_matrix[i1,i2]
             tempsf = scale_factor
             # probably a better way to fix these kinds of issues..
-            if (set("F") < elements) and  (len(elements & metals)): 
+            if (set("F") < elements) and  (elements & metals): 
                 tempsf = 0.8
 
-            if (set("O") < elements) and (len(elements & metals)):
+            if (set("O") < elements) and (elements & metals):
                 tempsf = 0.85
             
-            if dist*tempsf < rad and not alkali & elements:
+            if dist*tempsf < rad and not (alkali & elements):
 
                 flag = self.compute_bond_image_flag(n1, n2, cell)
                 self.sorted_edge_dict.update({(n1,n2): (n1, n2), (n2, n1):(n1, n2)})
