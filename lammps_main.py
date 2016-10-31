@@ -1210,6 +1210,19 @@ class LammpsSimulation(object):
                                      self.name, 
                                      " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
                                                 for key in sorted(self.unique_atom_types.keys())])))
+        elif self.options.dump_lammpstrj:
+            inp_str += "%-15s %s\n"%("dump","%s_lammpstrj all atom %i %s_mov.lammpstrj"%
+                                (self.name, self.options.dump_lammpstrj, self.name))
+
+            # in the meantime we need to map atom id to element that will allow us to 
+            # post-process the lammpstrj file and create a cif out of each 
+            # snapshot stored in the trajectory
+            f = open("lammpstrj_to_element.txt", "w")
+            for key in sorted(self.unique_atom_types.keys()):
+                f.write("%s\n"%(self.graph.node[self.unique_atom_types[key]]['element']))
+            f.close()
+            
+            
 
 
     
@@ -1534,8 +1547,10 @@ class LammpsSimulation(object):
 
         if self.options.dump_dcd: 
             inp_str += "%-15s %s\n"%("undump", "%s_dcdmov"%(self.name))
-        if self.options.dump_xyz:
+        elif self.options.dump_xyz:
             inp_str += "%-15s %s\n"%("undump", "%s_xyzmov"%(self.name))
+        elif self.options.dump_lammpstrj:
+            inp_str += "%-15s %s\n"%("undump", "%s_lammpstrj"%(self.name))
 
         if self.options.restart:
             # for restart files we move xlo, ylo, zlo back to 0 so to have same origin as a cif file

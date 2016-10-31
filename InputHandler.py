@@ -166,6 +166,15 @@ class Options(object):
                                       help="Store trajectory of simulation in a "+
                                            "xyz format every DUMP_XYZ steps. If not requested, then no trajectory "+
                                            "file will be written.")
+        simulation_group.add_argument("--lammpstrj",
+                                      action="store",
+                                      default=0,
+                                      type=int,
+                                      dest="dump_lammpstrj",
+                                      help="Store trajectory of simulation in a "+
+                                           "lammpstrj format every DUMP_LAMMPSTRJ" +
+                                           " steps. If not requested, then no trajectory "+
+                                           "file will be written.")
         simulation_group.add_argument("--restart",
                                       action="store_true",
                                       default=False,
