@@ -182,7 +182,7 @@ class Options(object):
                                       help="Store last snapshot of trajectory of simulation in "+
                                            "lammps traj file format. index of last snap = NEQSTP + NPRODSTP "+
                                            " = 1 if NEQSTP and NPRODSTP not specified")
-
+        
         parameter_group = parser.add_argument_group("Parameter options")
         parameter_group.add_argument("-t", "--tolerance",
                                      action="store",
@@ -244,7 +244,7 @@ class Options(object):
                                      default=200000,
                                      dest="nprodstp",
                                      help="Number of production steps in the simulation. "+
-                                          "Applies to NPT and THERMAL_SCALING simulations. "
+                                          "Applies to NPT and THERMAL_SCALING simulations. " +
                                           "Default is 200,000 steps. (corresponding to "+
                                           "200 ps if the timestep is 1 fs)")
         parameter_group.add_argument("--equilibration-steps",
@@ -253,9 +253,20 @@ class Options(object):
                                      default=200000,
                                      dest="neqstp",
                                      help="Number of equilibration steps in the simulation. "+
-                                          "Applies to NPT and THERMAL_SCALING simulations. "
+                                          "Applies to NPT and THERMAL_SCALING simulations. " +
                                           "Default is 200,000 steps. (corresponding to "+
                                           "200 ps if the timestep is 1 fs)")
+
+        molecule_insertion_group = parser.add_argument_group("Molecule insertion options")
+        molecule_insertion_group.add_argument("--molecule-insert",
+                                              action="store",
+                                              type=str,
+                                              default="",
+                                              dest="molecule_insert",
+                                              help="Prepeare an insertion of this molecule type."+
+                                                   "Default is no molecule insertion. Current options are "+
+                                                   "TIP5P_Water, TIP4P_Water, SPC_E, TIP3P."+
+                                                   "More to come ;)")
 
         parser.add_argument(metavar="CIF", dest="cif_file",
                             help="path to cif file to interpret")

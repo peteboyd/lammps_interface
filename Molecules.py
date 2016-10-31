@@ -1,4 +1,5 @@
 import numpy as np
+from water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms 
 
 class Water(object):
     """Water parent class, containing functions applicable
@@ -165,6 +166,7 @@ class TIP5P_Water(Molecule, Water):
     HOH = 104.52
     Rdum = 0.70
     DOD = 109.47
+    
     def __init__(self):
         """ Class that provides a template molecule for TIP5P Water.
 
@@ -174,7 +176,7 @@ class TIP5P_Water(Molecule, Water):
         configuration to support TIP5P.
 
         """
-
+        self.templite_file = "tip5p.molecule"
         self.O_coord = np.array([0., 0., 0.])
     
     @property
@@ -220,3 +222,39 @@ class TIP5P_Water(Molecule, Water):
         self._H_coord = np.dot(self._H_coord, R.T) + O_pos
         self.dummy
         self._dummy = np.dot(self._dummy, R.T) + O_pos
+
+    def __str__(self):
+        """Override the string function to write the molecule template."""
+
+        self.O_coord
+        self.H_coord
+        self.dummy
+
+
+        line = ""
+
+        line += "Coords\n\n"
+
+        line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([1]+self.O_coord.tolist()))  
+        line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([2]+self.H_coord[0].tolist()))
+        line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([3]+self.H_coord[1].tolist()))
+        line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([4]+self.dummy[0].tolist()))
+        line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([5]+self.dummy[1].tolist()))
+
+        line += "\nTypes\n\n"
+        line += "%6i %i  # OW\n"%(1, 1)
+        line += "%6i %i  # HW\n"%(2, 2)
+        line += "%6i %i  # HW\n"%(3, 2)
+        line += "%6i %i  # Dummy\n"%(4, 3)
+        line += "%6i %i  # Dummy\n"%(5, 3)
+
+        line += "\nCharges\n\n"
+        line += "%6i %12.5f\n"%(1, TIP5P_atoms["OW"][3]) 
+        line += "%6i %12.5f\n"%(2, TIP5P_atoms["HW"][3])
+        line += "%6i %12.5f\n"%(3, TIP5P_atoms["HW"][3])
+        line += "%6i %12.5f\n"%(4, TIP5P_atoms["X"][3])
+        line += "%6i %12.5f\n"%(5, TIP5P_atoms["X"][3])
+
+        
+
+        return line

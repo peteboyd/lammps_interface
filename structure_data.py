@@ -87,11 +87,12 @@ class MolecularGraph(nx.Graph):
 
         """
 
-        old_nodes = list(self.nodes_iter(data=True))
+        old_nodes = sorted([(i,self.node[i]) for i in self.nodes()])
+        #old_nodes = list(self.nodes_iter(data=True))
         old_edges = list(self.edges_iter2(data=True))
         for node, data in old_nodes:
+            
             if 'angles' in data:
-                
                 ang_data = list(data['angles'].items())
                 for (a,c), val in ang_data:
                     data['angles'].pop((a,c))
@@ -963,7 +964,6 @@ class MolecularGraph(nx.Graph):
                 # angle check
                 try:
                     for (a, c), val in list(data['angles'].items()):
-
                         aid, cid = offset + a, offset + c
                         e_ba = graph_image[node][aid]
                         e_bc = graph_image[node][cid]
@@ -976,9 +976,9 @@ class MolecularGraph(nx.Graph):
                         if order_bc != (node, cid) and e_bc['symflag'] != '.':
                             bc_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_bc['symflag'][2:]]))) 
                         os_a = self.img_offset(cells, newcell, maxcell, ba_symflag) * unitatomlen
-                        os_b = self.img_offset(cells, newcell, maxcell, bc_symflag) * unitatomlen
+                        os_c = self.img_offset(cells, newcell, maxcell, bc_symflag) * unitatomlen
                         data['angles'].pop((a,c))
-                        data['angles'][(a + os_a, c + os_b)] = val
+                        data['angles'][(a + os_a, c + os_c)] = val
 
                 except KeyError:
                     # no angles for n1
