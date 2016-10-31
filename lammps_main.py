@@ -1214,7 +1214,7 @@ class LammpsSimulation(object):
 
     
         if (self.options.minimize):
-            box_min = "tri"
+            box_min = "aniso"
             min_style = "cg"
             min_eval = 1e-11  # HKUST-1 will not minimize past 1e-11
             max_iterations = 100000 # if the minimizer can't reach a minimum in this many steps,
@@ -1236,9 +1236,11 @@ class LammpsSimulation(object):
             inp_str += "%-15s %s\n"%("label", "loop_min")
             
             fix = self.fixcount() 
+            inp_str += "%-15s %s\n"%("min_style", min_style)
             inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.01"%(fix, box_min))
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
+            inp_str += "%-15s %s\n"%("min_style", "fire")
             inp_str += "%-15s %-10s %s\n"%("variable", "tempstp", "equal $(step)")
             inp_str += "%-15s %-10s %s\n"%("variable", "CellMinStep", "equal ${tempstp}")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
@@ -1380,10 +1382,12 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "rs", "delete")
             inp_str += "%-15s %s\n"%("undump", "str")
             
-            inp_str += "\n%-15s %-10s %s\n"%("variable", "simTemp", "equal %.4f"%(self.options.temp))
-            inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
-            inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
-
+            if thermo_style:
+                inp_str += "\n%-15s %-10s %s\n"%("variable", "simTemp", "equal %.4f"%(self.options.temp))
+                inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
+                inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
+            elif min_style:
+                inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %-10s %s\n"%("variable", "at", "equal cella")
             inp_str += "%-15s %-10s %s\n"%("variable", "bt", "equal cellb")
             inp_str += "%-15s %-10s %s\n"%("variable", "ct", "equal cellc")
@@ -1409,7 +1413,6 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleC", "equal ${scaleVar}*${c}")
             inp_str += "%-15s %s\n"%("change_box", "all x final 0.0 ${scaleA} y final 0.0 ${scaleB} z final 0.0 ${scaleC} remap")
             if (min_style):
-                inp_str += "%-15s %s\n"%("min_style","fire")
                 inp_str += "%-15s %s\n"%("minimize", "1.0e-15 1.0e-15 10000 100000")
                 inp_str += "%-15s %s\n"%("print", "\"${do},${scaleVar},$(vol),$(press),$(etotal),$(pe),$(ke)"+
                                               ",$(ebond),$(eangle),$(edihed),$(eimp),$(evdwl),$(ecoul)\""+

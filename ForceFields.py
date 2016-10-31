@@ -2211,6 +2211,14 @@ class UFF(ForceField):
         beta = 664.12/r_ab/r_bc
         ka = beta*(za*zc /(r_ac**5.))
         ka *= (3.*r_ab*r_bc*(1. - cosT0*cosT0) - r_ac*r_ac*cosT0)
+        # PETE - edit
+        #if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
+        #    theta0 = self.graph.compute_angle_between(a, b, c)
+        #    # should put this angle in the general - non-linear case
+        #    data['potential'] = AnglePotential.Harmonic()
+        #    data['potential'].K = ka/2 
+        #    data['potential'].theta0 = theta0
+        #    return 1
 
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
             if angle_type == 'linear':
@@ -2483,8 +2491,8 @@ class UFF(ForceField):
                     elif data['hybridization'] == "aromatic":
                         data['force_field_type'] = "%s_R"%data['element']
                         # fix to make the angle 120
-                        if data['element'] == "O":
-                            data['force_field_type'] = "O_2"
+                        #if data['element'] == "O":
+                        #    data['force_field_type'] = "O_2"
                     elif data['hybridization'] == "sp2":
                         data['force_field_type'] = "%s_2"%data['element']
                     elif data['hybridization'] == "sp":
