@@ -543,17 +543,17 @@ class LammpsSimulation(object):
 
         # update the water atoms in the graph with the force field molecule 
         for node in ngraph.nodes():
-            data = ngraph.node[node]
+            data = deepcopy(ngraph.node[node])
             if data['element'] == "O":
                 oid = node 
-                data = h2o.node[1]
+                ngraph.node[node] = h2o.node[1].copy()
             elif data['element'] == "H":
                 try:
                     htm1
-                    data = h2o.node[3]
+                    ngraph.node[node] = h2o.node[3].copy()
                 except NameError:
                     htm1 = node
-                    data = h2o.node[2]
+                    ngraph.node[node] = h2o.node[2].copy()
 
         # add dummy particles
         for dx in h2o.nodes():
