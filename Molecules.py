@@ -49,7 +49,7 @@ class Molecule(MolecularGraph):
         Ideal for using fix gcmc or fix deposit in LAMMPS.
 
         """
-        line = "#%s\n\n"%(self.__name__)
+        line = "#%s\n\n"%(self._type_)
         line =  "%6i atoms\n"%len(self)
         if(self.number_of_edges()):
             line += "%6i bonds\n"%self.number_of_edges()
@@ -87,6 +87,10 @@ class Molecule(MolecularGraph):
         #TODO(pboyd): add bonding, angles, dihedrals, impropers, etc.
 
         return line
+    
+    @property
+    def _type_(self):
+        return self.__class__.__name__
 
 class Water(Molecule):
     """Water parent class, containing functions applicable
@@ -238,6 +242,9 @@ class TIP4P_Water(Water):
 
             return np.reshape(self._dummy, (1,3))
    
+    @property
+    def _type_(self):
+        return self.__class__.__name__
 
 class TIP5P_Water(Water):
     ROH = 0.9572
@@ -312,4 +319,7 @@ class TIP5P_Water(Water):
             axis = np.array([-1., 0., 0.])
             self._dummy = self.Rdum*np.array([np.dot(axis, mat1), np.dot(axis, mat2)])
             return self._dummy
-
+    
+    @property
+    def _type_(self):
+        return self.__class__.__name__
