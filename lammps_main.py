@@ -34,10 +34,15 @@ class LammpsSimulation(object):
         self.subgraphs = []
         self.molecule_types = {}
         self.unique_atom_types = {}
+        self.atom_ff_type = {}
         self.unique_bond_types = {}
+        self.bond_ff_type = {}
         self.unique_angle_types = {}
+        self.angle_ff_type = {}
         self.unique_dihedral_types = {}
+        self.dihedral_ff_type = {}
         self.unique_improper_types = {}
+        self.improper_ff_type = {}
         self.unique_pair_types = {}
         self.pair_in_data = True
         self.separate_molecule_types = True
@@ -53,7 +58,6 @@ class LammpsSimulation(object):
     def unique_atoms(self, g):
         """Computes the number of unique atoms in the structure"""
         count = 0
-        ff_type = {}
         fwk_nodes = sorted(g.nodes())
         molecule_nodes = []
         # check if this is the main graph
@@ -92,11 +96,11 @@ class LammpsSimulation(object):
                     label = (data['force_field_type'], data['h_bond_donor'], molid)
 
             try:
-                type = ff_type[label]
+                type = self.atom_ff_type[label]
             except KeyError:
                 count += 1
                 type = count
-                ff_type[label] = type  
+                self.atom_ff_type[label] = type  
                 self.unique_atom_types[type] = node
                 self.type_molecules[type] = molid
             data['ff_type_index'] = type
@@ -104,12 +108,11 @@ class LammpsSimulation(object):
     def unique_bonds(self, g):
         """Computes the number of unique bonds in the structure"""
         count = 0
-        bb_type = {}
         for n1, n2, data in g.edges_iter2(data=True):
             btype = "%s"%data['potential']
 
             try:
-                type = bb_type[btype]
+                type = self.bond_ff_type[btype]
 
             except KeyError:
                 try: 
@@ -119,14 +122,13 @@ class LammpsSimulation(object):
                     pass
                 count += 1
                 type = count
-                bb_type[btype] = type
+                self.bond_ff_type[btype] = type
 
                 self.unique_bond_types[type] = (n1, n2, data) 
 
             data['ff_type_index'] = type
     
     def unique_angles(self, g):
-        ang_type = {}
         count = 0
         for b, data in g.nodes_iter(data=True):
             # compute and store angle terms
@@ -136,7 +138,7 @@ class LammpsSimulation(object):
                 for (a, c), val in ang_data.items():
                     atype = "%s"%val['potential']
                     try:
-                        type = ang_type[atype]
+                        type = self.angle_ff_type[atype]
 
                     except KeyError:
                         count += 1
@@ -146,7 +148,7 @@ class LammpsSimulation(object):
                         except AttributeError:
                             pass
                         type = count
-                        ang_type[atype] = type
+                        self.angle_ff_type[atype] = type
                         self.unique_angle_types[type] = (a, b, c, val) 
                     val['ff_type_index'] = type
                     # update original dictionary
@@ -179,7 +181,6 @@ class LammpsSimulation(object):
 
     def unique_impropers(self, g):
         count = 0
-        improper_type = {}
         
         for b, data in g.nodes_iter(data=True):
             try:
@@ -189,11 +190,11 @@ class LammpsSimulation(object):
                     if val['potential'] is not None:
                         itype = "%s"%val['potential']
                         try:
-                            type = improper_type[itype]
+                            type = self.improper_ff_type[itype]
                         except KeyError:
                             count += 1
                             type = count
-                            improper_type[itype] = type
+                            self.improper_ff_type[itype] = type
                             self.unique_improper_types[type] = (a, b, c, d, val)
 
                         val['ff_type_index'] = type
@@ -472,26 +473,44 @@ class LammpsSimulation(object):
         """ Construct a molecule template for
         reading and insertions in a LAMMPS simulation.
 
-        Not sure how the bonding, angle, dihedral, improper,
-        and pair terms will be dealt with yet..
+        This combines two classes which have
+        been separated conceptually - ForceField and
+        Molecules.
+        For some molecules, the force field is implicit
+        within the structure (e.g. TIP5P_Water molecule
+        must be used with the TIP5P ForceField).
+        But one can imagine cases where this is not true
+        (alkanes? CO2?).
 
         """
-        
-        #I think the Molecule class should be generalized so that
-        #this kind of input can be generated easily
+        # no error checking here, it is assumed that the user
+        # knows which force field to pair with which molecule
+        # I'm not sure what would happen if there were a mismatch
+        # but hopefully error-checking elsewhere in the code
+        # will catch these things.
         molecule = getattr(Molecules, mol)()
-        # somehow update atom, bond, angle, dihedral, improper etc. types to 
-        # include atomic species that don't exist yet..
-        template_file = "%s.molecule"%molecule.__class__.__name__
-        file = open(template_file, 'w')
-        file.writelines(str(molecule))
-        file.close()
+        if self.options.mol_ff is not None:
+            mol_ff = self.options.mol_ff
+
+        else:
+            # parse if _Water is at the end to get the force
+            # fields for various water models.
+            if mol.endswith('_Water'):
+                mol_ff = mol[:-6]
+        #TODO(pboyd): Check how h-bonding is handeled at this level
+        ff = getattr(ForceFields, mol_ff)(graph=molecule,
+                                          cutoff=self.options.cutoff)
         # add the unique potentials to the unique_dictionaries.
         self.unique_atoms(molecule)
         self.unique_bonds(molecule)
         self.unique_dihedrals(molecule)
         self.unique_impropers(molecule)
-
+        # somehow update atom, bond, angle, dihedral, improper etc. types to 
+        # include atomic species that don't exist yet..
+        template_file = "%s.molecule"%molecule.__class__.__name__
+        file = open(template_file, 'w')
+        file.writelines(molecule.str(atom_types=self.atom_ff_type))
+        file.close()
         print('Molecule template file written as %s'%template_file)
 
     def add_water_model(self, ngraph, ff):
@@ -609,13 +628,13 @@ class LammpsSimulation(object):
                 mgraph.reorder_labels(reorder_dic)
 
     def write_lammps_files(self):
-        if self.options.molecule_insert:
-            self.molecule_template(self.options.molecule_insert)
         self.unique_atoms(self.graph)
         self.unique_bonds(self.graph)
         self.unique_angles(self.graph)
         self.unique_dihedrals(self.graph)
         self.unique_impropers(self.graph)
+        if self.options.insert_molecule:
+            self.molecule_template(self.options.insert_molecule)
         self.unique_pair_terms()
         self.define_styles()
 
@@ -1059,10 +1078,14 @@ class LammpsSimulation(object):
         return (len(count))
 
     def construct_input_file(self):
-        """Input file will depend on what the user wants to do"""
+        """Input file construction based on user-defined inputs.
+        
+        NB: This function is getting huge. We should probably break it 
+        up into logical sub-sections.
+        
+        """
         inp_str = ""
-        # Eventually, this function should be dependent on some command line arguments
-        # which will dictate what kind of simulation to run in LAMMPS
+        
         inp_str += "%-15s %s\n"%("log","log.%s append"%(self.name))
         inp_str += "%-15s %s\n"%("units","real")
         inp_str += "%-15s %s\n"%("atom_style","full")
@@ -1200,10 +1223,6 @@ class LammpsSimulation(object):
                 f.write("%s\n"%(self.graph.node[self.unique_atom_types[key]]['element']))
             f.close()
             
-            
-
-
-    
         if (self.options.minimize):
             box_min = "aniso"
             min_style = "cg"
@@ -1250,6 +1269,10 @@ class LammpsSimulation(object):
 
            # inp_str += "%-15s %s\n"%("unfix", "output") 
         # delete bond types etc, for molecules that are rigid
+
+        if self.options.insert_molecule:
+            inp_str += "%-15s %s %s.molecule\n"%("molecule", self.options.insert_molecule, self.options.insert_molecule)
+        
         for mol in sorted(self.molecule_types.keys()):
             rep = self.subgraphs[self.molecule_types[mol][0]]
             if rep.rigid:

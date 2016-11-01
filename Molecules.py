@@ -1,10 +1,11 @@
 import numpy as np
-from water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms 
+from water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms
 from structure_data import MolecularGraph
 import networkx as nx
 
 class Molecule(MolecularGraph):
-
+    #TODO(pboyd):add bonding calculations for the atoms in each molecular template.
+    #            so we can add bond/angle/dihedral/improper potentials later on.
     def rotation_from_vectors(self, v1, v2):
         """Obtain rotation matrix from sets of vectors.
         the original set is v1 and the vectors to rotate
@@ -43,12 +44,11 @@ class Molecule(MolecularGraph):
     
         return R
     
-    def __str__(self):
+    def str(self, atom_types={}, bond_types={}, angle_types={}, dihedral_types={}, improper_types={}):
         """ Create a molecule template string for writing to a file.
         Ideal for using fix gcmc or fix deposit in LAMMPS.
 
         """
-       
         line = ""
         line =  "%6i atoms\n"%len(self)
         if(self.number_of_edges()):
@@ -61,20 +61,30 @@ class Molecule(MolecularGraph):
             line += "%6i impropers\n"%(self.count_impropers())
         #line += "%12.5f mass"%()
         #line += "%12.5f %12.5f %12.5f com"%()
-        types = {}
         line += "\nCoords\n\n"
         for node, data in self.nodes_iter(data=True):
+            if data['h_bond_donor']:
+                label = (data['force_field_type'], data['h_bond_donor'], 0, tuple(sorted([self.node[j]['element'] for j in self.neighbors[node]])))
+            else:
+                label = (data['force_field_type'], data['h_bond_donor'], 0)
+            try:
+                type = atom_types[label]
+            except KeyError:
+                type = len(atom_types) + 1
+                atom_types.setdefault(label, type)
+
+            data['ff_type_index'] = type
             line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([node]+data['cartesian_coordinates'].tolist()))
-            types.setdefault(data['force_field_type'], len(types)+1) 
-        
 
         line += "\nTypes\n\n"
         for node, data in self.nodes_iter(data=True):
-            line += "%6i %6i  # %s\n"%(node, types[data['force_field_type']], data['force_field_type'])
+            line += "%6i %6i  # %s\n"%(node, data['ff_type_index'], data['force_field_type'])
 
         line += "\nCharges\n\n"
         for node, data in self.nodes_iter(data=True):
             line += "%6i %12.5f\n"%(node, data['charge']) 
+        
+        #TODO(pboyd): add bonding, angles, dihedrals, impropers, etc.
 
         return line
 
