@@ -49,7 +49,7 @@ class Molecule(MolecularGraph):
         Ideal for using fix gcmc or fix deposit in LAMMPS.
 
         """
-        line = ""
+        line = "#%s\n\n"%(self.__name__)
         line =  "%6i atoms\n"%len(self)
         if(self.number_of_edges()):
             line += "%6i bonds\n"%self.number_of_edges()

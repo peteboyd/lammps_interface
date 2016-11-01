@@ -439,7 +439,7 @@ class LammpsSimulation(object):
             if ff is None:
                 ff = self.options.force_field
                 atoms = ", ".join([rep.node[j]['element'] for j in rep.nodes()])
-                print("Warning: Molecule %s with atoms (%s) will be using the %s force field as no "%(mtype,atoms,ff)+
+                print("WARNING: Molecule %s with atoms (%s) will be using the %s force field as no "%(mtype,atoms,ff)+
                       " value was set for molecules. To prevent this warning "+
                       "set --molecule-ff=[some force field] on the command line.")
             h_bonding = False
@@ -584,7 +584,7 @@ class LammpsSimulation(object):
 
         supercell = self.cell.minimum_supercell(self.options.cutoff)
         if np.any(np.array(supercell) > 1):
-            print("Warning: unit cell is not large enough to"
+            print("WARNING: unit cell is not large enough to"
                   +" support a non-bonded cutoff of %.2f Angstroms."%self.options.cutoff) 
 
         if(self.options.replication is not None):

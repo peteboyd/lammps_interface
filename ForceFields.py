@@ -2774,7 +2774,7 @@ class Dreiding(ForceField):
                     # Need to make sure this isn't part of the same ring.
                     if c in cycle:
                         b_arom = False
-                        print("Warning: two resonant atoms "+
+                        print("WARNING: two resonant atoms "+
                               "%s and %s"%(b_data['ciflabel'], c_data['ciflabel'])+
                               "in the same ring have a bond order of 1.0! "
                               "This will likely yield unphysical characteristics"+
@@ -2786,7 +2786,7 @@ class Dreiding(ForceField):
                     # Need to make sure this isn't part of the same ring.
                     if b in cycle:
                         c_arom = False
-                        print("Warning: two resonant atoms "+
+                        print("WARNING: two resonant atoms "+
                               "%s and %s"%(b_data['ciflabel'], c_data['ciflabel'])+
                               "in the same ring have a bond order of 1.0! "
                               "This will likely yield unphysical characteristics"+
