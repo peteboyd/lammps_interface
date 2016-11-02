@@ -1398,7 +1398,7 @@ class LammpsSimulation(object):
             if self.options.deposit:
                 # add a shift of the cell as the deposit of molecules tends to shift things.
                 id = self.fixcount()
-                inp_str += "%-15i %i all momentum 1 linear 1 1 1 angular\n"%("fix", id)
+                inp_str += "%-15s %i all momentum 1 linear 1 1 1 angular\n"%("fix", id)
                 id = self.fixcount() 
                 # define a region the size of the unit cell.
                 every = self.options.neqstp/2/self.options.deposit
