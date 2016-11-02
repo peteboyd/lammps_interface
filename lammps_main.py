@@ -74,13 +74,25 @@ class LammpsSimulation(object):
                 molecule_nodes.append(nds)
             molecule_nodes.append(fwk_nodes)
 
+        # determine if the graph is the main structure, or a molecule template
+        # this is *probably* not the best way to do it.
+        moltemplate = ("Molecules" in "%s"%g.__class__)
+        mainstructr = ("structure_data" in "%s"%g.__class__)
+        if (moltemplate and mainstructr):
+            print("ERROR: there is some confusion about class assignment with "+
+                  "MolecularGraphs.  You should probably contact one of the developers.")
+            sys.exit()
+
         for node, data in g.nodes_iter(data=True):
-            if self.separate_molecule_types and molecule_nodes:
+            if self.separate_molecule_types and molecule_nodes and mainstructr:
                 molid = [j for j,mol in enumerate(molecule_nodes) if node in mol]
                 molid = molid[0]
+            elif moltemplate:
+                # random keyboard mashing. Just need to separate this from other atom types in the
+                # system. This is important when defining the molecule group for this template.
+                molid = 23523523
             else:
                 molid = 0
-
             # add factor for h_bond donors
             if data['force_field_type'] is None:
                 if data['h_bond_donor']:
@@ -492,11 +504,15 @@ class LammpsSimulation(object):
         if self.options.mol_ff is not None:
             mol_ff = self.options.mol_ff
 
-        else:
+        elif mol.endswith("_Water"):
             # parse if _Water is at the end to get the force
             # fields for various water models.
-            if mol.endswith('_Water'):
-                mol_ff = mol[:-6]
+            mol_ff = mol[:-6]
+        else:
+            # just take the general force field used on the
+            # framework
+            mol_ff = self.options.force_field
+
         #TODO(pboyd): Check how h-bonding is handeled at this level
         ff = getattr(ForceFields, mol_ff)(graph=molecule,
                                           cutoff=self.options.cutoff)
@@ -507,6 +523,7 @@ class LammpsSimulation(object):
         self.unique_impropers(molecule)
         # somehow update atom, bond, angle, dihedral, improper etc. types to 
         # include atomic species that don't exist yet..
+        self.template_molecule = molecule
         template_file = "%s.molecule"%molecule.__class__.__name__
         file = open(template_file, 'w')
         file.writelines(molecule.str(atom_types=self.atom_ff_type))
@@ -1136,6 +1153,24 @@ class LammpsSimulation(object):
             inp_str += "#### END Pair Coefficients ####\n\n"
         
         inp_str += "\n#### Atom Groupings ####\n"
+        # Define a group for the template molecules, if they exist.
+        # It is conceptually hard to rationalize why this has to be
+        # a separate command and not combined with the 'molecule' command
+        if self.options.insert_molecule:
+            moltypes = []
+            for mnode, mdata in self.template_molecule.nodes_iter(data=True):
+                moltypes.append(mdata['ff_type_index'])
+            
+            inp_str += "%-15s %s type   "%("group", self.options.insert_molecule)
+            for x in self.groups(list(set(moltypes))):
+                x = list(x)
+                if (len(x) > 1):
+                    inp_str += " %i:%i"%(x[0], x[-1])
+                else:
+                    inp_str += " %i"%(x[0])
+            inp_str += "\n"
+
+
         framework_atoms = self.graph.nodes()
         if(self.molecules)and(len(self.molecule_types.keys()) < 32):
             # lammps cannot handle more than 32 groups including 'all' 
@@ -1293,12 +1328,38 @@ class LammpsSimulation(object):
 
         if (self.options.random_vel):
             inp_str += "%-15s %s\n"%("velocity", "all create %.2f %i"%(self.options.temp, np.random.randint(1,3000000)))
-
+        
         if (self.options.nvt):
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
             molecule_fixes = []
             mollist = sorted(list(self.molecule_types.keys()))
+
+            if self.options.insert_molecule:
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                if self.template_molecule.rigid:
+                    insert_rigid_id = id
+                    inp_str += "%-15s %s\n"%("fix", "%i %s rigid/small molecule langevin %.2f %.2f ${tdamp} %i mol %s"%(id, 
+                                                                                            self.options.insert_molecule,
+                                                                                            self.options.temp, 
+                                                                                            self.options.temp,
+                                                                                            np.random.randint(1,3000000),
+                                                                                            self.options.insert_molecule
+                                                                                            ))
+                else:
+                    # no idea if this will work..
+                    inp_str += "%-15s %s\n"%("fix", "%i %s langevin %.2f %.2f ${tdamp} %i"%(id, 
+                                                                                        self.options.insert_molecule,
+                                                                                        self.options.temp, 
+                                                                                        self.options.temp,
+                                                                                        np.random.randint(1,3000000)
+                                                                                        ))
+                    id = self.fixcount()
+                    molecule_fixes.append(id)
+                    inp_str += "%-15s %s\n"%("fix", "%i %i nve"%(id,molid))
+
+
             for molid in mollist: 
                 id = self.fixcount()
                 molecule_fixes.append(id)
@@ -1332,11 +1393,53 @@ class LammpsSimulation(object):
                 id = self.fixcount()
                 molecule_fixes.append(id)
                 inp_str += "%-15s %s\n"%("fix", "%i fram nve"%id)
+
+            # deposit within nvt equilibrium phase.  TODO(pboyd): This entire input file formation Needs to be re-thought.
+            if self.options.deposit:
+                id = self.fixcount() 
+                # define a region the size of the unit cell.
+                every = self.options.neqstp/2/self.options.deposit
+                if every <= 100:
+                    print("WARNING: you have set %i equilibrium steps, which may not be enough to "%(self.options.neqstp) + 
+                            "deposit %i %s molecules. "%(self.options.deposit, self.options.insert_molecule) +
+                            "The metric used to create this warning is NEQSTP/2/DEPOSIT. So adjust accordingly.")
+                inp_str += "%-15s %-8s %-8s %i %s %i %s %i %s %s\n"%("region", "cell", "block", 0, "EDGE", 
+                                                                     0, "EDGE", 0, "EDGE", "units lattice")
+                inp_str += "%-15s %i %s %s %i %i %i %i %s %s %s %.2f %s %s"%("fix", id, self.options.insert_molecule, 
+                                                                             "deposit", self.options.deposit, 0, every, 
+                                                                             np.random.randint(1, 3000000), "region", 
+                                                                             "cell", "near", 2.0, "mol", 
+                                                                             self.options.insert_molecule)
+                # need rigid fixid
+                if self.template_molecule.rigid:
+                    inp_str += " rigid %i\n"%(insert_rigid_id)
+                else:
+                    inp_str += "\n"
+
             inp_str += "%-15s %i\n"%("thermo", 0)
             inp_str += "%-15s %i\n"%("run", self.options.neqstp)
             while(molecule_fixes):
                 fid = molecule_fixes.pop(0)
                 inp_str += "%-15s %i\n"%("unfix", fid)
+            
+            if self.options.insert_molecule:
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                if self.template_molecule.rigid:
+                    inp_str += "%-15s %s\n"%("fix", "%i %s rigid/nvt/small molecule temp %.2f %.2f ${tdamp} mol %s"%(id, 
+                                                                                            self.options.insert_molecule,
+                                                                                            self.options.temp, 
+                                                                                            self.options.temp,
+                                                                                            self.options.insert_molecule
+                                                                                            ))
+                else:
+                    # no idea if this will work..
+                    inp_str += "%-15s %s\n"%("fix", "%i %s nvt %.2f %.2f ${tdamp}"%(id, 
+                                                                                        self.options.insert_molecule,
+                                                                                        self.options.temp, 
+                                                                                        self.options.temp
+                                                                                        ))
+
 
             for molid in mollist:
                 id = self.fixcount()
@@ -1370,6 +1473,7 @@ class LammpsSimulation(object):
                 fid = molecule_fixes.pop(0)
                 inp_str += "%-15s %i\n"%("unfix", fid)
 
+        #TODO(pboyd): add molecule commands to npt simulations.. this needs to be separated!
         if (self.options.npt):
             id = self.fixcount()
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))

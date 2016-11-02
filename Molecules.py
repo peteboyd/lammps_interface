@@ -204,6 +204,7 @@ class TIP4P_Water(Water):
 
         """
         nx.Graph.__init__(self, **kwargs)
+        self.rigid = True
         self.O_coord = np.array([0., 0., 0.])
         for idx, ff_type in enumerate(["OW", "HW", "HW", "X"]):
             element = ff_type[0]
@@ -263,6 +264,7 @@ class TIP5P_Water(Water):
         """
         nx.Graph.__init__(self, **kwargs)
         self.O_coord = np.array([0., 0., 0.])
+        self.rigid = True
         for idx, ff_type in enumerate(["OW", "HW", "HW", "X", "X"]):
 
             element = ff_type[0]

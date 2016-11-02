@@ -267,6 +267,18 @@ class Options(object):
                                                    " Default is no molecule insertion. Current options are "+
                                                    "TIP5P_Water, TIP4P_Water, SPC_E, TIP3P."+
                                                    " More to come ;)")
+        
+        molecule_insertion_group.add_argument("--deposit",
+                                              action="store",
+                                              type=int,
+                                              default=0,
+                                              dest="deposit",
+                                              help="Create commands to place DEPOSIT particles "+
+                                                   "in the region of the unit cell. The particle "+
+                                                   "types are provided by the INSERT_MOLECULE value."+
+                                                   " This will also depend on the number of "+
+                                                   "equilibrium steps NEQSTP requested, and "+
+                                                   "currently only works with an NVT simulation.")
 
         parser.add_argument(metavar="CIF", dest="cif_file",
                             help="path to cif file to interpret")
