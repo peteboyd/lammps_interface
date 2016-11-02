@@ -57,7 +57,7 @@ class LammpsSimulation(object):
 
     def unique_atoms(self, g):
         """Computes the number of unique atoms in the structure"""
-        count = 0
+        count = len(self.unique_atom_types) 
         fwk_nodes = sorted(g.nodes())
         molecule_nodes = []
         # check if this is the main graph
@@ -89,7 +89,9 @@ class LammpsSimulation(object):
                 molid = molid[0]
             elif moltemplate:
                 # random keyboard mashing. Just need to separate this from other atom types in the
-                # system. This is important when defining the molecule group for this template.
+                # system. This is important when defining separating the Molecule's atom types
+                # from other atom types in the framework that would otherwise be identical.
+                # This allows for the construction of the molecule group for this template.
                 molid = 23523523
             else:
                 molid = 0
@@ -113,13 +115,14 @@ class LammpsSimulation(object):
                 count += 1
                 type = count
                 self.atom_ff_type[label] = type  
-                self.unique_atom_types[type] = node
-                self.type_molecules[type] = molid
+                self.unique_atom_types[type] = (node, data)
+                if not moltemplate:
+                    self.type_molecules[type] = molid
             data['ff_type_index'] = type
 
     def unique_bonds(self, g):
         """Computes the number of unique bonds in the structure"""
-        count = 0
+        count = len(self.unique_bond_types) 
         for n1, n2, data in g.edges_iter2(data=True):
             btype = "%s"%data['potential']
 
@@ -141,7 +144,7 @@ class LammpsSimulation(object):
             data['ff_type_index'] = type
     
     def unique_angles(self, g):
-        count = 0
+        count = len(self.unique_angle_types) 
         for b, data in g.nodes_iter(data=True):
             # compute and store angle terms
             try:
@@ -170,7 +173,7 @@ class LammpsSimulation(object):
                 pass
 
     def unique_dihedrals(self, g):
-        count = 0
+        count = len(self.unique_dihedral_types)
         dihedral_type = {}
         for b, c, data in g.edges_iter2(data=True):
             try:
@@ -192,7 +195,7 @@ class LammpsSimulation(object):
                 pass
 
     def unique_impropers(self, g):
-        count = 0
+        count = len(self.unique_improper_types) 
         
         for b, data in g.nodes_iter(data=True):
             try:
@@ -236,9 +239,7 @@ class LammpsSimulation(object):
         if len(list(set(pot_names))) > 1 or (any(['buck' in i for i in list(set(pot_names))])):
             self.pair_in_data = False
             for (i, j) in itertools.combinations_with_replacement(nodes_list, 2):
-                n1, n2 = self.unique_atom_types[i], self.unique_atom_types[j]
-                i_data = self.graph.node[n1]
-                j_data = self.graph.node[n2]
+                (n1, i_data), (n2, j_data) = self.unique_atom_types[i], self.unique_atom_types[j]
                 mol1 = self.type_molecules[i]
                 mol2 = self.type_molecules[j]
                 # test to see if h-bonding to occur between molecules
@@ -288,8 +289,9 @@ class LammpsSimulation(object):
         # can be mixed by lammps
         else:
             for b in sorted(list(self.unique_atom_types.keys())):
-                data = self.graph.node[self.unique_atom_types[b]]
-                # compute and store angle terms
+                data = self.unique_atom_types[b][1]
+                #PETE
+                #print(data)
                 pot = data['pair_potential']
                 self.unique_pair_types[b] = data
 
@@ -501,21 +503,21 @@ class LammpsSimulation(object):
         # but hopefully error-checking elsewhere in the code
         # will catch these things.
         molecule = getattr(Molecules, mol)()
-        if self.options.mol_ff is not None:
-            mol_ff = self.options.mol_ff
+        if self.options.mol_ff is None:
+            mol_ff = self.options.force_field
 
-        elif mol.endswith("_Water"):
+        elif self.options.mol_ff.endswith("_Water"):
             # parse if _Water is at the end to get the force
             # fields for various water models.
             mol_ff = mol[:-6]
         else:
             # just take the general force field used on the
             # framework
-            mol_ff = self.options.force_field
-
+            mol_ff = self.options.mol_ff
         #TODO(pboyd): Check how h-bonding is handeled at this level
         ff = getattr(ForceFields, mol_ff)(graph=molecule,
-                                          cutoff=self.options.cutoff)
+                                     cutoff=self.options.cutoff)
+        
         # add the unique potentials to the unique_dictionaries.
         self.unique_atoms(molecule)
         self.unique_bonds(molecule)
@@ -709,7 +711,7 @@ class LammpsSimulation(object):
         if(len(self.unique_atom_types.keys()) > 0):
             string += "\nMasses\n\n"
             for key in sorted(self.unique_atom_types.keys()):
-                unq_atom = self.graph.node[self.unique_atom_types[key]]
+                unq_atom = self.unique_atom_types[key][1] 
                 mass, type = unq_atom['mass'], unq_atom['force_field_type']
                 string += "%5i %15.9f # %s\n"%(key, mass, type)
     
@@ -981,11 +983,11 @@ class LammpsSimulation(object):
     
         if((len(self.unique_pair_types.keys()) > 0) and (self.pair_in_data)):
             string += "\nPair Coeffs\n\n"
-            for key, n in sorted(self.unique_atom_types.items()):
-                pair = self.graph.node[n]
+            for key, (n,pair) in sorted(self.unique_atom_types.items()):
+                #pair = self.graph.node[n]
                 string += "%5i %s "%(key, pair['pair_potential'])
-                string += "# %s %s\n"%(self.graph.node[n]['force_field_type'], 
-                                       self.graph.node[n]['force_field_type'])
+                string += "# %s %s\n"%(pair['force_field_type'], 
+                                       pair['force_field_type'])
        
  
         # Nest this in an if statement
@@ -1244,7 +1246,7 @@ class LammpsSimulation(object):
                                 (self.name, self.options.dump_xyz, self.name))
             inp_str += "%-15s %s\n"%("dump_modify", "%s_xyzmov element %s"%(
                                      self.name, 
-                                     " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
+                                     " ".join([self.unique_atom_types[key][1]['element'] 
                                                 for key in sorted(self.unique_atom_types.keys())])))
         elif self.options.dump_lammpstrj:
             inp_str += "%-15s %s\n"%("dump","%s_lammpstrj all atom %i %s_mov.lammpstrj"%
@@ -1255,7 +1257,7 @@ class LammpsSimulation(object):
             # snapshot stored in the trajectory
             f = open("lammpstrj_to_element.txt", "w")
             for key in sorted(self.unique_atom_types.keys()):
-                f.write("%s\n"%(self.graph.node[self.unique_atom_types[key]]['element']))
+                f.write("%s\n"%(self.unique_atom_types[key][1]['element']))
             f.close()
             
         if (self.options.minimize):
@@ -1413,6 +1415,7 @@ class LammpsSimulation(object):
                                                                              np.random.randint(1, 3000000), "region", 
                                                                              "cell", "near", 2.0, "mol", 
                                                                              self.options.insert_molecule)
+                molecule_fixes.append(id)
                 # need rigid fixid
                 if self.template_molecule.rigid:
                     inp_str += " rigid %i\n"%(insert_rigid_id)

@@ -63,17 +63,6 @@ class Molecule(MolecularGraph):
         #line += "%12.5f %12.5f %12.5f com"%()
         line += "\nCoords\n\n"
         for node, data in self.nodes_iter(data=True):
-            if data['h_bond_donor']:
-                label = (data['force_field_type'], data['h_bond_donor'], 0, tuple(sorted([self.node[j]['element'] for j in self.neighbors[node]])))
-            else:
-                label = (data['force_field_type'], data['h_bond_donor'], 0)
-            try:
-                type = atom_types[label]
-            except KeyError:
-                type = len(atom_types) + 1
-                atom_types.setdefault(label, type)
-
-            data['ff_type_index'] = type
             line += "%6i %12.5f %12.5f %12.5f\n"%(tuple ([node]+data['cartesian_coordinates'].tolist()))
 
         line += "\nTypes\n\n"
