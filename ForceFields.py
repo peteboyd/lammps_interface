@@ -4145,12 +4145,12 @@ class TIP4P(ForceField, TIP4P_Water):
             data['mass'] = TIP4P_atoms[fftype][0] 
             data['charge'] = TIP4P_atoms[fftype][3] 
 
-class TIP5P(ForceField, TIP5P_Water):
+class TIP5P(ForceField):
     def __init__(self, graph=None, **kwargs):
         self.pair_in_data = True
         for key, value in kwargs.items():
             setattr(self, key, value)
-
+        
         if (graph is not None):
             self.graph = graph
             self.graph.rigid = True
