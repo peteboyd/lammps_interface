@@ -46,7 +46,8 @@ class LammpsSimulation(object):
         self.unique_pair_types = {}
         self.pair_in_data = True
         self.separate_molecule_types = True
-        self.framework = True # Flag if a framework exists in the simulation. 
+        self.framework = True # Flag if a framework exists in the simulation.
+        self.supercell = (1, 1, 1) # keep track of supercell size
         self.type_molecules = {}
         self.no_molecule_pair = True  # ensure that h-bonding will not occur between molecules of the same type
         self.fix_shake = {}
@@ -612,7 +613,7 @@ class LammpsSimulation(object):
                     print("Use <ixjxk> format")
                     print("Exiting...")
                     sys.exit()
-
+        self.supercell=supercell
         if np.any(np.array(supercell) > 1):
             print("Re-sizing to a %i x %i x %i supercell. "%(supercell))
             
@@ -1396,20 +1397,22 @@ class LammpsSimulation(object):
 
             # deposit within nvt equilibrium phase.  TODO(pboyd): This entire input file formation Needs to be re-thought.
             if self.options.deposit:
+                deposit = self.options.deposit * np.prod(np.array(self.supercell)) 
+                
                 # add a shift of the cell as the deposit of molecules tends to shift things.
                 id = self.fixcount()
                 inp_str += "%-15s %i all momentum 1 linear 1 1 1 angular\n"%("fix", id)
                 id = self.fixcount() 
                 # define a region the size of the unit cell.
-                every = self.options.neqstp/2/self.options.deposit
+                every = self.options.neqstp/2/deposit
                 if every <= 100:
                     print("WARNING: you have set %i equilibrium steps, which may not be enough to "%(self.options.neqstp) + 
-                            "deposit %i %s molecules. "%(self.options.deposit, self.options.insert_molecule) +
+                            "deposit %i %s molecules. "%(deposit, self.options.insert_molecule) +
                             "The metric used to create this warning is NEQSTP/2/DEPOSIT. So adjust accordingly.")
                 inp_str += "%-15s %-8s %-8s %i %s %i %s %i %s %s\n"%("region", "cell", "block", 0, "EDGE", 
                                                                      0, "EDGE", 0, "EDGE", "units lattice")
                 inp_str += "%-15s %i %s %s %i %i %i %i %s %s %s %.2f %s %s"%("fix", id, self.options.insert_molecule, 
-                                                                             "deposit", self.options.deposit, 0, every, 
+                                                                             "deposit", deposit, 0, every, 
                                                                              np.random.randint(1, 3000000), "region", 
                                                                              "cell", "near", 2.0, "mol", 
                                                                              self.options.insert_molecule)

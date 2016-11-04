@@ -278,7 +278,12 @@ class Options(object):
                                                    "types are provided by the INSERT_MOLECULE value."+
                                                    " This will also depend on the number of "+
                                                    "equilibrium steps NEQSTP requested, and "+
-                                                   "currently only works with an NVT simulation.")
+                                                   "currently only works with an NVT simulation."+
+                                                   "NOTE: The number of particles to deposit "+
+                                                   "is considered in the unit cell! The program "+
+                                                   "will multipy this value by the number of unit "+
+                                                   "cells that were needed to produce the simulation "+
+                                                   "supercell.")
 
         parser.add_argument(metavar="CIF", dest="cif_file",
                             help="path to cif file to interpret")
