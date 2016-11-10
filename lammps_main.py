@@ -291,8 +291,6 @@ class LammpsSimulation(object):
         else:
             for b in sorted(list(self.unique_atom_types.keys())):
                 data = self.unique_atom_types[b][1]
-                #PETE
-                #print(data)
                 pot = data['pair_potential']
                 self.unique_pair_types[b] = data
 
@@ -470,12 +468,14 @@ class LammpsSimulation(object):
             for m in self.molecule_types[mtype]:
                 # Water check
                 # currently only works if the cif file contains water particles without dummy atoms.
+                #print(self.subgraphs[m]) #PETE
                 ngraph = self.subgraphs[m]
                 self.assign_molecule_ids(ngraph)
-                if ff[-5:] == "Water":
-                    self.add_water_model(ngraph, ff)
-                    ff = ff[:-6] # remove _Water from end of name
-                if ff[-3:] == "CO2":
+                mff = self.options.mol_ff 
+                if mff[-5:] == "Water":
+                    self.add_water_model(ngraph, mff)
+                    ff = mff[:-6] # remove _Water from end of name
+                if mff[-3:] == "CO2":
                     self.add_co2_model(ngraph, ff)
                 p = getattr(ForceFields, ff)(graph=self.subgraphs[m], 
                                          cutoff=self.options.cutoff, 
@@ -564,19 +564,31 @@ class LammpsSimulation(object):
                                   O_pos1 = oatom1['cartesian_coordinates'],
                                   O_pos2 = oatom2['cartesian_coordinates'])
 
-        # update the water atoms in the graph with the force field molecule 
-        for node in ngraph.nodes():
-            data = deepcopy(ngraph.node[node])
-            if data['element'] == "C":
-                cid = node 
-                ngraph.node[node] = co2.node[1].copy()
-            elif data['element'] == "O":
-                try:
-                    otm1
-                    ngraph.node[node] = co2.node[3].copy()
-                except NameError:
-                    otm1 = node
-                    ngraph.node[node] = co2.node[2].copy()
+        # update the co2 atoms in the graph with the force field molecule
+        mol_c = deepcopy(co2.node[1])
+        mol_o1 = deepcopy(co2.node[2])
+        mol_o2 = deepcopy(co2.node[3])
+        # hackjob - get rid of the angle data on the carbon, so that
+        # the framework indexed values for each oxygen remain with the carbon atom.
+        mol_c.pop('angles')
+        catom.update(mol_c)
+        oatom1.update(mol_o1)
+        oatom2.update(mol_o2)
+        #for node in ngraph.nodes():
+        #    #data = deepcopy(ngraph.node[node]) # doesn't work - some of the data is 
+        #                                        # specific to the molecule in the
+        #                                        # framework.
+
+        #    if data['element'] == "C":
+        #        cid = node 
+        #        ngraph.node[node] = co2.node[1].copy()
+        #    elif data['element'] == "O":
+        #        try:
+        #            otm1
+        #            ngraph.node[node] = co2.node[3].copy()
+        #        except NameError:
+        #            otm1 = node
+        #            ngraph.node[node] = co2.node[2].copy()
 
     def add_water_model(self, ngraph, ff):
         size = ngraph.number_of_nodes()
@@ -591,6 +603,7 @@ class LammpsSimulation(object):
             sys.exit()
         for node in ngraph.nodes():
             if ngraph.node[node]['element'] == "O":
+                oid = node
                 oatom = ngraph.node[node]
             elif ngraph.node[node]['element'] == "H":
                 try:
@@ -606,19 +619,33 @@ class LammpsSimulation(object):
                                   H_pos1 = hatom1['cartesian_coordinates'],
                                   H_pos2 = hatom2['cartesian_coordinates'])
 
+        # update the water atoms in the graph with the force field molecule
+        mol_o = deepcopy(h2o.node[1])
+        mol_h1 = deepcopy(h2o.node[2])
+        mol_h2 = deepcopy(h2o.node[3])
+        # hackjob - get rid of the angle data on the carbon, so that
+        # the framework indexed values for each oxygen remain with the carbon atom.
+        try:
+            mol_o.pop('angles')
+        except KeyError:
+            pass
+
+        oatom.update(mol_o)
+        hatom1.update(mol_h1)
+        hatom2.update(mol_h2)
         # update the water atoms in the graph with the force field molecule 
-        for node in ngraph.nodes():
-            data = deepcopy(ngraph.node[node])
-            if data['element'] == "O":
-                oid = node 
-                ngraph.node[node] = h2o.node[1].copy()
-            elif data['element'] == "H":
-                try:
-                    htm1
-                    ngraph.node[node] = h2o.node[3].copy()
-                except NameError:
-                    htm1 = node
-                    ngraph.node[node] = h2o.node[2].copy()
+        #for node in ngraph.nodes():
+        #    data = deepcopy(ngraph.node[node])
+        #    if data['element'] == "O":
+        #        oid = node 
+        #        ngraph.node[node] = h2o.node[1].copy()
+        #    elif data['element'] == "H":
+        #        try:
+        #            htm1
+        #            ngraph.node[node] = h2o.node[3].copy()
+        #        except NameError:
+        #            htm1 = node
+        #            ngraph.node[node] = h2o.node[2].copy()
 
         # add dummy particles
         for dx in h2o.nodes():
@@ -633,7 +660,6 @@ class LammpsSimulation(object):
                                 )
                 ngraph.sorted_edge_dict.update({(oid, os): (oid, os)})
                 ngraph.sorted_edge_dict.update({(os, oid): (oid, os)})
-            
         # compute new angles between dummy atoms
         ngraph.compute_angles()
 
