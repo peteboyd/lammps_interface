@@ -1705,7 +1705,8 @@ class LammpsSimulation(object):
         """Ascertain if there are molecules within the porous structure"""
         for j in nx.connected_components(self.graph):
             # return a list of nodes of connected graphs (decisions to isolate them will come later)
-            if(len(j) <= self.graph.original_size*size_cutoff) or (len(j) < 25):
+            # Upper limit on molecule size is 100 atoms.
+            if((len(j) <= self.graph.original_size*size_cutoff) or (len(j) < 25)) and (not len(j) > 100) :
                 self.molecules.append(j)
     
     def cut_molecule(self, nodes):

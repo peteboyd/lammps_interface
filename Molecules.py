@@ -103,7 +103,7 @@ class CO2(Molecule):
             #else:
             # generate a random axis for rotation.
             axis = np.random.rand(3)
-	    angle = 180.*np.random.rand()
+            angle = 180.*np.random.rand()
             # rotate using the angle provided.
             R = self.rotation_matrix(axis, np.radians(angle))
             self._O_coord = np.dot(self._O_coord, R.T)
@@ -358,8 +358,7 @@ class TIP5P_Water(Water):
             return self._dummy
 
 class EPM2_CO2(CO2):
-    RCO = 1.163
-    OCO = 180.0
+    RCO = 1.149
     def __init__(self, **kwargs):
         """ Elementary Physical Model 2 (EPM2) of Harris & Yung
         (JPC 1995 99 12021) dx.doi.org/10.1021/j100031a034
