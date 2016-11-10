@@ -4279,8 +4279,9 @@ class EPM2_CO2(ForceField):
         if (graph is not None):
             self.graph = graph
             self.graph.rigid = True
-            self.detect_ff_terms() 
+            self.detect_ff_terms()
             self.compute_force_field_terms()
+            print(self.graph.node[425])
 
     def bond_term(self, edge):
         """Harmonic term
@@ -4316,6 +4317,9 @@ class EPM2_CO2(ForceField):
 
         """
         a, b, c, data = angle
+        if b == 425:
+            print(a, b, c)
+            print(self.graph.nodes())
         a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']

@@ -475,6 +475,8 @@ class LammpsSimulation(object):
                 if ff[-5:] == "Water":
                     self.add_water_model(ngraph, ff)
                     ff = ff[:-6] # remove _Water from end of name
+                if ff[-3:] == "CO2":
+                    self.add_co2_model(ngraph, ff)
                 p = getattr(ForceFields, ff)(graph=self.subgraphs[m], 
                                          cutoff=self.options.cutoff, 
                                          h_bonding=h_bonding)
@@ -533,6 +535,48 @@ class LammpsSimulation(object):
         file.writelines(molecule.str(atom_types=self.atom_ff_type))
         file.close()
         print('Molecule template file written as %s'%template_file)
+
+    def add_co2_model(self, ngraph, ff):
+        size = ngraph.number_of_nodes()
+        if size < 3 or size > 3:
+            print("Error: cannot assign %s "%(ff) +
+                  "to molecule of size %i, with "%(size)+
+                  "atoms (%s)"%(", ".join([ngraph.node[kk]['element'] for
+                                           kk in ngraph.nodes()])))
+            print("If this is a CO2 molecule with pre-existing "+
+                    "dummy atoms for a particular force field, "+
+                    "please remove them and re-run this code.")
+            sys.exit()
+        for node in ngraph.nodes():
+            if ngraph.node[node]['element'] == "C":
+                catom = ngraph.node[node]
+            elif ngraph.node[node]['element'] == "O":
+                try:
+                    oatom1
+                    o2id = node
+                    oatom2 = ngraph.node[node]
+                except NameError:
+                    o1id = node
+                    oatom1 = ngraph.node[node]
+
+        co2 = getattr(Molecules, ff)()
+        co2.approximate_positions(C_pos  = catom['cartesian_coordinates'],
+                                  O_pos1 = oatom1['cartesian_coordinates'],
+                                  O_pos2 = oatom2['cartesian_coordinates'])
+
+        # update the water atoms in the graph with the force field molecule 
+        for node in ngraph.nodes():
+            data = deepcopy(ngraph.node[node])
+            if data['element'] == "C":
+                cid = node 
+                ngraph.node[node] = co2.node[1].copy()
+            elif data['element'] == "O":
+                try:
+                    otm1
+                    ngraph.node[node] = co2.node[3].copy()
+                except NameError:
+                    otm1 = node
+                    ngraph.node[node] = co2.node[2].copy()
 
     def add_water_model(self, ngraph, ff):
         size = ngraph.number_of_nodes()
