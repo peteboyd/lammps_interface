@@ -6,7 +6,8 @@ from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds, BT
 from Dubbeldam import Dub_atoms, Dub_bonds, Dub_angles, Dub_dihedrals, Dub_impropers
 #from FMOFCu import FMOFCu_angles, FMOFCu_dihedrals, FMOFCu_opbends, FMOFCu_atoms, FMOFCu_bonds
 from MOFFF import MOFFF_angles, MOFFF_dihedrals, MOFFF_opbends, MOFFF_atoms, MOFFF_bonds
-from water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms 
+from water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms
+from gas_models import EPM2_atoms, EPM2_angles
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
 from atomic import METALS
 import math
@@ -4325,7 +4326,7 @@ class EPM2_CO2(ForceField):
         assert (c_data['element'] == "O")
         data['potential'] = AnglePotential.Harmonic()
         data['potential'].theta0 = EPM2_angles["_".join([atype,btype,ctype])][1]  
-        data['potential'].K = EPM2_angles["_".join([atype,btype,ctype])][0]  
+        data['potential'].K = EPM2_angles["_".join([atype,btype,ctype])][0]/2. 
         data['potential'].special_flag = "rigid"
         return 1
 

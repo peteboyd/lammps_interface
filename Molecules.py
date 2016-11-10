@@ -45,6 +45,11 @@ class Molecule(MolecularGraph):
     
         return R
     
+    def compute_all_angles(self):
+        self.compute_angles()
+        self.compute_dihedrals()
+        self.compute_improper_dihedrals()
+    
     def str(self, atom_types={}, bond_types={}, angle_types={}, dihedral_types={}, improper_types={}):
         """ Create a molecule template string for writing to a file.
         Ideal for using fix gcmc or fix deposit in LAMMPS.
@@ -54,11 +59,11 @@ class Molecule(MolecularGraph):
         line +=  "%6i atoms\n"%len(self)
         if(self.number_of_edges()):
             line += "%6i bonds\n"%self.number_of_edges()
-        if(self.count_angles() > 0):
+        if(self.count_angles()):
             line += "%6i angles\n"%(self.count_angles())
-        if(self.count_dihedrals() > 0):
+        if(self.count_dihedrals()):
             line += "%6i dihedrals\n"%(self.count_dihedrals())
-        if(self.count_impropers() > 0):
+        if(self.count_impropers()):
             line += "%6i impropers\n"%(self.count_impropers())
         #line += "%12.5f mass"%()
         #line += "%12.5f %12.5f %12.5f com"%()
@@ -75,6 +80,64 @@ class Molecule(MolecularGraph):
             line += "%6i %12.5f\n"%(node, data['charge']) 
         
         #TODO(pboyd): add bonding, angles, dihedrals, impropers, etc.
+        if self.number_of_edges():
+            line += "\nBonds\n\n"
+            count = 0
+            for n1, n2, data in self.edges_iter2(data=True):
+                count += 1
+                line += "%6i %6i %6i %6i # %s %s\n"%(count, data['ff_type_index'], n1, n2, 
+                                                     self.node[n1]['force_field_type'],
+                                                     self.node[n2]['force_field_type'])
+
+        if self.count_angles():
+            line += "\nAngles\n\n"
+            count = 0
+            for b, data in self.nodes_iter(data=True):
+                try:
+                    ang_data = data['angles']
+                    for (a, c), val in ang_data.items(): 
+                        count += 1
+                        line += "%6i %6i %6i %6i %6i # %s %s(c) %s\n"%(count, 
+                                                    val['ff_type_index'], a, b, c, 
+                                                    self.node[a]['force_field_type'],
+                                                    self.node[b]['force_field_type'],
+                                                    self.node[c]['force_field_type'])
+                except KeyError:
+                    pass
+        
+        if self.count_dihedrals():
+            line += "\nDihedrals\n\n"
+            count = 0
+            for b, c, data in self.edges_iter2(data=True):
+                try:
+                    dihed_data = data['dihedrals']
+                    for (a, d), val in dihed_data.items(): 
+                        count += 1
+                        line += "%6i %6i %6i %6i %6i %6i # %s %s(c) %s(c) %s\n"%(count, 
+                                            val['ff_type_index'], a, b, c, d, 
+                                            self.node[a]['force_field_type'],
+                                            self.node[b]['force_field_type'],
+                                            self.node[c]['force_field_type'],
+                                            self.node[d]['force_field_type'])
+                except KeyError:
+                    pass
+        
+        if self.count_impropers():
+            line += "\nImpropers\n\n"
+            count = 0
+            for b, data in self.nodes_iter(data=True):
+                try:
+                    imp_data = data['impropers']
+                    for (a, c, d), val in imp_data.items(): 
+                        count += 1
+                        line += "%6i %6i %6i %6i %6i %6i # %s %s (c) %s %s\n"%(count, 
+                                                    val['ff_type_index'], a, b, c, d, 
+                                                    self.node[a]['force_field_type'],
+                                                    self.node[b]['force_field_type'],
+                                                    self.node[c]['force_field_type'], 
+                                                    self.node[d]['force_field_type'])
+                except KeyError:
+                    pass
 
         return line
     
@@ -87,7 +150,8 @@ class CO2(Molecule):
     to all CO2 models.
 
     """
-
+    
+    @property
     def O_coord(self):
         """Define the oxygen coordinates assuming carbon is centered at '0'.
         angle gives the two oxygen atoms an orientation that deviates randomly
@@ -365,6 +429,7 @@ class EPM2_CO2(CO2):
 
         """
         nx.Graph.__init__(self, **kwargs)
+        MolecularGraph.__init__(self)
         self.rigid = True
         self.C_coord = np.array([0., 0., 0.])
         
@@ -389,3 +454,16 @@ class EPM2_CO2(CO2):
                      })
             self.add_node(idx+1, **data)
 
+        flag = "1_555"
+        kw = {}
+        kw.update({'length':self.RCO})
+        kw.update({'weight': 1})
+        kw.update({'order': 2})
+        kw.update({'symflag': flag})
+        kw.update({'potential': None})
+        
+        self.sorted_edge_dict.update({(1,2): (1, 2), (2, 1):(1, 2)})
+        self.sorted_edge_dict.update({(1,3): (1, 3), (3, 1):(1, 3)})
+        self.add_edge(1, 2, key=self.number_of_edges()+1, **kw) 
+        self.add_edge(1, 3, key=self.number_of_edges()+1, **kw)
+        self.compute_all_angles()

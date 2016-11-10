@@ -522,6 +522,7 @@ class LammpsSimulation(object):
         # add the unique potentials to the unique_dictionaries.
         self.unique_atoms(molecule)
         self.unique_bonds(molecule)
+        self.unique_angles(molecule)
         self.unique_dihedrals(molecule)
         self.unique_impropers(molecule)
         # somehow update atom, bond, angle, dihedral, improper etc. types to 
