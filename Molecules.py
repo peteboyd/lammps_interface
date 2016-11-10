@@ -1,5 +1,6 @@
 import numpy as np
 from water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms
+from gas_models import EPM2_atoms
 from structure_data import MolecularGraph
 import networkx as nx
 
@@ -80,6 +81,55 @@ class Molecule(MolecularGraph):
     @property
     def _type_(self):
         return self.__class__.__name__
+
+class CO2(Molecule):
+    """Carbon dioxide parent class, containing functions applicable
+    to all CO2 models.
+
+    """
+
+    def O_coord(self):
+        """Define the oxygen coordinates assuming carbon is centered at '0'.
+        angle gives the two oxygen atoms an orientation that deviates randomly
+        from the default (lying along the x-axis).
+
+        """
+        try:
+            return self._O_coord
+        except AttributeError:
+            self._O_coord = self.RCO*np.array([[-1., 0., 0.],[1., 0., 0.]]) 
+            #if angle == 0.:
+            #    return self._O_coord 
+            #else:
+            # generate a random axis for rotation.
+            axis = np.random.rand(3)
+	    angle = 180.*np.random.rand()
+            # rotate using the angle provided.
+            R = self.rotation_matrix(axis, np.radians(angle))
+            self._O_coord = np.dot(self._O_coord, R.T)
+            return self._O_coord
+    
+    def approximate_positions(self, C_pos=None, O_pos1=None, O_pos2=None):
+        """Input a set of approximate positions for the carbon
+        and oxygens of CO2, and determine the lowest RMSD
+        that would give the idealized model.
+
+        """
+        C = self.C_coord
+        O1 = self.O_coord[0]
+        O2 = self.O_coord[1]
+        v1 = np.array([C, O1, O2])
+        v2 = np.array([C_pos, O_pos1, O_pos2])
+        R = self.rotation_from_vectors(v1, v2)
+        self.C_coord = C_pos
+        self._O_coord = np.dot(self._O_coord, R.T) + C_pos
+        for n in self.nodes_iter():
+            if n == 1:
+                self.node[n]['cartesian_coordinates'] = self.C_coord
+            elif n == 2:
+                self.node[n]['cartesian_coordinates'] = self.O_coord[0]
+            elif n == 3:
+                self.node[n]['cartesian_coordinates'] = self.O_coord[1]
 
 class Water(Molecule):
     """Water parent class, containing functions applicable
@@ -306,4 +356,37 @@ class TIP5P_Water(Water):
             axis = np.array([-1., 0., 0.])
             self._dummy = self.Rdum*np.array([np.dot(axis, mat1), np.dot(axis, mat2)])
             return self._dummy
-    
+
+class EPM2_CO2(CO2):
+    RCO = 1.163
+    OCO = 180.0
+    def __init__(self, **kwargs):
+        """ Elementary Physical Model 2 (EPM2) of Harris & Yung
+        (JPC 1995 99 12021) dx.doi.org/10.1021/j100031a034
+
+        """
+        nx.Graph.__init__(self, **kwargs)
+        self.rigid = True
+        self.C_coord = np.array([0., 0., 0.])
+        
+        for idx, ff_type in enumerate(["Cx", "Ox", "Ox"]):
+            element = ff_type[0]
+            if idx == 0:
+                coord = self.C_coord
+            elif idx == 1:
+                coord = self.O_coord[0]
+            elif idx == 2:
+                coord = self.O_coord[1]
+            data = ({"mass":EPM2_atoms[ff_type][0],
+                     "charge":EPM2_atoms[ff_type][3],
+                     "molid":1,
+                     "element":element,
+                     "force_field_type":ff_type,
+                     "h_bond_donor":False,
+                     "h_bond_potential":None,
+                     "tabulated_potential":None,
+                     "table_potential":None,
+                     "cartesian_coordinates":coord
+                     })
+            self.add_node(idx+1, **data)
+
