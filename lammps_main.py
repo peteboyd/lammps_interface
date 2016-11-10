@@ -34,14 +34,20 @@ class LammpsSimulation(object):
         self.subgraphs = []
         self.molecule_types = {}
         self.unique_atom_types = {}
+        self.atom_ff_type = {}
         self.unique_bond_types = {}
+        self.bond_ff_type = {}
         self.unique_angle_types = {}
+        self.angle_ff_type = {}
         self.unique_dihedral_types = {}
+        self.dihedral_ff_type = {}
         self.unique_improper_types = {}
+        self.improper_ff_type = {}
         self.unique_pair_types = {}
         self.pair_in_data = True
         self.separate_molecule_types = True
-        self.framework = True # Flag if a framework exists in the simulation. 
+        self.framework = True # Flag if a framework exists in the simulation.
+        self.supercell = (1, 1, 1) # keep track of supercell size
         self.type_molecules = {}
         self.no_molecule_pair = True  # ensure that h-bonding will not occur between molecules of the same type
         self.fix_shake = {}
@@ -50,66 +56,79 @@ class LammpsSimulation(object):
     def set_MDMC_config(self, MDMC_config):
         self.MDMC_config = MDMC_config
 
-    def unique_atoms(self):
+    def unique_atoms(self, g):
         """Computes the number of unique atoms in the structure"""
-        count = 0
-        ff_type = {}
-        fwk_nodes = sorted(self.graph.nodes())
+        count = len(self.unique_atom_types) 
+        fwk_nodes = sorted(g.nodes())
         molecule_nodes = []
-        for k in sorted(self.molecule_types.keys()):
-            nds = []
-            for m in self.molecule_types[k]:
-            
-                jnodes = sorted(self.subgraphs[m].nodes())
-                nds += jnodes
+        # check if this is the main graph
+        if g == self.graph:
+            for k in sorted(self.molecule_types.keys()):
+                nds = []
+                for m in self.molecule_types[k]:
+                
+                    jnodes = sorted(self.subgraphs[m].nodes())
+                    nds += jnodes
 
-                for n in jnodes:
-                    del fwk_nodes[fwk_nodes.index(n)]
-            molecule_nodes.append(nds)
-        molecule_nodes.append(fwk_nodes)
+                    for n in jnodes:
+                        del fwk_nodes[fwk_nodes.index(n)]
+                molecule_nodes.append(nds)
+            molecule_nodes.append(fwk_nodes)
 
-        for node, data in self.graph.nodes_iter(data=True):
-            # add factor for h_bond donors
-            if self.separate_molecule_types:
+        # determine if the graph is the main structure, or a molecule template
+        # this is *probably* not the best way to do it.
+        moltemplate = ("Molecules" in "%s"%g.__class__)
+        mainstructr = ("structure_data" in "%s"%g.__class__)
+        if (moltemplate and mainstructr):
+            print("ERROR: there is some confusion about class assignment with "+
+                  "MolecularGraphs.  You should probably contact one of the developers.")
+            sys.exit()
+
+        for node, data in g.nodes_iter(data=True):
+            if self.separate_molecule_types and molecule_nodes and mainstructr:
                 molid = [j for j,mol in enumerate(molecule_nodes) if node in mol]
-                if(len(molid) != 1):
-                    print("ERROR!")
                 molid = molid[0]
+            elif moltemplate:
+                # random keyboard mashing. Just need to separate this from other atom types in the
+                # system. This is important when defining separating the Molecule's atom types
+                # from other atom types in the framework that would otherwise be identical.
+                # This allows for the construction of the molecule group for this template.
+                molid = 23523523
             else:
                 molid = 0
-
+            # add factor for h_bond donors
             if data['force_field_type'] is None:
                 if data['h_bond_donor']:
                     # add neighbors to signify type of hbond donor
-                    label = (data['element'], data['h_bond_donor'], molid, tuple(sorted([self.graph.node[j]['element'] for j in self.graph.neighbors(node)])))
+                    label = (data['element'], data['h_bond_donor'], molid, tuple(sorted([g.node[j]['element'] for j in g.neighbors(node)])))
                 else:
                     label = (data['element'], data['h_bond_donor'], molid)
             else:
                 if data['h_bond_donor']:
                     # add neighbors to signify type of hbond donor
-                    label = (data['force_field_type'], data['h_bond_donor'], molid, tuple(sorted([self.graph.node[j]['element'] for j in self.graph.neighbors(node)])))
+                    label = (data['force_field_type'], data['h_bond_donor'], molid, tuple(sorted([g.node[j]['element'] for j in g.neighbors(node)])))
                 else:
                     label = (data['force_field_type'], data['h_bond_donor'], molid)
 
             try:
-                type = ff_type[label]
+                type = self.atom_ff_type[label]
             except KeyError:
                 count += 1
                 type = count
-                ff_type[label] = type  
-                self.unique_atom_types[type] = node
-                self.type_molecules[type] = molid
+                self.atom_ff_type[label] = type  
+                self.unique_atom_types[type] = (node, data)
+                if not moltemplate:
+                    self.type_molecules[type] = molid
             data['ff_type_index'] = type
 
-    def unique_bonds(self):
+    def unique_bonds(self, g):
         """Computes the number of unique bonds in the structure"""
-        count = 0
-        bb_type = {}
-        for n1, n2, data in self.graph.edges_iter2(data=True):
+        count = len(self.unique_bond_types) 
+        for n1, n2, data in g.edges_iter2(data=True):
             btype = "%s"%data['potential']
 
             try:
-                type = bb_type[btype]
+                type = self.bond_ff_type[btype]
 
             except KeyError:
                 try: 
@@ -119,16 +138,15 @@ class LammpsSimulation(object):
                     pass
                 count += 1
                 type = count
-                bb_type[btype] = type
+                self.bond_ff_type[btype] = type
 
                 self.unique_bond_types[type] = (n1, n2, data) 
 
             data['ff_type_index'] = type
     
-    def unique_angles(self):
-        ang_type = {}
-        count = 0
-        for b, data in self.graph.nodes_iter(data=True):
+    def unique_angles(self, g):
+        count = len(self.unique_angle_types) 
+        for b, data in g.nodes_iter(data=True):
             # compute and store angle terms
             try:
                 ang_data = data['angles']
@@ -136,7 +154,7 @@ class LammpsSimulation(object):
                 for (a, c), val in ang_data.items():
                     atype = "%s"%val['potential']
                     try:
-                        type = ang_type[atype]
+                        type = self.angle_ff_type[atype]
 
                     except KeyError:
                         count += 1
@@ -146,7 +164,7 @@ class LammpsSimulation(object):
                         except AttributeError:
                             pass
                         type = count
-                        ang_type[atype] = type
+                        self.angle_ff_type[atype] = type
                         self.unique_angle_types[type] = (a, b, c, val) 
                     val['ff_type_index'] = type
                     # update original dictionary
@@ -155,10 +173,10 @@ class LammpsSimulation(object):
                 # no angle associated with this node.
                 pass
 
-    def unique_dihedrals(self):
-        count = 0
+    def unique_dihedrals(self, g):
+        count = len(self.unique_dihedral_types)
         dihedral_type = {}
-        for b, c, data in self.graph.edges_iter2(data=True):
+        for b, c, data in g.edges_iter2(data=True):
             try:
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
@@ -177,11 +195,10 @@ class LammpsSimulation(object):
                 # no dihedrals associated with this edge
                 pass
 
-    def unique_impropers(self):
-        count = 0
-        improper_type = {}
+    def unique_impropers(self, g):
+        count = len(self.unique_improper_types) 
         
-        for b, data in self.graph.nodes_iter(data=True):
+        for b, data in g.nodes_iter(data=True):
             try:
                 rem = []
                 imp_data = data['impropers']
@@ -189,11 +206,11 @@ class LammpsSimulation(object):
                     if val['potential'] is not None:
                         itype = "%s"%val['potential']
                         try:
-                            type = improper_type[itype]
+                            type = self.improper_ff_type[itype]
                         except KeyError:
                             count += 1
                             type = count
-                            improper_type[itype] = type
+                            self.improper_ff_type[itype] = type
                             self.unique_improper_types[type] = (a, b, c, d, val)
 
                         val['ff_type_index'] = type
@@ -223,9 +240,7 @@ class LammpsSimulation(object):
         if len(list(set(pot_names))) > 1 or (any(['buck' in i for i in list(set(pot_names))])):
             self.pair_in_data = False
             for (i, j) in itertools.combinations_with_replacement(nodes_list, 2):
-                n1, n2 = self.unique_atom_types[i], self.unique_atom_types[j]
-                i_data = self.graph.node[n1]
-                j_data = self.graph.node[n2]
+                (n1, i_data), (n2, j_data) = self.unique_atom_types[i], self.unique_atom_types[j]
                 mol1 = self.type_molecules[i]
                 mol2 = self.type_molecules[j]
                 # test to see if h-bonding to occur between molecules
@@ -275,8 +290,9 @@ class LammpsSimulation(object):
         # can be mixed by lammps
         else:
             for b in sorted(list(self.unique_atom_types.keys())):
-                data = self.graph.node[self.unique_atom_types[b]]
-                # compute and store angle terms
+                data = self.unique_atom_types[b][1]
+                #PETE
+                #print(data)
                 pot = data['pair_potential']
                 self.unique_pair_types[b] = data
 
@@ -438,7 +454,7 @@ class LammpsSimulation(object):
             if ff is None:
                 ff = self.options.force_field
                 atoms = ", ".join([rep.node[j]['element'] for j in rep.nodes()])
-                print("Warning: Molecule %s with atoms (%s) will be using the %s force field as no "%(mtype,atoms,ff)+
+                print("WARNING: Molecule %s with atoms (%s) will be using the %s force field as no "%(mtype,atoms,ff)+
                       " value was set for molecules. To prevent this warning "+
                       "set --molecule-ff=[some force field] on the command line.")
             h_bonding = False
@@ -453,7 +469,7 @@ class LammpsSimulation(object):
                     sys.exit()
             for m in self.molecule_types[mtype]:
                 # Water check
-                # currently only works on bare water without dummy atoms.
+                # currently only works if the cif file contains water particles without dummy atoms.
                 ngraph = self.subgraphs[m]
                 self.assign_molecule_ids(ngraph)
                 if ff[-5:] == "Water":
@@ -472,15 +488,51 @@ class LammpsSimulation(object):
         """ Construct a molecule template for
         reading and insertions in a LAMMPS simulation.
 
-        Not sure how the bonding, angle, dihedral, improper,
-        and pair terms will be dealt with yet..
+        This combines two classes which have
+        been separated conceptually - ForceField and
+        Molecules.
+        For some molecules, the force field is implicit
+        within the structure (e.g. TIP5P_Water molecule
+        must be used with the TIP5P ForceField).
+        But one can imagine cases where this is not true
+        (alkanes? CO2?).
 
         """
-        
-        #I think the Molecule class should be generalized so that
-        #this kind of input can be generated easily
-        molecule = getattr(Molecule, mol)()
+        # no error checking here, it is assumed that the user
+        # knows which force field to pair with which molecule
+        # I'm not sure what would happen if there were a mismatch
+        # but hopefully error-checking elsewhere in the code
+        # will catch these things.
+        molecule = getattr(Molecules, mol)()
+        if self.options.mol_ff is None:
+            mol_ff = self.options.force_field
 
+        elif self.options.mol_ff.endswith("_Water"):
+            # parse if _Water is at the end to get the force
+            # fields for various water models.
+            mol_ff = mol[:-6]
+        else:
+            # just take the general force field used on the
+            # framework
+            mol_ff = self.options.mol_ff
+        #TODO(pboyd): Check how h-bonding is handeled at this level
+        ff = getattr(ForceFields, mol_ff)(graph=molecule,
+                                     cutoff=self.options.cutoff)
+        
+        # add the unique potentials to the unique_dictionaries.
+        self.unique_atoms(molecule)
+        self.unique_bonds(molecule)
+        self.unique_angles(molecule)
+        self.unique_dihedrals(molecule)
+        self.unique_impropers(molecule)
+        # somehow update atom, bond, angle, dihedral, improper etc. types to 
+        # include atomic species that don't exist yet..
+        self.template_molecule = molecule
+        template_file = "%s.molecule"%molecule.__class__.__name__
+        file = open(template_file, 'w')
+        file.writelines(molecule.str(atom_types=self.atom_ff_type))
+        file.close()
+        print('Molecule template file written as %s'%template_file)
 
     def add_water_model(self, ngraph, ff):
         size = ngraph.number_of_nodes()
@@ -495,7 +547,6 @@ class LammpsSimulation(object):
             sys.exit()
         for node in ngraph.nodes():
             if ngraph.node[node]['element'] == "O":
-                oid = node
                 oatom = ngraph.node[node]
             elif ngraph.node[node]['element'] == "H":
                 try:
@@ -510,41 +561,34 @@ class LammpsSimulation(object):
         h2o.approximate_positions(O_pos  = oatom['cartesian_coordinates'],
                                   H_pos1 = hatom1['cartesian_coordinates'],
                                   H_pos2 = hatom2['cartesian_coordinates'])
-        # replace the current H positions with the force-field assigned
-        # ones
-        oatom['mass'] = h2o.O_mass
-        oatom['force_field_type'] = "OW"
-        hatom1['cartesian_coordinates'] = h2o.H_coord[0]
-        hatom1['mass'] = h2o.H_mass
-        hatom1['force_field_type'] = "HW"
-        hatom2['cartesian_coordinates'] = h2o.H_coord[1]
-        hatom2['mass'] = h2o.H_mass
-        hatom2['force_field_type'] = "HW"
-        for j in h2o.dummy:
-            # increment graph size
-            self.increment_graph_sizes()
-            os = ngraph.original_size
-            args = {'element': 'X',
-                    'force_field_type': 'X',
-                    'cartesian_coordinates': j,
-                    'potential': None,
-                    'rings': [],
-                    'molid': ngraph.molecule_id,
-                    'atomic_number': 0,
-                    'h_bond_donor': False,
-                    'h_bond_potential': None,
-                    'tabulated_potential': False,
-                    'table_potential': None,
-                    'pair_potential': None
-                    }
-            ngraph.add_node(os, **args)
-            ngraph.add_edge(oid, os, order=1.,
-                            weight=1.,
-                            length=h2o.Rdum,
-                            symflag='1_555',
-                            )
-            ngraph.sorted_edge_dict.update({(oid, os): (oid, os)})
-            ngraph.sorted_edge_dict.update({(os, oid): (oid, os)})
+
+        # update the water atoms in the graph with the force field molecule 
+        for node in ngraph.nodes():
+            data = deepcopy(ngraph.node[node])
+            if data['element'] == "O":
+                oid = node 
+                ngraph.node[node] = h2o.node[1].copy()
+            elif data['element'] == "H":
+                try:
+                    htm1
+                    ngraph.node[node] = h2o.node[3].copy()
+                except NameError:
+                    htm1 = node
+                    ngraph.node[node] = h2o.node[2].copy()
+
+        # add dummy particles
+        for dx in h2o.nodes():
+            if dx > 3:
+                self.increment_graph_sizes()
+                os = ngraph.original_size
+                ngraph.add_node(os, **h2o.node[dx])
+                ngraph.add_edge(oid, os, order=1.,
+                                weight=1.,
+                                length=h2o.Rdum,
+                                symflag='1_555',
+                                )
+                ngraph.sorted_edge_dict.update({(oid, os): (oid, os)})
+                ngraph.sorted_edge_dict.update({(os, oid): (oid, os)})
             
         # compute new angles between dummy atoms
         ngraph.compute_angles()
@@ -561,7 +605,7 @@ class LammpsSimulation(object):
 
         supercell = self.cell.minimum_supercell(self.options.cutoff)
         if np.any(np.array(supercell) > 1):
-            print("Warning: unit cell is not large enough to"
+            print("WARNING: unit cell is not large enough to"
                   +" support a non-bonded cutoff of %.2f Angstroms."%self.options.cutoff) 
 
         if(self.options.replication is not None):
@@ -572,7 +616,7 @@ class LammpsSimulation(object):
                     print("Use <ixjxk> format")
                     print("Exiting...")
                     sys.exit()
-
+        self.supercell=supercell
         if np.any(np.array(supercell) > 1):
             print("Re-sizing to a %i x %i x %i supercell. "%(supercell))
             
@@ -592,39 +636,11 @@ class LammpsSimulation(object):
                         self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True, molecule_len=molcount)
             self.cell.update_supercell(supercell)
 
-    def count_dihedrals(self):
-        count = 0
-        for n1, n2, data in self.graph.edges_iter(data=True):
-            try:
-                for dihed in data['dihedrals'].keys():
-                    count += 1
-            except KeyError:
-                pass
-        return count
-
-    def count_angles(self):
-        count = 0
-        for node, data in self.graph.nodes_iter(data=True):
-            try:
-                for angle in data['angles'].keys():
-                    count += 1
-            except KeyError:
-                pass
-        return count
-
-    def count_impropers(self):
-        count = 0
-        for node, data in self.graph.nodes_iter(data=True):
-            try:
-                for angle in data['impropers'].keys():
-                    count += 1
-            except KeyError:
-                pass
-        return count
-
     def merge_graphs(self):
         for mgraph in self.subgraphs:
             self.graph += mgraph
+        for node in self.graph.nodes():
+            data=self.graph.node[node]
         if sorted(self.graph.nodes()) != [i+1 for i in range(len(self.graph.nodes()))]:
             print("Re-labelling atom indices.")
             reorder_dic = {i:j+1 for i, j in zip(sorted(self.graph.nodes()), range(len(self.graph.nodes())))}
@@ -633,11 +649,13 @@ class LammpsSimulation(object):
                 mgraph.reorder_labels(reorder_dic)
 
     def write_lammps_files(self):
-        self.unique_atoms()
-        self.unique_bonds()
-        self.unique_angles()
-        self.unique_dihedrals()
-        self.unique_impropers()
+        self.unique_atoms(self.graph)
+        self.unique_bonds(self.graph)
+        self.unique_angles(self.graph)
+        self.unique_dihedrals(self.graph)
+        self.unique_impropers(self.graph)
+        if self.options.insert_molecule:
+            self.molecule_template(self.options.insert_molecule)
         self.unique_pair_terms()
         self.define_styles()
 
@@ -662,11 +680,11 @@ class LammpsSimulation(object):
         if(len(self.unique_bond_types.keys()) > 0):
             string += "%12i bonds\n"%(nx.number_of_edges(self.graph))
         if(len(self.unique_angle_types.keys()) > 0):
-            string += "%12i angles\n"%(self.count_angles())
+            string += "%12i angles\n"%(self.graph.count_angles())
         if(len(self.unique_dihedral_types.keys()) > 0):
-            string += "%12i dihedrals\n"%(self.count_dihedrals())
+            string += "%12i dihedrals\n"%(self.graph.count_dihedrals())
         if (len(self.unique_improper_types.keys()) > 0):
-            string += "%12i impropers\n"%(self.count_impropers())
+            string += "%12i impropers\n"%(self.graph.count_impropers())
     
         if(len(self.unique_atom_types.keys()) > 0):
             string += "\n%12i atom types\n"%(len(self.unique_atom_types.keys()))
@@ -695,7 +713,7 @@ class LammpsSimulation(object):
         if(len(self.unique_atom_types.keys()) > 0):
             string += "\nMasses\n\n"
             for key in sorted(self.unique_atom_types.keys()):
-                unq_atom = self.graph.node[self.unique_atom_types[key]]
+                unq_atom = self.unique_atom_types[key][1] 
                 mass, type = unq_atom['mass'], unq_atom['force_field_type']
                 string += "%5i %15.9f # %s\n"%(key, mass, type)
     
@@ -967,11 +985,11 @@ class LammpsSimulation(object):
     
         if((len(self.unique_pair_types.keys()) > 0) and (self.pair_in_data)):
             string += "\nPair Coeffs\n\n"
-            for key, n in sorted(self.unique_atom_types.items()):
-                pair = self.graph.node[n]
+            for key, (n,pair) in sorted(self.unique_atom_types.items()):
+                #pair = self.graph.node[n]
                 string += "%5i %s "%(key, pair['pair_potential'])
-                string += "# %s %s\n"%(self.graph.node[n]['force_field_type'], 
-                                       self.graph.node[n]['force_field_type'])
+                string += "# %s %s\n"%(pair['force_field_type'], 
+                                       pair['force_field_type'])
        
  
         # Nest this in an if statement
@@ -1081,10 +1099,14 @@ class LammpsSimulation(object):
         return (len(count))
 
     def construct_input_file(self):
-        """Input file will depend on what the user wants to do"""
+        """Input file construction based on user-defined inputs.
+        
+        NB: This function is getting huge. We should probably break it 
+        up into logical sub-sections.
+        
+        """
         inp_str = ""
-        # Eventually, this function should be dependent on some command line arguments
-        # which will dictate what kind of simulation to run in LAMMPS
+        
         inp_str += "%-15s %s\n"%("log","log.%s append"%(self.name))
         inp_str += "%-15s %s\n"%("units","real")
         inp_str += "%-15s %s\n"%("atom_style","full")
@@ -1135,6 +1157,24 @@ class LammpsSimulation(object):
             inp_str += "#### END Pair Coefficients ####\n\n"
         
         inp_str += "\n#### Atom Groupings ####\n"
+        # Define a group for the template molecules, if they exist.
+        # It is conceptually hard to rationalize why this has to be
+        # a separate command and not combined with the 'molecule' command
+        if self.options.insert_molecule:
+            moltypes = []
+            for mnode, mdata in self.template_molecule.nodes_iter(data=True):
+                moltypes.append(mdata['ff_type_index'])
+            
+            inp_str += "%-15s %s type   "%("group", self.options.insert_molecule)
+            for x in self.groups(list(set(moltypes))):
+                x = list(x)
+                if (len(x) > 1):
+                    inp_str += " %i:%i"%(x[0], x[-1])
+                else:
+                    inp_str += " %i"%(x[0])
+            inp_str += "\n"
+
+
         framework_atoms = self.graph.nodes()
         if(self.molecules)and(len(self.molecule_types.keys()) < 32):
             # lammps cannot handle more than 32 groups including 'all' 
@@ -1208,7 +1248,7 @@ class LammpsSimulation(object):
                                 (self.name, self.options.dump_xyz, self.name))
             inp_str += "%-15s %s\n"%("dump_modify", "%s_xyzmov element %s"%(
                                      self.name, 
-                                     " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
+                                     " ".join([self.unique_atom_types[key][1]['element'] 
                                                 for key in sorted(self.unique_atom_types.keys())])))
         elif self.options.dump_lammpstrj:
             inp_str += "%-15s %s\n"%("dump","%s_lammpstrj all atom %i %s_mov.lammpstrj"%
@@ -1219,15 +1259,11 @@ class LammpsSimulation(object):
             # snapshot stored in the trajectory
             f = open("lammpstrj_to_element.txt", "w")
             for key in sorted(self.unique_atom_types.keys()):
-                f.write("%s\n"%(self.graph.node[self.unique_atom_types[key]]['element']))
+                f.write("%s\n"%(self.unique_atom_types[key][1]['element']))
             f.close()
             
-            
-
-
-    
         if (self.options.minimize):
-            box_min = "tri"
+            box_min = "aniso"
             min_style = "cg"
             min_eval = 1e-11  # HKUST-1 will not minimize past 1e-11
             max_iterations = 100000 # if the minimizer can't reach a minimum in this many steps,
@@ -1249,9 +1285,11 @@ class LammpsSimulation(object):
             inp_str += "%-15s %s\n"%("label", "loop_min")
             
             fix = self.fixcount() 
+            inp_str += "%-15s %s\n"%("min_style", min_style)
             inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.01"%(fix, box_min))
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
             inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
+            inp_str += "%-15s %s\n"%("min_style", "fire")
             inp_str += "%-15s %-10s %s\n"%("variable", "tempstp", "equal $(step)")
             inp_str += "%-15s %-10s %s\n"%("variable", "CellMinStep", "equal ${tempstp}")
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
@@ -1270,6 +1308,10 @@ class LammpsSimulation(object):
 
            # inp_str += "%-15s %s\n"%("unfix", "output") 
         # delete bond types etc, for molecules that are rigid
+
+        if self.options.insert_molecule:
+            inp_str += "%-15s %s %s.molecule\n"%("molecule", self.options.insert_molecule, self.options.insert_molecule)
+        
         for mol in sorted(self.molecule_types.keys()):
             rep = self.subgraphs[self.molecule_types[mol][0]]
             if rep.rigid:
@@ -1290,12 +1332,38 @@ class LammpsSimulation(object):
 
         if (self.options.random_vel):
             inp_str += "%-15s %s\n"%("velocity", "all create %.2f %i"%(self.options.temp, np.random.randint(1,3000000)))
-
+        
         if (self.options.nvt):
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
             molecule_fixes = []
             mollist = sorted(list(self.molecule_types.keys()))
+
+            if self.options.insert_molecule:
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                if self.template_molecule.rigid:
+                    insert_rigid_id = id
+                    inp_str += "%-15s %s\n"%("fix", "%i %s rigid/small molecule langevin %.2f %.2f ${tdamp} %i mol %s"%(id, 
+                                                                                            self.options.insert_molecule,
+                                                                                            self.options.temp, 
+                                                                                            self.options.temp,
+                                                                                            np.random.randint(1,3000000),
+                                                                                            self.options.insert_molecule
+                                                                                            ))
+                else:
+                    # no idea if this will work..
+                    inp_str += "%-15s %s\n"%("fix", "%i %s langevin %.2f %.2f ${tdamp} %i"%(id, 
+                                                                                        self.options.insert_molecule,
+                                                                                        self.options.temp, 
+                                                                                        self.options.temp,
+                                                                                        np.random.randint(1,3000000)
+                                                                                        ))
+                    id = self.fixcount()
+                    molecule_fixes.append(id)
+                    inp_str += "%-15s %s\n"%("fix", "%i %i nve"%(id,molid))
+
+
             for molid in mollist: 
                 id = self.fixcount()
                 molecule_fixes.append(id)
@@ -1329,11 +1397,59 @@ class LammpsSimulation(object):
                 id = self.fixcount()
                 molecule_fixes.append(id)
                 inp_str += "%-15s %s\n"%("fix", "%i fram nve"%id)
+
+            # deposit within nvt equilibrium phase.  TODO(pboyd): This entire input file formation Needs to be re-thought.
+            if self.options.deposit:
+                deposit = self.options.deposit * np.prod(np.array(self.supercell)) 
+                
+                # add a shift of the cell as the deposit of molecules tends to shift things.
+                id = self.fixcount()
+                inp_str += "%-15s %i all momentum 1 linear 1 1 1 angular\n"%("fix", id)
+                id = self.fixcount() 
+                # define a region the size of the unit cell.
+                every = self.options.neqstp/2/deposit
+                if every <= 100:
+                    print("WARNING: you have set %i equilibrium steps, which may not be enough to "%(self.options.neqstp) + 
+                            "deposit %i %s molecules. "%(deposit, self.options.insert_molecule) +
+                            "The metric used to create this warning is NEQSTP/2/DEPOSIT. So adjust accordingly.")
+                inp_str += "%-15s %-8s %-8s %i %s %i %s %i %s %s\n"%("region", "cell", "block", 0, "EDGE", 
+                                                                     0, "EDGE", 0, "EDGE", "units lattice")
+                inp_str += "%-15s %i %s %s %i %i %i %i %s %s %s %.2f %s %s"%("fix", id, self.options.insert_molecule, 
+                                                                             "deposit", deposit, 0, every, 
+                                                                             np.random.randint(1, 3000000), "region", 
+                                                                             "cell", "near", 2.0, "mol", 
+                                                                             self.options.insert_molecule)
+                molecule_fixes.append(id)
+                # need rigid fixid
+                if self.template_molecule.rigid:
+                    inp_str += " rigid %i\n"%(insert_rigid_id)
+                else:
+                    inp_str += "\n"
+
             inp_str += "%-15s %i\n"%("thermo", 0)
             inp_str += "%-15s %i\n"%("run", self.options.neqstp)
             while(molecule_fixes):
                 fid = molecule_fixes.pop(0)
                 inp_str += "%-15s %i\n"%("unfix", fid)
+            
+            if self.options.insert_molecule:
+                id = self.fixcount()
+                molecule_fixes.append(id)
+                if self.template_molecule.rigid:
+                    inp_str += "%-15s %s\n"%("fix", "%i %s rigid/nvt/small molecule temp %.2f %.2f ${tdamp} mol %s"%(id, 
+                                                                                            self.options.insert_molecule,
+                                                                                            self.options.temp, 
+                                                                                            self.options.temp,
+                                                                                            self.options.insert_molecule
+                                                                                            ))
+                else:
+                    # no idea if this will work..
+                    inp_str += "%-15s %s\n"%("fix", "%i %s nvt %.2f %.2f ${tdamp}"%(id, 
+                                                                                        self.options.insert_molecule,
+                                                                                        self.options.temp, 
+                                                                                        self.options.temp
+                                                                                        ))
+
 
             for molid in mollist:
                 id = self.fixcount()
@@ -1367,6 +1483,7 @@ class LammpsSimulation(object):
                 fid = molecule_fixes.pop(0)
                 inp_str += "%-15s %i\n"%("unfix", fid)
 
+        #TODO(pboyd): add molecule commands to npt simulations.. this needs to be separated!
         if (self.options.npt):
             id = self.fixcount()
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
@@ -1393,10 +1510,12 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "rs", "delete")
             inp_str += "%-15s %s\n"%("undump", "str")
             
-            inp_str += "\n%-15s %-10s %s\n"%("variable", "simTemp", "equal %.4f"%(self.options.temp))
-            inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
-            inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
-
+            if thermo_style:
+                inp_str += "\n%-15s %-10s %s\n"%("variable", "simTemp", "equal %.4f"%(self.options.temp))
+                inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
+                inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
+            elif min_style:
+                inp_str += "%-15s %s\n"%("min_style","fire")
             inp_str += "%-15s %-10s %s\n"%("variable", "at", "equal cella")
             inp_str += "%-15s %-10s %s\n"%("variable", "bt", "equal cellb")
             inp_str += "%-15s %-10s %s\n"%("variable", "ct", "equal cellc")
@@ -1422,7 +1541,6 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleC", "equal ${scaleVar}*${c}")
             inp_str += "%-15s %s\n"%("change_box", "all x final 0.0 ${scaleA} y final 0.0 ${scaleB} z final 0.0 ${scaleC} remap")
             if (min_style):
-                inp_str += "%-15s %s\n"%("min_style","fire")
                 inp_str += "%-15s %s\n"%("minimize", "1.0e-15 1.0e-15 10000 100000")
                 inp_str += "%-15s %s\n"%("print", "\"${do},${scaleVar},$(vol),$(press),$(etotal),$(pe),$(ke)"+
                                               ",$(ebond),$(eangle),$(edihed),$(eimp),$(evdwl),$(ecoul)\""+
@@ -1588,7 +1706,8 @@ class LammpsSimulation(object):
         """Ascertain if there are molecules within the porous structure"""
         for j in nx.connected_components(self.graph):
             # return a list of nodes of connected graphs (decisions to isolate them will come later)
-            if(len(j) <= self.graph.original_size*size_cutoff) or (len(j) < 25):
+            # Upper limit on molecule size is 100 atoms.
+            if((len(j) <= self.graph.original_size*size_cutoff) or (len(j) < 25)) and (not len(j) > 100) :
                 self.molecules.append(j)
     
     def cut_molecule(self, nodes):

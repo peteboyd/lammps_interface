@@ -180,9 +180,9 @@ class Options(object):
                                       default=False,
                                       dest="restart",
                                       help="Store last snapshot of trajectory of simulation in "+
-                                           "lammps traj file format. index of last snap = NEQSTP + NPRODSTP "+
-                                           " = 1 if NEQSTP and NPRODSTP not specified")
-
+                                           "lammps traj file format. index of last step RESTART = NEQSTP + NPRODSTP. "+
+                                           "If NEQSTP and NPRODSTP are not specified, then RESTART=1")
+        
         parameter_group = parser.add_argument_group("Parameter options")
         parameter_group.add_argument("-t", "--tolerance",
                                      action="store",
@@ -228,7 +228,7 @@ class Options(object):
                                      default=298.0,
                                      dest="temp",
                                      help="Simulation temperature. This parameter is used "+
-                                          "only if NPT is True. "+
+                                          "only if NPT or NVT are True. "+
                                           "Default is 298.0 Kelvin.")
         parameter_group.add_argument("--pressure",
                                      action="store",
@@ -244,7 +244,7 @@ class Options(object):
                                      default=200000,
                                      dest="nprodstp",
                                      help="Number of production steps in the simulation. "+
-                                          "Applies to NPT and THERMAL_SCALING simulations. "
+                                          "Applies to NPT and THERMAL_SCALING simulations. " +
                                           "Default is 200,000 steps. (corresponding to "+
                                           "200 ps if the timestep is 1 fs)")
         parameter_group.add_argument("--equilibration-steps",
@@ -253,9 +253,37 @@ class Options(object):
                                      default=200000,
                                      dest="neqstp",
                                      help="Number of equilibration steps in the simulation. "+
-                                          "Applies to NPT and THERMAL_SCALING simulations. "
+                                          "Applies to NPT and THERMAL_SCALING simulations. " +
                                           "Default is 200,000 steps. (corresponding to "+
                                           "200 ps if the timestep is 1 fs)")
+
+        molecule_insertion_group = parser.add_argument_group("Molecule insertion options")
+        molecule_insertion_group.add_argument("--insert-molecule",
+                                              action="store",
+                                              type=str,
+                                              default="",
+                                              dest="insert_molecule",
+                                              help="Prepeare an insertion of this molecule type."+
+                                                   " Default is no molecule insertion. Current options are "+
+                                                   "TIP5P_Water, TIP4P_Water, SPC_E, TIP3P."+
+                                                   " More to come ;)")
+        
+        molecule_insertion_group.add_argument("--deposit",
+                                              action="store",
+                                              type=int,
+                                              default=0,
+                                              dest="deposit",
+                                              help="Create commands to place DEPOSIT particles "+
+                                                   "in the region of the unit cell. The particle "+
+                                                   "types are provided by the INSERT_MOLECULE value."+
+                                                   " This will also depend on the number of "+
+                                                   "equilibrium steps NEQSTP requested, and "+
+                                                   "currently only works with an NVT simulation."+
+                                                   "NOTE: The number of particles to deposit "+
+                                                   "is considered in the unit cell! The program "+
+                                                   "will multipy this value by the number of unit "+
+                                                   "cells that were needed to produce the simulation "+
+                                                   "supercell.")
 
         parser.add_argument(metavar="CIF", dest="cif_file",
                             help="path to cif file to interpret")

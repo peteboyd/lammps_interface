@@ -77,6 +77,36 @@ class MolecularGraph(nx.Graph):
     def edges_iter2(self, **kwargs):
         for n1, n2, d in self.edges_iter(**kwargs):
             yield (self.sorted_edge_dict[(n1, n2)][0], self.sorted_edge_dict[(n1,n2)][1], d)
+    
+    def count_dihedrals(self):
+        count = 0
+        for n1, n2, data in self.edges_iter(data=True):
+            try:
+                for dihed in data['dihedrals'].keys():
+                    count += 1
+            except KeyError:
+                pass
+        return count
+
+    def count_angles(self):
+        count = 0
+        for node, data in self.nodes_iter(data=True):
+            try:
+                for angle in data['angles'].keys():
+                    count += 1
+            except KeyError:
+                pass
+        return count
+
+    def count_impropers(self):
+        count = 0
+        for node, data in self.nodes_iter(data=True):
+            try:
+                for angle in data['impropers'].keys():
+                    count += 1
+            except KeyError:
+                pass
+        return count
 
     def reorder_labels(self, reorder_dic):
         """Re-order the labels of the nodes so that LAMMPS doesn't complain.
@@ -87,11 +117,12 @@ class MolecularGraph(nx.Graph):
 
         """
 
-        old_nodes = list(self.nodes_iter(data=True))
+        old_nodes = sorted([(i,self.node[i]) for i in self.nodes()])
+        #old_nodes = list(self.nodes_iter(data=True))
         old_edges = list(self.edges_iter2(data=True))
         for node, data in old_nodes:
+            
             if 'angles' in data:
-                
                 ang_data = list(data['angles'].items())
                 for (a,c), val in ang_data:
                     data['angles'].pop((a,c))
@@ -164,17 +195,14 @@ class MolecularGraph(nx.Graph):
         kwargs.update({'tabulated_potential':False})
         kwargs.update({'table_potential':None})
         if set(orig_keys) & set(charge_keywords):
-
-            for key in charge_keywords:
-                try:
-                    kwargs['charge'] = float(kwargs[key])
-                except KeyError:
-                    pass
-                except ValueError:
-                    print("Warning %s could not be converted "%(kwargs[key]) + 
-                          "to a charge value for atom %s"%(element) + 
-                          ", setting charge as 0.0 for this atom")
-                    kwargs['charge'] = 0.0
+            key = list(set(orig_keys)&set(charge_keywords))[0]
+            try:
+                kwargs['charge'] = float(kwargs[key])
+            except ValueError:
+                print("Warning %s could not be converted "%(kwargs[key]) + 
+                      "to a charge value for atom %s"%(element) + 
+                      ", setting charge as 0.0 for this atom")
+                kwargs['charge'] = 0.0
         else:
             kwargs['charge'] = 0.0
         try:
@@ -276,13 +304,13 @@ class MolecularGraph(nx.Graph):
             dist = self.distance_matrix[i1,i2]
             tempsf = scale_factor
             # probably a better way to fix these kinds of issues..
-            if (set("F") < elements) and  (len(elements & metals)): 
+            if (set("F") < elements) and  (elements & metals): 
                 tempsf = 0.8
 
-            if (set("O") < elements) and (len(elements & metals)):
+            if (set("O") < elements) and (elements & metals):
                 tempsf = 0.85
             
-            if dist*tempsf < rad and not alkali & elements:
+            if dist*tempsf < rad and not (alkali & elements):
 
                 flag = self.compute_bond_image_flag(n1, n2, cell)
                 self.sorted_edge_dict.update({(n1,n2): (n1, n2), (n2, n1):(n1, n2)})
@@ -963,7 +991,6 @@ class MolecularGraph(nx.Graph):
                 # angle check
                 try:
                     for (a, c), val in list(data['angles'].items()):
-
                         aid, cid = offset + a, offset + c
                         e_ba = graph_image[node][aid]
                         e_bc = graph_image[node][cid]
@@ -976,9 +1003,9 @@ class MolecularGraph(nx.Graph):
                         if order_bc != (node, cid) and e_bc['symflag'] != '.':
                             bc_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_bc['symflag'][2:]]))) 
                         os_a = self.img_offset(cells, newcell, maxcell, ba_symflag) * unitatomlen
-                        os_b = self.img_offset(cells, newcell, maxcell, bc_symflag) * unitatomlen
+                        os_c = self.img_offset(cells, newcell, maxcell, bc_symflag) * unitatomlen
                         data['angles'].pop((a,c))
-                        data['angles'][(a + os_a, c + os_b)] = val
+                        data['angles'][(a + os_a, c + os_c)] = val
 
                 except KeyError:
                     # no angles for n1

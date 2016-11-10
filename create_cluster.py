@@ -349,7 +349,7 @@ class LammpsSimulation(object):
 
         supercell = self.cell.minimum_supercell(self.options.cutoff)
         if np.any(np.array(supercell) > 1):
-            print("Warning: unit cell is not large enough to"
+            print("WARNING: unit cell is not large enough to"
                   +" support a non-bonded cutoff of %.2f Angstroms\n"%self.options.cutoff +
                    "Re-sizing to a %i x %i x %i supercell. "%(supercell))
             
@@ -373,7 +373,7 @@ class LammpsSimulation(object):
         self.supercell_tuple = (supercell[0], supercell[1], supercell[2])
         
         if np.any(np.array(supercell) > 1):
-            print("Warning: unit cell is not large enough to"
+            print("WARNING: unit cell is not large enough to"
                   +" support a non-bonded cutoff of %.2f Angstroms\n"%self.options.cutoff +
                    "Re-sizing to a %i x %i x %i supercell. "%(supercell))
             
@@ -1263,7 +1263,7 @@ class Cluster(object):
                         #        #self.num_keep += 1
                         #        pass
 
-                        #        #print("Warning, cutting out a node that has 2+ parents")
+                        #        #print("WARNING: cutting out a node that has 2+ parents")
                         #    if(len(self.tree.predecessors(down_node)) != 1 and self.origraph.node[down_node]['atomic_number'] == 8):
                         #        pass
                         #    else:
