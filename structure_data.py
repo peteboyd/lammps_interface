@@ -312,6 +312,11 @@ class MolecularGraph(nx.Graph):
             # fix for water particle recognition.
             if(set(["O", "H"]) <= elements):
                 tempsf = 0.8
+            # very specific fix for Michelle's amine appended MOF
+            if(set(["N","H"]) <= elements):
+                tempsf = 0.67
+            if(set(["Mg","N"]) <= elements):
+                tempsf = 0.80
             if dist*tempsf < rad and not (alkali & elements):
 
                 flag = self.compute_bond_image_flag(n1, n2, cell)

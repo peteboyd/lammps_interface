@@ -401,7 +401,11 @@ class LammpsSimulation(object):
         for i, j in itertools.combinations(range(len(self.subgraphs)), 2):
             if self.subgraphs[i].number_of_nodes() != self.subgraphs[j].number_of_nodes():
                 continue
-
+            
+            #TODO(pboyd): For complex 'floppy' molecules, a rigid 3D clique detection
+            # algorithm won't work very well. Inchi or smiles comparison may be better,
+            # but that would require using openbabel. I'm trying to keep this
+            # code as independent of non-standard python libraries as possible.
             matched = self.subgraphs[i] | self.subgraphs[j]
             if (len(matched) == self.subgraphs[i].number_of_nodes()):
                 if i not in list(temp_types.keys()) and j not in list(temp_types.keys()):
@@ -468,16 +472,15 @@ class LammpsSimulation(object):
             for m in self.molecule_types[mtype]:
                 # Water check
                 # currently only works if the cif file contains water particles without dummy atoms.
-                #print(self.subgraphs[m]) #PETE
                 ngraph = self.subgraphs[m]
                 self.assign_molecule_ids(ngraph)
-                mff = self.options.mol_ff 
-                if mff[-5:] == "Water":
-                    self.add_water_model(ngraph, mff)
-                    ff = mff[:-6] # remove _Water from end of name
-                if mff[-3:] == "CO2":
+                mff = ff
+                if ff[-5:] == "Water":
+                    self.add_water_model(ngraph, ff) 
+                    mff = mff[:-6] # remove _Water from end of name
+                if ff[-3:] == "CO2":
                     self.add_co2_model(ngraph, ff)
-                p = getattr(ForceFields, ff)(graph=self.subgraphs[m], 
+                p = getattr(ForceFields, mff)(graph=self.subgraphs[m], 
                                          cutoff=self.options.cutoff, 
                                          h_bonding=h_bonding)
                 self.special_commands += p.special_commands()
