@@ -3541,6 +3541,8 @@ class UFF4MOF(ForceField):
                     # Al Pillar TODO(pboyd): generalize these cases...
                     elif data['special_flag'] == "O_c_Al_pillar":
                         data['force_field_type'] = 'O_2'
+                    elif data['special_flag'] == "H_Al_pillar":
+                        data['force_field_type'] = 'H_'
                     elif data['special_flag'] == "Al_pillar":
                         data['force_field_type'] = 'Al6+3'
                     elif data['special_flag'] == "C_Al_pillar":
