@@ -3494,10 +3494,11 @@ class UFF4MOF(ForceField):
                                 self.graph[node][n]['order'] = 0.5
                     elif data['special_flag'] == "C_Zn4O":
                         data['force_field_type'] = "C_R"
-                        oxy_neighbours = [n for n in self.graph.neighbors(node) if 
-                                            self.graph.node[n]['element'] == "O"]
-                        for n in oxy_neighbours:
-                            self.graph[node][n]['order'] = 1.5
+                        for n in self.graph.neighbors(node):
+                            if self.graph.node[n]['element'] == "O":
+                                self.graph[node][n]['order'] = 1.5 
+                            elif self.graph.node[n]['element'] == "C":
+                                self.graph[node][n]['order'] = 1
                     elif data['special_flag'] == "O_c_Zn4O":
                         data['force_field_type'] = 'O_2'
                     
@@ -3516,6 +3517,8 @@ class UFF4MOF(ForceField):
                         for n in self.graph.neighbors(node):
                             if self.graph.node[n]['element'] == "O":
                                 self.graph[node][n]['order'] = 1.5 
+                            elif self.graph.node[n]['element'] == "C":
+                                self.graph[node][n]['order'] = 1
 
                     # Zn Paddlewheel TODO(pboyd): generalize these cases...
                     elif data['special_flag'] == "O1_Zn_pdw" or data['special_flag'] == "O2_Zn_pdw":
@@ -3532,7 +3535,34 @@ class UFF4MOF(ForceField):
                         for n in self.graph.neighbors(node):
                             if self.graph.node[n]['element'] == "O":
                                 self.graph[node][n]['order'] = 1.5 
+                            elif self.graph.node[n]['element'] == "C":
+                                self.graph[node][n]['order'] = 1
+                    
+                    # Al Pillar TODO(pboyd): generalize these cases...
+                    elif data['special_flag'] == "O_c_Al_pillar":
+                        data['force_field_type'] = 'O_2'
+                    elif data['special_flag'] == "Al_pillar":
+                        data['force_field_type'] = 'Al6+3'
+                    elif data['special_flag'] == "C_Al_pillar":
+                        data['force_field_type'] = 'C_R'
+                        for n in self.graph.neighbors(node):
+                            if self.graph.node[n]['element'] == "O":
+                                self.graph[node][n]['order'] = 1.5 
+                            elif self.graph.node[n]['element'] == "C":
+                                self.graph[node][n]['order'] = 1
 
+                    # V Pillar TODO(pboyd): generalize these cases...
+                    elif data['special_flag'] == "O_c_V_pillar":
+                        data['force_field_type'] = 'O_2'
+                    elif data['special_flag'] == "V_pillar":
+                        data['force_field_type'] = 'V6+3'
+                    elif data['special_flag'] == "C_V_pillar":
+                        data['force_field_type'] = 'C_R'
+                        for n in self.graph.neighbors(node):
+                            if self.graph.node[n]['element'] == "O":
+                                self.graph[node][n]['order'] = 1.5 
+                            elif self.graph.node[n]['element'] == "C":
+                                self.graph[node][n]['order'] = 1
 
                 elif data['element'] in organics:
                     if data['hybridization'] == "sp3":
