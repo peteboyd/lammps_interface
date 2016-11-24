@@ -317,6 +317,8 @@ class MolecularGraph(nx.Graph):
                 tempsf = 0.67
             if(set(["Mg","N"]) <= elements):
                 tempsf = 0.80
+            if(set(["C","H"]) <= elements):
+                tempsf = 0.80
             if dist*tempsf < rad and not (alkali & elements):
 
                 flag = self.compute_bond_image_flag(n1, n2, cell)
