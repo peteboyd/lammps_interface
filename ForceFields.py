@@ -2191,11 +2191,12 @@ class UFF(ForceField):
         if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
             theta0 = self.graph.compute_angle_between(a, b, c)
             # should put this angle in the general - non-linear case
+            # unless the angle is 0 or 180 deg - then linear case.
+            # here the K value will be scaled by the number of neighbors
             angle_type = "None"
 
-        cosT0 = math.cos(theta0*DEG2RAD)
-        sinT0 = math.sin(theta0*DEG2RAD)
-
+        cosT0 = np.cos(theta0*DEG2RAD)
+        sinT0 = np.sin(theta0*DEG2RAD)
         c2 = 1.0 / (4.0*sinT0*sinT0)
         c1 = -4.0 * c2 * cosT0
         c0 = c2 * (2.0*cosT0*cosT0 + 1.0)

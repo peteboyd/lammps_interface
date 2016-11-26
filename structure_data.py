@@ -370,7 +370,11 @@ class MolecularGraph(nx.Graph):
 
         a = np.arccos(np.dot(v1, v2))
         if np.isnan(a):
-            a = 0
+            if np.allclose((v1 + v2),np.zeros(3)):
+                a = 180
+            else:
+                a = 0
+
         angle = a / DEG2RAD
         return angle
     
