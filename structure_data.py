@@ -883,8 +883,16 @@ class MolecularGraph(nx.Graph):
                 reference_nodes.append(node)
         
         no_cluster = []
-        while reference_nodes:
-            node = reference_nodes.pop() 
+        #FIXME(pboyd): This routine doesn't work for finding 1-D rod SBUs.
+        # At each step the atoms found that belong to an SBU are deleted
+        # to improve the search efficiency. In 1-D rod SBUs there are 
+        # repeating elements in the 'discretized' version used to discover
+        # the rod in a MOF, so in some cases only a fragment of the rod
+        # is found. This results in the wrong force field types being
+        # assigned to these atoms (UFF4MOF).
+        for node in reference_nodes:
+        #while reference_nodes:
+            #node = reference_nodes.pop() 
             data = self.node[node]
             possible_clusters = {}
             toln = tol
@@ -929,18 +937,18 @@ class MolecularGraph(nx.Graph):
                             cluster_found = True
                             print("Found %s"%(name))
                             store_sbus.setdefault(name, []).append([i for (i,j) in clique])
-                            break
+                            #break
 
-                    if(cluster_found):
-                        for n in neighbour_nodes:
-                            try:
-                                reference_nodes.pop(reference_nodes.index(n))
-                            except:
-                                pass
-                        break
-                    else:
-                        # put node back into the pool
-                        reference_nodes.append(node)
+                    #if(cluster_found):
+                    #    for n in neighbour_nodes:
+                    #        try:
+                    #            reference_nodes.pop(reference_nodes.index(n))
+                    #        except:
+                    #            pass
+                    #    break
+                    #else:
+                    #    # put node back into the pool
+                    #    reference_nodes.append(node)
                 if not (cluster_found):
                     no_cluster.append(data['element'])
             except KeyError:

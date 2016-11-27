@@ -3541,6 +3541,7 @@ class UFF4MOF(ForceField):
                     elif data['special_flag'] == "O_c_Al_pillar":
                         data['force_field_type'] = 'O_2'
                     elif data['special_flag'] == "O_z_Al_pillar":
+                        print("HERE")
                         data['force_field_type'] = 'O_2'
                     elif data['special_flag'] == "H_Al_pillar":
                         data['force_field_type'] = 'H_'
@@ -3596,7 +3597,6 @@ class UFF4MOF(ForceField):
                         if data['element'] == j[:2].strip("_"):
                             data['force_field_type'] = j
             if data['force_field_type'] is None:
-                print(data)
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
                 sys.exit()

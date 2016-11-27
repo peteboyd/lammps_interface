@@ -1017,12 +1017,12 @@ InorganicCluster['Al']['Al_pillar'].add_nodes_from([
          'special_flag':'H_Al_pillar',
          'cartesian_coordinates':np.array([-0.121000,-0.071000,2.580000])
          }
-       ),
-    (10, {'element':'Al',
-          'special_flag':'Al_pillar',
-          'cartesian_coordinates':np.array([-0.102000,1.658000,0.608000])
-          }
-        )
+       )#,
+    #(10, {'element':'Al',
+    #      'special_flag':'Al_pillar',
+    #      'cartesian_coordinates':np.array([-0.102000,1.658000,0.608000])
+    #      }
+    #    )
     ])
     
 OrganicCluster['N']['Adenine'].add_nodes_from([
