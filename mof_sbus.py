@@ -975,102 +975,52 @@ InorganicCluster['V']['V_pillar'].add_nodes_from([
 InorganicCluster['Al']['Al_pillar'].add_nodes_from([
     (1, {'element':'O',
          'special_flag':'O_c_Al_pillar',
-         'cartesian_coordinates':np.array([0.836000,-1.384000,1.317000])
+         'cartesian_coordinates':np.array([-1.215000,1.107000,-0.732000])
          }
        ),
     (2, {'element':'O',
          'special_flag':'O_c_Al_pillar',
-         'cartesian_coordinates':np.array([-1.226000,1.384000,1.317000])
+         'cartesian_coordinates':np.array([1.383000,-1.106000,-0.464000])
          }
        ),
     (3, {'element':'O',
          'special_flag':'O_c_Al_pillar',
-         'cartesian_coordinates':np.array([2.078000,-1.384000,-1.033000])
+         'cartesian_coordinates':np.array([1.383000,1.107000,-0.464000])
          }
        ),
     (4, {'element':'O',
          'special_flag':'O_c_Al_pillar',
-         'cartesian_coordinates':np.array([-2.469000,1.384000,-1.033000])
+         'cartesian_coordinates':np.array([-1.215000,-1.106000,-0.732000])
          }
        ),
-    (5, {'element':'O',
-         'special_flag':'O_c_Al_pillar',
-         'cartesian_coordinates':np.array([2.078000,1.384000,-1.033000])
+    (5, {'element':'Al',
+         'special_flag':'Al_pillar',
+         'cartesian_coordinates':np.array([-0.102000,-1.657000,0.608000])
          }
        ),
     (6, {'element':'O',
-         'special_flag':'O_c_Al_pillar',
-         'cartesian_coordinates':np.array([-2.469000,-1.384000,-1.033000])
+         'special_flag':'O_z_Al_pillar',
+         'cartesian_coordinates':np.array([-0.102000,0.000000,1.473000])
          }
        ),
-    (7, {'element':'O',
-         'special_flag':'O_c_Al_pillar',
-         'cartesian_coordinates':np.array([0.836000,1.384000,1.317000])
+    (7, {'element':'C',
+         'special_flag':'C_Al_pillar',
+         'cartesian_coordinates':np.array([2.005000,0.000000,-0.744000])
          }
        ),
-    (8, {'element':'O',
-         'special_flag':'O_c_Al_pillar',
-         'cartesian_coordinates':np.array([-1.226000,-1.384000,1.317000])
+    (8, {'element':'C',
+         'special_flag':'C_Al_pillar',
+         'cartesian_coordinates':np.array([-1.849000,0.000000,-0.976000])
          }
        ),
-    (9, {'element':'Al',
-         'special_flag':'Al_pillar',
-         'cartesian_coordinates':np.array([1.457000,-0.000000,0.142000])
+    (9, {'element':'H',
+         'special_flag':'H_Al_pillar',
+         'cartesian_coordinates':np.array([-0.121000,-0.071000,2.580000])
          }
        ),
     (10, {'element':'Al',
           'special_flag':'Al_pillar',
-          'cartesian_coordinates':np.array([-1.847000,-0.000000,0.142000])
-          }
-        ),
-    (11, {'element':'O',
-          'special_flag':'O_z_Al_pillar',
-          'cartesian_coordinates':np.array([-0.195000,-0.000000,-0.588000])
-          }
-        ),
-    (12, {'element':'C',
-          'special_flag':'C_Al_pillar',
-          'cartesian_coordinates':np.array([-0.195000,-2.014000,1.846000])
-          }
-        ),
-    (13, {'element':'C',
-          'special_flag':'C_Al_pillar',
-          'cartesian_coordinates':np.array([-0.195000,2.014000,1.846000])
-          }
-        ),
-    (14, {'element':'C',
-          'special_flag':'C_Al_pillar',
-          'cartesian_coordinates':np.array([-3.499000,-2.014000,-1.562000])
-          }
-        ),
-    (15, {'element':'C',
-          'special_flag':'C_Al_pillar',
-          'cartesian_coordinates':np.array([-3.499000,2.014000,-1.562000])
-          }
-        ),
-    (16, {'element':'H',
-          'special_flag':'H_Al_pillar',
-          'cartesian_coordinates':np.array([3.143000,-0.006000,1.982000])
-          }
-        ),
-    (17, {'element':'H',
-          'special_flag':'H_Al_pillar',
-          'cartesian_coordinates':np.array([-0.202000,0.024000,-1.698000])
-          }
-        ),
-    (18, {'element':'O',
-          'special_flag':'O_z_Al_pillar',
-          'cartesian_coordinates':np.array([3.109000,-0.000000,0.872000])
-          }
-        ),
-    (19, {'element':'C',
-          'special_flag':'C_Al_pillar',
-          'cartesian_coordinates':np.array([3.109000,-2.014000,-1.562000])
-          }
-        ),
-    (20, {'element':'C',
-          'special_flag':'C_Al_pillar',
-          'cartesian_coordinates':np.array([3.109000,2.014000,-1.562000])
+          'cartesian_coordinates':np.array([-0.102000,1.658000,0.608000])
           }
         )
     ])

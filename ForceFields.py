@@ -3478,8 +3478,6 @@ class UFF4MOF(ForceField):
         halides = ["F", "Cl", "Br", "I"]
         for node, data in self.graph.nodes_iter(data=True):
             special = 'special_flag' in data
-
-
             if data['force_field_type'] is None:
                 if special:
                     # Zn4O case TODO(pboyd): generalize these cases...
@@ -3542,6 +3540,8 @@ class UFF4MOF(ForceField):
                     # Al Pillar TODO(pboyd): generalize these cases...
                     elif data['special_flag'] == "O_c_Al_pillar":
                         data['force_field_type'] = 'O_2'
+                    elif data['special_flag'] == "O_z_Al_pillar":
+                        data['force_field_type'] = 'O_2'
                     elif data['special_flag'] == "H_Al_pillar":
                         data['force_field_type'] = 'H_'
                     elif data['special_flag'] == "Al_pillar":
@@ -3556,6 +3556,8 @@ class UFF4MOF(ForceField):
 
                     # V Pillar TODO(pboyd): generalize these cases...
                     elif data['special_flag'] == "O_c_V_pillar":
+                        data['force_field_type'] = 'O_2'
+                    elif data['special_flag'] == "O_z_V_pillar":
                         data['force_field_type'] = 'O_2'
                     elif data['special_flag'] == "V_pillar":
                         data['force_field_type'] = 'V6+3'
@@ -3594,6 +3596,7 @@ class UFF4MOF(ForceField):
                         if data['element'] == j[:2].strip("_"):
                             data['force_field_type'] = j
             if data['force_field_type'] is None:
+                print(data)
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
                 sys.exit()
