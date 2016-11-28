@@ -2577,18 +2577,23 @@ class Dreiding(ForceField):
         
         if (self.keep_metal_geometry) and (n1_data['atomic_number'] in METALS
             or n2_data['atomic_number'] in METALS):
-            alpha = order * np.sqrt(K/2./D)
-            data['potential'] = BondPotential.Morse()
-            data['potential'].D = D 
-            data['potential'].alpha = alpha
-            data['potential'].R = data['length']
+
+            if self.bondtype.lower() == "harmonic":
+                data['potential'] = BondPotential.Harmonic()
+                data['potential'].K = K/2.
+                data['potential'].R0 = data['length'] 
+
+            elif self.bondtype.lower() == "morse":
+                alpha = order * np.sqrt(K/2./D)
+                data['potential'] = BondPotential.Morse()
+                data['potential'].D = D 
+                data['potential'].alpha = alpha
+                data['potential'].R = data['length']
             return 1
 
         if self.bondtype.lower() == 'harmonic':
-
             data['potential'] = BondPotential.Harmonic()
             data['potential'].K = K/2.
-
             data['potential'].R0 = Re
 
         elif self.bondtype.lower() == 'morse':
@@ -3487,10 +3492,12 @@ class UFF4MOF(ForceField):
                         data['force_field_type'] = "Zn3f2"
                         # change the bond orders to 0.5 as per the paper
                         for n in self.graph.neighbors(node):
-                            if self.graph.node[n]['special_flag'] == "O_z_Zn4O":
-                                self.graph[node][n]['order'] = 1.0
-                            else:
-                                self.graph[node][n]['order'] = 0.5
+                            self.graph[node][n]['order'] = 0.5
+                            # woops! this is correct only for the M3O type SBUs
+                            #if self.graph.node[n]['special_flag'] == "O_z_Zn4O":
+                            #    self.graph[node][n]['order'] = 1.0
+                            #else:
+                            #    self.graph[node][n]['order'] = 0.5
                     elif data['special_flag'] == "C_Zn4O":
                         data['force_field_type'] = "C_R"
                         for n in self.graph.neighbors(node):
