@@ -1342,7 +1342,7 @@ class LammpsSimulation(object):
         if (self.options.minimize):
             box_min = "aniso"
             min_style = "cg"
-            min_eval = 1e-11  # HKUST-1 will not minimize past 1e-11
+            min_eval = 1e-6   # HKUST-1 will not minimize past 1e-11
             max_iterations = 100000 # if the minimizer can't reach a minimum in this many steps,
                                     # change the min_eval to something higher.
             #inp_str += "%-15s %s\n"%("min_style","fire")

@@ -3548,7 +3548,6 @@ class UFF4MOF(ForceField):
                     elif data['special_flag'] == "O_c_Al_pillar":
                         data['force_field_type'] = 'O_2'
                     elif data['special_flag'] == "O_z_Al_pillar":
-                        print("HERE")
                         data['force_field_type'] = 'O_2'
                     elif data['special_flag'] == "H_Al_pillar":
                         data['force_field_type'] = 'H_'
