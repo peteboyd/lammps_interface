@@ -1417,25 +1417,25 @@ def write_RASPA_CIF(graph, cell):
                                 CIF.atom_type_partial_charge(data['charge']))
     # bond block
     # must re-sort them based on bond type (Mat Sudio)
-    tosort = [(data['order'], (n1, n2, data)) for n1, n2, data in graph.edges_iter2(data=True)]
-    for ord, (n1, n2, data) in sorted(tosort, key=lambda tup: tup[0]):
-        type = CCDC_BOND_ORDERS[data['order']]
-        dist = data['length'] 
-        sym = data['symflag']
+    #tosort = [(data['order'], (n1, n2, data)) for n1, n2, data in graph.edges_iter2(data=True)]
+    #for ord, (n1, n2, data) in sorted(tosort, key=lambda tup: tup[0]):
+    #    type = CCDC_BOND_ORDERS[data['order']]
+    #    dist = data['length'] 
+    #    sym = data['symflag']
 
 
-        label1 = "%s%i"%(graph.node[n1]['element'], n1)
-        label2 = "%s%i"%(graph.node[n2]['element'], n2) 
-        c.add_data("bonds", _geom_bond_atom_site_label_1=
-                                    CIF.geom_bond_atom_site_label_1(label1))
-        c.add_data("bonds", _geom_bond_atom_site_label_2=
-                                    CIF.geom_bond_atom_site_label_2(label2))
-        c.add_data("bonds", _geom_bond_distance=
-                                    CIF.geom_bond_distance(dist))
-        c.add_data("bonds", _geom_bond_site_symmetry_2=
-                                    CIF.geom_bond_site_symmetry_2(sym))
-        c.add_data("bonds", _ccdc_geom_bond_type=
-                                    CIF.ccdc_geom_bond_type(type))
+    #    label1 = "%s%i"%(graph.node[n1]['element'], n1)
+    #    label2 = "%s%i"%(graph.node[n2]['element'], n2) 
+    #    c.add_data("bonds", _geom_bond_atom_site_label_1=
+    #                                CIF.geom_bond_atom_site_label_1(label1))
+    #    c.add_data("bonds", _geom_bond_atom_site_label_2=
+    #                                CIF.geom_bond_atom_site_label_2(label2))
+    #    c.add_data("bonds", _geom_bond_distance=
+    #                                CIF.geom_bond_distance(dist))
+    #    c.add_data("bonds", _geom_bond_site_symmetry_2=
+    #                                CIF.geom_bond_site_symmetry_2(sym))
+    #    c.add_data("bonds", _ccdc_geom_bond_type=
+    #                                CIF.ccdc_geom_bond_type(type))
     
     print('Output cif file written to %s.cif'%c.name)
     file = open("%s.cif"%c.name, "w")
