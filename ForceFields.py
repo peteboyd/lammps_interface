@@ -2509,7 +2509,11 @@ class UFF(ForceField):
                         valency = 3
                     for j in ffs:
                         if data['element'] == j[:2].strip("_"):
-                            if valency == int(j[2]):
+                            try:
+                                if valency == int(j[2]):
+                                    data['force_field_type'] = j
+                            except IndexError:
+                                # no valency for this atom
                                 data['force_field_type'] = j
 
             if data['force_field_type'] is None:
