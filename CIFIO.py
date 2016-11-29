@@ -125,14 +125,16 @@ class CIF(object):
     def __str__(self):
         line = ""
         for block in self.block_order:
-            heads = self._headings[block]
-            if block in self.non_loops: 
-                vals = zip([CIF.label(i) for i in heads], [self._data[i] for i in heads])
-            else:
-                line += "loop_\n"+"\n".join([CIF.label(i) for i in heads])+"\n"
-                vals = zip(*[self._data[i] for i in heads])
-            for ll in vals:
-                line += "".join(ll) + "\n"
+            # NOTE still be able to write CIFS if blond bock not specified
+            if block in self._headings:
+                heads = self._headings[block]
+                if block in self.non_loops: 
+                    vals = zip([CIF.label(i) for i in heads], [self._data[i] for i in heads])
+                else:
+                    line += "loop_\n"+"\n".join([CIF.label(i) for i in heads])+"\n"
+                    vals = zip(*[self._data[i] for i in heads])
+                for ll in vals:
+                    line += "".join(ll) + "\n"
         return line
 
     def get_non_loop_block(self, line):
