@@ -2194,6 +2194,8 @@ class UFF(ForceField):
             # unless the angle is 0 or 180 deg - then linear case.
             # here the K value will be scaled by the number of neighbors
             angle_type = "None"
+            # note, coefficient might be too strong here, if the metal
+            # is octahedral, for example, kappa = ka/16
             if np.allclose(theta0, 180.0, atol=0.1):
                 angle_type = 'linear'
 
@@ -2213,14 +2215,6 @@ class UFF(ForceField):
         beta = 664.12/r_ab/r_bc
         ka = beta*(za*zc /(r_ac**5.))
         ka *= (3.*r_ab*r_bc*(1. - cosT0*cosT0) - r_ac*r_ac*cosT0)
-        # PETE - edit
-        #if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
-        #    theta0 = self.graph.compute_angle_between(a, b, c)
-        #    # should put this angle in the general - non-linear case
-        #    data['potential'] = AnglePotential.Harmonic()
-        #    data['potential'].K = ka/2 
-        #    data['potential'].theta0 = theta0
-        #    return 1
 
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
             if angle_type == 'linear':
