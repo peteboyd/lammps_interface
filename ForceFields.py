@@ -2194,6 +2194,8 @@ class UFF(ForceField):
             # unless the angle is 0 or 180 deg - then linear case.
             # here the K value will be scaled by the number of neighbors
             angle_type = "None"
+            if np.allclose(theta0, 180.0, atol=0.1):
+                angle_type = 'linear'
 
         cosT0 = np.cos(theta0*DEG2RAD)
         sinT0 = np.sin(theta0*DEG2RAD)
