@@ -7,7 +7,7 @@ Mohamad Moosavi
 Matthew Witman
 
 ## Link 
-https://github.com/mwitman1/lammps_interface 
+https://github.com/peteboyd/lammps_interface 
 
 ## Licence
 None

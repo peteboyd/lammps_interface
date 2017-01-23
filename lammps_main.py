@@ -675,6 +675,12 @@ class LammpsSimulation(object):
                 graph.original_size += 1
 
     def compute_simulation_size(self):
+        if self.options.orthogonalize:
+            print("WARNING: Orthogonalization of simulation cell requested. This can "+
+                  "make simulation sizes incredibly large. I hope you know, what you "+
+                  "are doing!")
+            transformation_matrix = self.cell.orthogonal_transformation()
+            self.graph.redefine_lattice(transformation_matrix, self.cell)
 
         supercell = self.cell.minimum_supercell(self.options.cutoff)
         if np.any(np.array(supercell) > 1):

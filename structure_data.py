@@ -338,9 +338,11 @@ class MolecularGraph(nx.Graph):
         unit_repr = np.array([5,5,5], dtype=int)
         atom1 = self.node[n1]
         atom2 = self.node[n2]
-        coord1 = self.coordinates[atom1['index']-1]
-        coord2 = self.coordinates[atom2['index']-1]
-        fcoords = np.dot(cell.inverse, coord2) + supercells
+        #coord1 = self.coordinates[atom1['index']-1]
+        #coord2 = self.coordinates[atom2['index']-1]
+        coord1 = self.node[n1]['cartesian_coordinates']
+        coord2 = self.node[n2]['cartesian_coordinates']
+        fcoords = np.dot(cell._inverse, coord2) + supercells
         
         coords = np.array([np.dot(j, cell.cell) for j in fcoords])
         
@@ -348,6 +350,8 @@ class MolecularGraph(nx.Graph):
         dists = dists[0].tolist()
         image = dists.index(min(dists))
         dist = min(dists)
+        #if(dist > 10):
+        #    print(fcoords)
         sym = '.' if all([i==0 for i in supercells[image]]) else \
                 "1_%i%i%i"%(tuple(np.array(supercells[image],dtype=int) +
                                   unit_repr))
@@ -462,7 +466,8 @@ class MolecularGraph(nx.Graph):
         for n1, n2 in itertools.combinations(self.nodes(), 2):
             id1, id2 = self.node[n1]['index']-1,\
                                 self.node[n2]['index']-1
-            coords1, coords2 = self.coordinates[id1], self.coordinates[id2]
+            #coords1, coords2 = self.coordinates[id1], self.coordinates[id2]
+            coords1, coords2 = self.node[n1]['cartesian_coordinates'], self.node[n2]['cartesian_coordinates']
             try:
                 dist = self.min_img_distance(coords1, coords2, cell)
             except TypeError:
@@ -473,6 +478,10 @@ class MolecularGraph(nx.Graph):
     def min_img(self, coord):
         f = np.dot(self.cell.inverse, coord)
         f -= np.around(f)
+        return np.dot(f, self.cell.cell)
+    
+    def in_cell(self, coord):
+        f = np.dot(self.cell.inverse, coord) % 1
         return np.dot(f, self.cell.cell)
 
     def min_img_distance(self, coords1, coords2, cell):
@@ -957,6 +966,36 @@ class MolecularGraph(nx.Graph):
         for j in set(no_cluster):
             print ("No recognizable %s clusters for %i elements %s"%(type.lower(), no_cluster.count(j),  j))
 
+    def redefine_lattice(self, redefinition, lattice):
+        """Redefines the lattice based on the old lattice vectors. This was designed to convert
+        non-orthogonal cells to orthogonal boxes, but it could in principle be used to 
+        convert any cell to any other cell. (As long as the redefined lattice
+        are integer multiples of the old vectors)
+
+        """
+
+        # determine how many replicas of the atoms is necessary to produce the supercell.
+        vol_change = np.prod(np.diag(redefinition))
+        print("The redefined cell will be %i times larger than the original."%(int(vol_change)))
+
+        # replicate supercell
+        sc = (tuple([int(i) for i in np.diag(redefinition)]))
+        self.build_supercell(tuple([int(i) for i in np.diag(redefinition)]), lattice)
+        # re-define the cell
+        lattice.set_cell(np.dot(redefinition, lattice._cell))
+        print(redefinition) 
+        # the node cartesian_coordinates must be shifted by the periodic boundaries.
+        for node, data in self.nodes_iter(data=True):
+            coord = data['cartesian_coordinates']
+            data['cartesian_coordinates'] = self.in_cell(coord) 
+         
+        # the bonds which span a periodic boundary will change
+        for n1, n2, data in self.edges_iter2(data=True):
+            flag = self.compute_bond_image_flag(n1, n2, lattice)
+            data['symflag'] = flag #'.' 
+
+        # not sure what this may break, but have to assume this new cell is the 'original'
+        self.store_original_size()
 
     def build_supercell(self, sc, lattice, track_molecule=False, molecule_len=0):
         """Construct a graph with nodes supporting the size of the 
@@ -1710,6 +1749,8 @@ class Cell(object):
         self._cell = np.array(value).reshape((3,3))
         self.__mkparam()
         self.__mklammps()
+        # remake cell so a in x, b in xy and c in xyz
+        self.__mkcell()
         self._inverse = np.linalg.inv(self.cell.T)
 
     # Property so that params are updated when cell is set
@@ -1750,6 +1791,20 @@ class Cell(object):
         #          volume / np.linalg.norm(a_cross_b)]
 
         #return tuple(int(math.ceil(2*cutoff/x)) for x in widths)
+
+    def orthogonal_transformation(self):
+        """Compute the transformation from the original unit cell to a supercell which
+        has 90 degree angles between it's basis vectors. This is somewhat approximate,
+        and the angles will not be EXACTLY 90 deg.
+
+        UHH>>>
+        """
+        absmat = np.abs(self._inverse.T)
+        divs = np.array([np.min(absmat[i, np.nonzero(absmat[i])]) for i in range(3)])
+
+        M = np.around(self._inverse.T / divs[:,None])
+        MN = M.copy()
+        return MN
 
     def update_supercell(self, tuple):
         self._cell = np.multiply(self._cell.T, tuple).T

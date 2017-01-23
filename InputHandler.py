@@ -142,7 +142,13 @@ class Options(object):
                                       "Use comma, space or 'x' delimited values for the a,b,c directions." + 
                                       " This is useful when dealing with flexible materials " +
                                       "where you know that structural collapse will result in " +
-                                      "the box decreasing past 2*rcut") 
+                                      "the box decreasing past 2*rcut")
+        simulation_group.add_argument("-O","--orthogonalize", action="store_true",
+                                      default=False,
+                                      dest="orthogonalize",
+                                      help="Makes a supercell of the simulation box with more-or-less "+
+                                           "orthogonal supercell vectors. This is an approximation, but is "+
+                                           "useful for certain calculations. Default is FALSE.")
         simulation_group.add_argument("--randomize-velocities",
                                       action="store_true",
                                       default=False,
