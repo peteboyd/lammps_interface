@@ -350,11 +350,12 @@ class MolecularGraph(nx.Graph):
         dists = dists[0].tolist()
         image = dists.index(min(dists))
         dist = min(dists)
-        #if(dist > 10):
-        #    print(fcoords)
         sym = '.' if all([i==0 for i in supercells[image]]) else \
                 "1_%i%i%i"%(tuple(np.array(supercells[image],dtype=int) +
                                   unit_repr))
+        if(dist > 10):
+            print("BEFORE ", self[n1][n2]['symflag'])
+            #print("AFTER  ",sym)
         return sym
     
     def compute_angle_between(self, l, m, r):
@@ -483,6 +484,10 @@ class MolecularGraph(nx.Graph):
     def in_cell(self, coord):
         f = np.dot(self.cell.inverse, coord) % 1
         return np.dot(f, self.cell.cell)
+    
+    def fractional(self, coord):
+        f = np.dot(self.cell.inverse, coord) 
+        return f 
 
     def min_img_distance(self, coords1, coords2, cell):
         one = np.dot(cell.inverse, coords1) % 1
@@ -800,13 +805,21 @@ class MolecularGraph(nx.Graph):
     def show(self):
         nx.draw(self)
 
-    def img_offset(self, cells, cell, maxcell, flag):
+    def img_offset(self, cells, cell, maxcell, flag, redefine):
         unit_repr = np.array([5, 5, 5], dtype=int)
         if(flag == '.'):
             return cells.index(tuple([tuple([i]) for i in cell]))
         ocell = cell + np.array([int(j) for j in flag[2:]]) - unit_repr
-        # get the image cell of this bond
         imgcell = ocell % maxcell
+        # have to find the off-diagonal values, and what their
+        # multiples are to determine the image cell of this
+        # bond.
+        for vec in redefine[np.nonzero(ocell)]:
+            print(vec)
+            print(np.dot(vec, redefine))
+        #print(np.dot(ocell, redefine)%maxcell)
+        sys.exit()
+        # get the image cell of this bond
         # determine the atom indices from the image cell
         return cells.index(tuple([tuple([i]) for i in imgcell]))
 
@@ -973,31 +986,41 @@ class MolecularGraph(nx.Graph):
         are integer multiples of the old vectors)
 
         """
-
+        #redefinition[np.nonzero(redefinition)]/=redefinition[np.nonzero(redefinition)]
+        #redefinition = np.array([[1., 0., 0.],[0.,2.,0.], [0., 1., 1.]])
+        redefinition = np.array([[2., 0., 0.],[-1.,1.,0.], [-1., 0., 3.]])
         # determine how many replicas of the atoms is necessary to produce the supercell.
         vol_change = np.prod(np.diag(redefinition))
         print("The redefined cell will be %i times larger than the original."%(int(vol_change)))
 
         # replicate supercell
         sc = (tuple([int(i) for i in np.diag(redefinition)]))
-        self.build_supercell(tuple([int(i) for i in np.diag(redefinition)]), lattice)
+        self.build_supercell(sc, lattice, redefine=redefinition)
+        #self.cell.update_supercell(sc)
         # re-define the cell
-        lattice.set_cell(np.dot(redefinition, lattice._cell))
-        print(redefinition) 
+        old_cell = np.multiply(self.cell._cell.T, sc).T
+        #old_cell = self.cell._cell.copy()
+        #redefinition[np.diag_indices_from(redefinition)]/=redefinition[np.diag_indices_from(redefinition)]
+        self.cell.set_cell(np.dot(redefinition, self.cell._cell))
         # the node cartesian_coordinates must be shifted by the periodic boundaries.
         for node, data in self.nodes_iter(data=True):
             coord = data['cartesian_coordinates']
+            # redefine the coordinates by the transformation matrix
+            #coord += np.dot(redefinition[0], old_cell)
+            #coord += np.dot(redefinition[1], old_cell)
+            #coord += np.dot(redefinition[2], old_cell)
+
             data['cartesian_coordinates'] = self.in_cell(coord) 
-         
+
         # the bonds which span a periodic boundary will change
         for n1, n2, data in self.edges_iter2(data=True):
-            flag = self.compute_bond_image_flag(n1, n2, lattice)
+            flag = self.compute_bond_image_flag(n1, n2, self.cell)
             data['symflag'] = flag #'.' 
 
         # not sure what this may break, but have to assume this new cell is the 'original'
         self.store_original_size()
 
-    def build_supercell(self, sc, lattice, track_molecule=False, molecule_len=0):
+    def build_supercell(self, sc, lattice, track_molecule=False, molecule_len=0, redefine=np.identity(3)):
         """Construct a graph with nodes supporting the size of the 
         supercell (sc)
         Oh man.. so ugly.        
@@ -1023,19 +1046,22 @@ class MolecularGraph(nx.Graph):
             offset = count * unitatomlen
             mol_offset = count * molecule_len
 
-            cartesian_offset = np.dot(newcell, lattice.cell) 
+            cartesian_offset = np.dot(newcell, lattice.cell)
+            # Initial setup of new image in the supercell.
             if (count == 0):
                 graph_image = self
             else:
                 # rename nodes
                 graph_image = nx.relabel_nodes(deepcopy(orig_copy), {unit_node_ids[i-1]: offset+unit_node_ids[i-1] for i in range(1, totatomlen+1)})
                 graph_image.sorted_edge_dict = self.sorted_edge_dict.copy()
+                # rename the edges with the offset associated with this supercell.
                 for k,v in list(graph_image.sorted_edge_dict.items()):
                     newkey = (k[0] + offset, k[1] + offset) 
                     newval = (v[0] + offset, v[1] + offset)
                     del graph_image.sorted_edge_dict[k]
                     graph_image.sorted_edge_dict.update({newkey:newval})
 
+            # keep track of original index value from the unit cell.
             for i in range(1, totatomlen+1):
                 graph_image.node[unit_node_ids[i-1]+offset]['image'] = unit_node_ids[i-1]
             if track_molecule:
@@ -1062,8 +1088,8 @@ class MolecularGraph(nx.Graph):
                         order_bc = graph_image.sorted_edge_dict[(node, cid)]
                         if order_bc != (node, cid) and e_bc['symflag'] != '.':
                             bc_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_bc['symflag'][2:]]))) 
-                        os_a = self.img_offset(cells, newcell, maxcell, ba_symflag) * unitatomlen
-                        os_c = self.img_offset(cells, newcell, maxcell, bc_symflag) * unitatomlen
+                        os_a = self.img_offset(cells, newcell, maxcell, ba_symflag, redefine) * unitatomlen
+                        os_c = self.img_offset(cells, newcell, maxcell, bc_symflag, redefine) * unitatomlen
                         data['angles'].pop((a,c))
                         data['angles'][(a + os_a, c + os_c)] = val
 
@@ -1090,9 +1116,9 @@ class MolecularGraph(nx.Graph):
                         if order_bd != (node, did) and e_bd['symflag'] != '.':
                             bd_symflag = "1_%i%i%i"%(tuple([10 - int(j) for j in e_bd['symflag'][2:]])) 
 
-                        os_a = self.img_offset(cells, newcell, maxcell, ba_symflag) * unitatomlen
-                        os_c = self.img_offset(cells, newcell, maxcell, bc_symflag) * unitatomlen
-                        os_d = self.img_offset(cells, newcell, maxcell, bd_symflag) * unitatomlen
+                        os_a = self.img_offset(cells, newcell, maxcell, ba_symflag, redefine) * unitatomlen
+                        os_c = self.img_offset(cells, newcell, maxcell, bc_symflag, redefine) * unitatomlen
+                        os_d = self.img_offset(cells, newcell, maxcell, bd_symflag, redefine) * unitatomlen
                         data['impropers'].pop((a,c,d))
                         data['impropers'][(a + os_a, c + os_c, d + os_d)] = val
 
@@ -1117,12 +1143,12 @@ class MolecularGraph(nx.Graph):
                 # dihedrals are difficult if the edge spans one of the terminal atoms..
 
                 if (data['symflag'] != '.'):
-                    os_id = self.img_offset(cells, newcell, maxcell, data['symflag']) 
+                    os_id = self.img_offset(cells, newcell, maxcell, data['symflag'], redefine) 
                     offset_c = os_id * unitatomlen
                     img_n2 = offset_c + n2_orig
                     # pain...
                     opposite_flag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in data['symflag'][2:]]))) 
-                    rev_n1_img = self.img_offset(cells, newcell, maxcell, opposite_flag) * unitatomlen + n1_orig 
+                    rev_n1_img = self.img_offset(cells, newcell, maxcell, opposite_flag, redefine) * unitatomlen + n1_orig 
                     # dihedral check
                     try:
                         for (a, d), val in list(data['dihedrals'].items()):
@@ -1139,14 +1165,14 @@ class MolecularGraph(nx.Graph):
                             if order_n1_a != (n1, a+offset) and edge_n1_a['symflag'] != '.':
                                 n1a_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in edge_n1_a['symflag'][2:]])))
                             if (edge_n1_a['symflag'] != '.'):
-                                offset_a = self.img_offset(cells, newcell, maxcell, n1a_symflag) * unitatomlen
+                                offset_a = self.img_offset(cells, newcell, maxcell, n1a_symflag, redefine) * unitatomlen
                             # check to make sure edge between n2, c is not crossing an image
                             offset_d = offset_c
 
                             if order_n2_d != (n2, d+offset) and edge_n2_d['symflag'] != '.':
                                 n2d_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in edge_n2_d['symflag'][2:]])))
                             if (edge_n2_d['symflag'] != '.'):
-                                offset_d = self.img_offset(cells, np.array(cells[os_id]).flatten(), maxcell, n2d_symflag) * unitatomlen
+                                offset_d = self.img_offset(cells, np.array(cells[os_id]).flatten(), maxcell, n2d_symflag, redefine) * unitatomlen
 
                             aid, did = offset_a + a, offset_d + d
                             copyover = data['dihedrals'].pop((a,d))
@@ -1176,14 +1202,14 @@ class MolecularGraph(nx.Graph):
                             if order_n1_a != (n1, a+offset) and edge_n1_a['symflag'] != '.':
                                 n1a_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in edge_n1_a['symflag'][2:]])))
                             if (edge_n1_a['symflag'] != '.'):
-                                offset_a = self.img_offset(cells, newcell, maxcell, n1a_symflag) * unitatomlen
+                                offset_a = self.img_offset(cells, newcell, maxcell, n1a_symflag, redefine) * unitatomlen
                             # check to make sure edge between n2, c is not crossing an image
                             offset_d = offset
 
                             if order_n2_d != (n2, d+offset) and edge_n2_d['symflag'] != '.':
                                 n2d_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in edge_n2_d['symflag'][2:]])))
                             if (edge_n2_d['symflag'] != '.'):
-                                offset_d = self.img_offset(cells, newcell, maxcell, n2d_symflag) * unitatomlen
+                                offset_d = self.img_offset(cells, newcell, maxcell, n2d_symflag, redefine) * unitatomlen
 
                             aid, did = offset_a + a, offset_d + d
                             copyover = data['dihedrals'].pop((a,d))

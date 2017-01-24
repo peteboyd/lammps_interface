@@ -370,7 +370,7 @@ class LammpsSimulation(object):
                 self.graph.find_metal_sbus = True # true for UFF4MOF, BTW_FF and Dubbeldam
             if (self.options.force_field == "Dubbeldam"):
                 self.graph.find_organic_sbus = True
-            self.graph.compute_topology_information(self.cell, self.options.tol, self.options.neighbour_size)
+            self.graph.compute_topology_information(self.cell, self.options.tol, self.options.neighbour_size) 
         except AttributeError:
             # no cell set yet 
             pass
@@ -675,6 +675,7 @@ class LammpsSimulation(object):
                 graph.original_size += 1
 
     def compute_simulation_size(self):
+        
         if self.options.orthogonalize:
             print("WARNING: Orthogonalization of simulation cell requested. This can "+
                   "make simulation sizes incredibly large. I hope you know, what you "+
