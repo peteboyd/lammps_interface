@@ -996,7 +996,7 @@ class MolecularGraph(nx.Graph):
         are integer multiples of the old vectors)
 
         """
-        redefinition = np.array([[4., 0., 0.],[2.,3.,0.], [1., -3., 2.]])
+        #redefinition = np.array([[4., 0., 0.],[2.,3.,0.], [1., -3., 2.]])
         # determine how many replicas of the atoms is necessary to produce the supercell.
         vol_change = np.prod(np.diag(redefinition))
         print("The redefined cell will be %i times larger than the original."%(int(vol_change)))
