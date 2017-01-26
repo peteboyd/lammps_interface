@@ -353,9 +353,10 @@ class MolecularGraph(nx.Graph):
         sym = '.' if all([i==0 for i in supercells[image]]) else \
                 "1_%i%i%i"%(tuple(np.array(supercells[image],dtype=int) +
                                   unit_repr))
-        if(dist > 10):
-            print("BEFORE ", self[n1][n2]['symflag'])
-            #print("AFTER  ",sym)
+        if(dist > 7):
+            print("WARNING: bonded atoms %i and %i are %.3f Angstroms apart."%(n1,n2,dist) + 
+                    " This probably has something to do with the redefinition of the unitcell "+
+                    "to a supercell. Please contact the developers!")
         return sym
     
     def compute_angle_between(self, l, m, r):
@@ -809,16 +810,25 @@ class MolecularGraph(nx.Graph):
         unit_repr = np.array([5, 5, 5], dtype=int)
         if(flag == '.'):
             return cells.index(tuple([tuple([i]) for i in cell]))
-        ocell = cell + np.array([int(j) for j in flag[2:]]) - unit_repr
-        imgcell = ocell % maxcell
+        translation = np.array([int(j) for j in flag[2:]]) - unit_repr
+        ocell = np.array(cell + translation, dtype=np.float64) 
         # have to find the off-diagonal values, and what their
         # multiples are to determine the image cell of this
         # bond.
-        for vec in redefine[np.nonzero(ocell)]:
-            print(vec)
-            print(np.dot(vec, redefine))
-        #print(np.dot(ocell, redefine)%maxcell)
-        sys.exit()
+        rd = redefine - np.identity(3)*maxcell
+        # this simply ignores the diagonal elements, all we care about for the offset
+        # are the off-diagonals. These need to be summed to id the correct
+        # supercell index
+        # shift offset includes all the off-diagonal elements that are linearly dependent of one another.
+        shift_offset = np.sum(rd[np.nonzero(translation)], axis=0) + np.sum(rd[np.nonzero(np.sum(rd[np.nonzero(translation)], axis=0))], axis=0)
+
+        ids = np.nonzero(translation)
+        # only add offsets if the bond spans a periodic boundary of the SUPERCELL (not the unit cell)
+        if np.any(ocell >= maxcell, axis=0) or np.any(ocell < 0):
+            imgcell = (ocell + shift_offset) % maxcell
+        else:
+            imgcell = ocell % maxcell
+
         # get the image cell of this bond
         # determine the atom indices from the image cell
         return cells.index(tuple([tuple([i]) for i in imgcell]))
@@ -986,9 +996,7 @@ class MolecularGraph(nx.Graph):
         are integer multiples of the old vectors)
 
         """
-        #redefinition[np.nonzero(redefinition)]/=redefinition[np.nonzero(redefinition)]
-        #redefinition = np.array([[1., 0., 0.],[0.,2.,0.], [0., 1., 1.]])
-        redefinition = np.array([[2., 0., 0.],[-1.,1.,0.], [-1., 0., 3.]])
+        redefinition = np.array([[4., 0., 0.],[2.,3.,0.], [1., -3., 2.]])
         # determine how many replicas of the atoms is necessary to produce the supercell.
         vol_change = np.prod(np.diag(redefinition))
         print("The redefined cell will be %i times larger than the original."%(int(vol_change)))
@@ -996,20 +1004,12 @@ class MolecularGraph(nx.Graph):
         # replicate supercell
         sc = (tuple([int(i) for i in np.diag(redefinition)]))
         self.build_supercell(sc, lattice, redefine=redefinition)
-        #self.cell.update_supercell(sc)
         # re-define the cell
         old_cell = np.multiply(self.cell._cell.T, sc).T
-        #old_cell = self.cell._cell.copy()
-        #redefinition[np.diag_indices_from(redefinition)]/=redefinition[np.diag_indices_from(redefinition)]
         self.cell.set_cell(np.dot(redefinition, self.cell._cell))
         # the node cartesian_coordinates must be shifted by the periodic boundaries.
         for node, data in self.nodes_iter(data=True):
             coord = data['cartesian_coordinates']
-            # redefine the coordinates by the transformation matrix
-            #coord += np.dot(redefinition[0], old_cell)
-            #coord += np.dot(redefinition[1], old_cell)
-            #coord += np.dot(redefinition[2], old_cell)
-
             data['cartesian_coordinates'] = self.in_cell(coord) 
 
         # the bonds which span a periodic boundary will change
