@@ -354,6 +354,7 @@ class MolecularGraph(nx.Graph):
                 "1_%i%i%i"%(tuple(np.array(supercells[image],dtype=int) +
                                   unit_repr))
         if(dist > 7):
+            #print("BEFORE: ", self[n1][n2]['symflag'])
             print("WARNING: bonded atoms %i and %i are %.3f Angstroms apart."%(n1,n2,dist) + 
                     " This probably has something to do with the redefinition of the unitcell "+
                     "to a supercell. Please contact the developers!")
@@ -806,12 +807,13 @@ class MolecularGraph(nx.Graph):
     def show(self):
         nx.draw(self)
 
-    def img_offset(self, cells, cell, maxcell, flag, redefine):
+    def img_offset(self, cells, cell, maxcell, flag, redefine, n1=0):
         unit_repr = np.array([5, 5, 5], dtype=int)
         if(flag == '.'):
             return cells.index(tuple([tuple([i]) for i in cell]))
         translation = np.array([int(j) for j in flag[2:]]) - unit_repr
-        ocell = np.array(cell + translation, dtype=np.float64) 
+        ocell = np.array(cell + translation, dtype=np.float64)
+
         # have to find the off-diagonal values, and what their
         # multiples are to determine the image cell of this
         # bond.
@@ -820,15 +822,284 @@ class MolecularGraph(nx.Graph):
         # are the off-diagonals. These need to be summed to id the correct
         # supercell index
         # shift offset includes all the off-diagonal elements that are linearly dependent of one another.
-        shift_offset = np.sum(rd[np.nonzero(translation)], axis=0) + np.sum(rd[np.nonzero(np.sum(rd[np.nonzero(translation)], axis=0))], axis=0)
-
         ids = np.nonzero(translation)
+        
+        shift_offset = np.sum(rd[ids], axis=0) + np.sum(rd[np.nonzero(np.sum(rd[ids], axis=0))], axis=0)
+        #shift_offset = np.sum(redefine[np.nonzero(translation)], axis=0)
+        #print("BEFORE: ", shift_offset%maxcell)
+        #shift_offset = np.sum(rd, axis=0)
+        #print("AFTER : ", shift_offset%maxcell)
         # only add offsets if the bond spans a periodic boundary of the SUPERCELL (not the unit cell)
-        if np.any(ocell >= maxcell, axis=0) or np.any(ocell < 0):
-            imgcell = (ocell + shift_offset) % maxcell
+        #if np.any(ocell >= maxcell, axis=0) or np.any(ocell < 0):
+        #    imgcell = (ocell + shift_offset) % maxcell
+        #    if(flag == "1_556") and np.all(cell == np.array([0., 1., 0.])):
+        #        print((ocell - shift_offset)%maxcell)
+        #        #print(imgcell)
+        #        print((ocell + shift_offset)%maxcell)
+        #        #print(imgcell)
+        
+        #if len(ids[0]) > 1:
+        #    shift_offset = np.dot(ocell, redefine)
+        ##if np.any(ocell[ids] >= maxcell[ids], axis=0):
+        #if np.any(ocell >= maxcell, axis=0):
+        #    imgcell = (ocell - shift_offset)%maxcell
+        #    imgcell = (np.dot(translation, redefine) + ocell)%maxcell
+        #    imgcell = (np.dot(-translation, redefine) + ocell)%maxcell
+        ##elif np.any(ocell[ids] < 0.):
+        #elif np.any(ocell < 0.):
+        #    imgcell = (ocell + shift_offset)%maxcell
+        #    #imgcell = (np.dot(translation, redefine) + ocell)%maxcell
+        #    imgcell = (np.dot(-translation, redefine) + ocell)%maxcell
+        if (np.any(ocell >= maxcell, axis=0) or np.any(ocell < 0.)):
+            if (len(ids[0]) == 2) and len(np.nonzero(np.dot(ocell%maxcell, redefine))[0]) <= 1:
+                imgcell = ocell % maxcell
+            elif (len(ids[0]) == 3):
+                imgcell = np.dot(translation, -redefine) % maxcell
+            else:
+                imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
         else:
             imgcell = ocell % maxcell
+        #if np.any(ocell[ids] >= maxcell[ids], axis=0):
+        #    #if not (np.all(imgcell - (ocell + np.dot(np.dot(ocell, redefine), np.linalg.inv(redefine)))%maxcell == 0.)):
+        #    if not (np.all(imgcell - (np.dot(translation, redefine) + ocell)%maxcell == 0.)):
+        #        print("ORIGNAL CELL: ", cell)
+        #        print("TRANSLATION : ", translation)
+        #        print("IMAGE CELL  : ", imgcell)
+        #        #print("YOUR GUESS  : ", np.dot(np.dot(ocell%maxcell, redefine), np.linalg.inv(redefine)))
+        #        #print("COMBINED    : ", imgcell - np.dot(np.dot(ocell%maxcell, redefine), np.linalg.inv(redefine)))
+        #        print("YOUR GUESS  : ", np.dot(ocell, redefine)%maxcell)
+        #        print("COMBINED    : ", imgcell - np.dot(ocell, redefine)%maxcell)
+        #        print("\n")
 
+        #if (np.any(ocell >= maxcell, axis=0) or np.any(ocell < 0.))and(n1>0):
+        #    soln = (np.dot(translation, -redefine) + ocell)%maxcell
+        #    soln2 = cell + (cell + np.dot(np.dot(translation, redefine), np.linalg.inv(redefine)))%maxcell
+        #    if not (np.all((imgcell - soln) == 0)):
+        #        print(n1)
+        #        print(cell)
+        #        print(translation)
+        #        print(imgcell)
+        #        print(soln2)
+        #    imgcell = soln
+
+        # TROUBLE CASES = ACO, AEN
+        indices = np.where(maxcell-ocell <= 0)[0].tolist() + np.where(ocell < 0)[0].tolist()
+        # HERE????******************************************************************************************************************************************
+        # go through cases, eg, if indices == 1, if indices == 2, if indices == 3,
+        # if ids == 1, ids == 2, ids == 3
+        # if np.sum(rd[ids], axis=0) 
+        # working ON AEL
+
+        imgcell = ocell % maxcell
+        # count is the number of linearly dependent cell vectors in the new cell 
+        count1 = 0
+        for i in indices:
+            if not np.all(rd[i] == 0.):
+                count1 += 1
+        
+        # count2 is the number of linearly dependent cell vectors in the translation 
+        count2 = 0
+        for i in ids[0]:
+            if not np.all(rd[i] == 0.):
+                count2 += 1
+
+        if len(indices) == 1:
+
+            if len(ids[0]) == 1:
+                if count1 == 1 and count2 == 1:
+                    imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+                else:
+                    imgcell = (ocell + shift_offset) % maxcell
+
+            elif len(ids[0]) == 2:
+                if count1 == 1 and count2 == 1:
+                    imgcell = (ocell + shift_offset) % maxcell 
+                if count1 == 1 and count2 == 2:
+                    imgcell = (ocell + shift_offset) % maxcell 
+                    imgcell = ocell % maxcell 
+                    imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+                    imgcell = (cell + np.dot(ocell, redefine) + translation + np.dot(translation, -redefine))%maxcell
+                else:
+                    imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+                #if(np.sum(np.abs(rd[indices[0]])) > 0.):
+                #    imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+                #else:
+                #    imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+                
+            
+            elif len(ids[0]) == 3:
+                imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+        
+        if len(indices) == 2:
+
+            if len(ids[0]) == 1:
+                imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+
+            elif len(ids[0]) == 2:
+                imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+                imgcell = (ocell + shift_offset) % maxcell
+            
+            elif len(ids[0]) == 3:
+                if (np.all(np.nonzero(ocell%maxcell))):
+                    imgcell = ocell % maxcell
+                else:
+                    imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+        
+        if len(indices) == 3:
+
+            if len(ids[0]) == 1:
+                imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+
+            elif len(ids[0]) == 2:
+                imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+            
+            elif len(ids[0]) == 3:
+                imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+                imgcell = ocell % maxcell
+
+
+        #for idx, val in enumerate(ocell):
+        #    if val >= maxcell[idx] or val < 0:
+        #        if (len(np.nonzero(translation)[0]) == 3):
+        #            if len(np.nonzero(np.sum(rd[indices], axis=0))[0]) == 1:
+        #                imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+        #                break
+        #        #    imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+        #        #    break
+        #        elif (len(np.nonzero(translation)[0]) == 2):
+        #            if len(np.nonzero(np.sum(rd[indices], axis=0))[0]) == 1:
+        #                imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+        #                #imgcell = (ocell + shift_offset) % maxcell
+        #                break
+
+        #        if len(np.nonzero(redefine[idx])[0]) == 1: 
+        #            imgcell = ocell % maxcell
+        #        #elif len(np.nonzero(redefine[idx])[0]) > 1:
+        #        #    imgcell = (ocell + shift_offset) % maxcell
+        #        #    for j in np.nonzero(redefine[idx])[0]:
+        #        #        if len(np.nonzero(redefine[j])[0]) > 1:
+        #        #            imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+        #        #    break
+
+        #        else:
+        #            imgcell = (ocell + shift_offset) % maxcell
+        #            break
+        # CHECK AEL
+        # (-1, 0, -1) solved with imgcell = (ocell + shift_offset) % maxcell
+        # but (0, -1, -1) or (-1, 1, 0) not solved, works with np.dot(translation, -redefine)+ocell % maxcell
+        if n1 == 7666:
+            print(n1)
+            print(ocell)
+            print(translation)
+            print((ocell + np.dot(ocell, redefine) + translation + np.dot(translation, redefine))%maxcell)
+        #    print(rd[0]==0)
+        #    print(indices)
+        #    print(np.sum(np.abs(rd[indices[0]])))
+            print("COUNT1  = ", count1)
+            print("COUNT2  = ", count2)
+            print("INDICES = ", len(indices))
+            print("IDS     = ", len(ids[0]))
+        #    imgcell = (np.dot(translation, -redefine) + ocell) % maxcell 
+        #    imgcell = (ocell + shift_offset) % maxcell
+        #    print(imgcell)
+        #if n1 == 1400:
+        #    print(n1)
+        #    print(ocell)
+        #    print(translation)
+        #    print(rd[indices[0]])
+        #    print(indices)
+        #    print(np.sum(rd[indices[0]]))
+        #    print("COUNT1  = ", count1)
+        #    print("COUNT2  = ", count2)
+        #    print("INDICES = ", len(indices))
+        #    print("IDS     = ", len(ids[0]))
+        #    imgcell = (ocell + shift_offset) % maxcell
+        #    imgcell = (ocell % maxcell)
+        #    print((np.dot(translation, -redefine) + ocell)%maxcell)
+        #    print(np.dot(translation, -redefine) % maxcell)
+        #    print(ocell  % maxcell)
+        #    print(imgcell)
+        #    sys.exit()
+
+        # for AEN with redefine = np.array([[1., 0., 0.],[0. 4., 0.], [0., 1., 2.]])
+        #if n1 == 203:
+        #    print(n1)
+        #    print(cell)
+        #    print(translation)
+        #    print(rd[indices])
+        #    print(np.nonzero(redefine[idx])[0])
+        #    print(np.dot(ocell, redefine)%maxcell)
+        #    imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+        #
+        #if n1 == 611:
+        #    print(n1)
+        #    print(cell)
+        #    print(translation)
+        #    print(rd[indices])
+        #    print(np.dot(ocell, redefine)%maxcell)
+        #    imgcell = ocell % maxcell 
+        #
+        #if n1 == 1019:
+        #    print(n1)
+        #    print(cell)
+        #    print(translation)
+        #    print(rd[indices])
+        #    print(np.nonzero(redefine[idx])[0])
+        #    imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+        #    print(np.dot(ocell, redefine)%maxcell)
+        #    imgcell = ocell % maxcell 
+        #
+        #if n1 == 1427:
+        #    print(n1)
+        #    print(cell)
+        #    print(translation)
+        #    print(rd[indices])
+        #    print(np.dot(ocell, redefine)%maxcell)
+        #    imgcell = ocell % maxcell 
+        #
+        #if n1 == 1835:
+        #    print(n1)
+        #    print(cell)
+        #    print(translation)
+        #    print(np.dot(ocell, redefine)%maxcell)
+        #    imgcell = ocell % maxcell 
+        #
+        #if n1 == 2243:
+        #    print(n1)
+        #    print(cell)
+        #    print(translation)
+        #    print(np.dot(ocell, redefine)%maxcell)
+        #    imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+        #
+        #if n1 == 2651:
+        #    print(n1)
+        #    print(cell)
+        #    print(translation)
+        #    print(np.dot(ocell, redefine)%maxcell)
+        #    imgcell = ocell % maxcell
+        #
+        #if n1 == 3059:
+        #    print(n1)
+        #    print(cell)
+        #    print(translation)
+        #    print(np.dot(ocell, redefine)%maxcell)
+        #    imgcell = (np.dot(translation, -redefine) + ocell)%maxcell
+
+            #print((cell + np.dot(np.dot(translation, redefine), np.linalg.inv(redefine)))%maxcell)
+            #print((np.dot(cell, redefine) + (np.dot(translation, -redefine)))%maxcell)
+            #print(np.dot(np.dot(ocell, redefine), np.linalg.inv(redefine))%maxcell)
+            #print((cell + np.dot(np.dot(translation, redefine), np.linalg.inv(redefine)))%maxcell)
+            #print(ocell%maxcell)
+            #print(imgcell)
+            #imgcell =  np.dot(np.dot(ocell, redefine), np.linalg.inv(redefine))%maxcell
+            #print(imgcell)
+            #print(np.dot(ocell, redefine)%maxcell)
+            #print(np.dot(np.dot(ocell%maxcell, redefine), np.linalg.inv(redefine)))
+            #print(imgcell)
+            #print(redefine)
+            #print(shift_offset)
+            #print((ocell + np.dot(ocell, redefine))%maxcell)
+        
         # get the image cell of this bond
         # determine the atom indices from the image cell
         return cells.index(tuple([tuple([i]) for i in imgcell]))
@@ -996,7 +1267,8 @@ class MolecularGraph(nx.Graph):
         are integer multiples of the old vectors)
 
         """
-        #redefinition = np.array([[4., 0., 0.],[2.,3.,0.], [1., -3., 2.]])
+        #print(redefinition)
+        redefinition = np.array([[2., 0., 0.], [ 2., 3.,0.], [ 3., 1., 2.]])
         # determine how many replicas of the atoms is necessary to produce the supercell.
         vol_change = np.prod(np.diag(redefinition))
         print("The redefined cell will be %i times larger than the original."%(int(vol_change)))
@@ -1127,6 +1399,7 @@ class MolecularGraph(nx.Graph):
                     pass
             
             # update nodes and edges to account for bonding to periodic images.
+            unique_translations = {}
             for n1, n2, data in graph_image.edges_iter2(data=True):
                 # flag boundary crossings, and determine updated nodes.
                 # check symmetry flags if they need to be updated,
@@ -1143,9 +1416,19 @@ class MolecularGraph(nx.Graph):
                 # dihedrals are difficult if the edge spans one of the terminal atoms..
 
                 if (data['symflag'] != '.'):
-                    os_id = self.img_offset(cells, newcell, maxcell, data['symflag'], redefine) 
+                    # DEBUGGING
+                    unit_repr = np.array([5, 5, 5], dtype=int)
+                    translation = tuple(np.array([int(j) for j in data['symflag'][2:]]) - unit_repr)
+                    unique_translations.setdefault(translation,0)
+                    unique_translations[translation] += 1
+                    # DEBUGGING
+                    os_id = self.img_offset(cells, newcell, maxcell, data['symflag'], redefine, n1) 
                     offset_c = os_id * unitatomlen
                     img_n2 = offset_c + n2_orig
+                    #if (n1 == 1712):
+                    #    print(os_id)
+                    #    print(newcell)
+                    #    print(redefine)
                     # pain...
                     opposite_flag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in data['symflag'][2:]]))) 
                     rev_n1_img = self.img_offset(cells, newcell, maxcell, opposite_flag, redefine) * unitatomlen + n1_orig 
@@ -1236,7 +1519,7 @@ class MolecularGraph(nx.Graph):
             self.add_edge(n1, n2, **data)
             self.sorted_edge_dict.update({(n1,n2):(n1,n2)})
             self.sorted_edge_dict.update({(n2,n1):(n1,n2)})
-
+        print(list(unique_translations.keys()))
     def unwrap_node_coordinates(self, cell):
         """Must be done before supercell generation.
         This is a recursive method iterating over all edges.
@@ -1501,7 +1784,7 @@ def write_RASPA_CIF(graph, cell):
     #                                CIF.geom_bond_site_symmetry_2(sym))
     #    c.add_data("bonds", _ccdc_geom_bond_type=
     #                                CIF.ccdc_geom_bond_type(type))
-    
+     
     print('Output cif file written to %s.cif'%c.name)
     file = open("%s.cif"%c.name, "w")
     file.writelines(str(c))

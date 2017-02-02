@@ -370,6 +370,7 @@ class LammpsSimulation(object):
                 self.graph.find_metal_sbus = True # true for UFF4MOF, BTW_FF and Dubbeldam
             if (self.options.force_field == "Dubbeldam"):
                 self.graph.find_organic_sbus = True
+
             self.graph.compute_topology_information(self.cell, self.options.tol, self.options.neighbour_size) 
         except AttributeError:
             # no cell set yet 
@@ -682,7 +683,6 @@ class LammpsSimulation(object):
                   "are doing!")
             transformation_matrix = self.cell.orthogonal_transformation()
             self.graph.redefine_lattice(transformation_matrix, self.cell)
-
         supercell = self.cell.minimum_supercell(self.options.cutoff)
         if np.any(np.array(supercell) > 1):
             print("WARNING: unit cell is not large enough to"
@@ -1219,7 +1219,8 @@ class LammpsSimulation(object):
         if(not self.pair_in_data):
             inp_str += "#### Pair Coefficients ####\n"
             for pair,data in sorted(self.unique_pair_types.items()):
-                n1, n2 = self.unique_atom_types[pair[0]], self.unique_atom_types[pair[1]]
+                n1, n2 = self.unique_atom_types[pair[0]][0], self.unique_atom_types[pair[1]][0]
+
                 try:
                     if pair[2] == 'hb':
                         inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 

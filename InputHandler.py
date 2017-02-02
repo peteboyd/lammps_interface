@@ -285,7 +285,7 @@ class Options(object):
                                                    " This will also depend on the number of "+
                                                    "equilibrium steps NEQSTP requested, and "+
                                                    "currently only works with an NVT simulation."+
-                                                   "NOTE: The number of particles to deposit "+
+                                                   " NOTE: The number of particles to deposit "+
                                                    "is considered in the unit cell! The program "+
                                                    "will multipy this value by the number of unit "+
                                                    "cells that were needed to produce the simulation "+
