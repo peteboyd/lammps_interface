@@ -29,6 +29,28 @@ from collections import OrderedDict
 from atomic import MASS, ATOMIC_NUMBER, COVALENT_RADII
 from ccdc import CCDC_BOND_ORDERS
 DEG2RAD=np.pi/180.
+# keeping track of some different groups of atoms.
+organic = set(["H", "C", "N", "O", "S"])
+non_metals = set(["H", "He", "C", "N", "O", "F", "Ne",
+                  "P", "S", "Cl", "Ar", "Se", "Br", "Kr",
+                  "I", "Xe", "Rn"])
+noble_gases = set(["He", "Ne", "Ar", "Kr", "Xe", "Rn"])
+metalloids = set(["B", "Si", "Ge", "As", "Sb", "Te", "At"])
+lanthanides = set(["La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu",
+                   "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu"])
+actinides = set(["Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk",
+                 "Cf", "Es", "Fm", "Md", "No", "Lr"])
+transition_metals = set(["Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni",
+                         "Cu", "Zn", "Y", "Zr", "Nb", "Mo", "Tc", "Ru",
+                         "Rh", "Pd", "Ag", "Cd", "Hf", "Ta", "W", "Re",
+                         "Os", "Ir", "Pt", "Ir", "Pt", "Au", "Hg", "Rf",
+                         "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn"])
+alkali = set(["Li", "Na", "K", "Rb", "Cs", "Fr"])
+alkaline_earth = set(["Be", "Mg", "Ca", "Sr", "Ba", "Ra"])
+main_group = set(["Al", "Ga", "Ge", "In", "Sn", "Sb", "Tl", "Pb", "Bi",
+                  "Po", "At", "Cn", "Uut", "Fl", "Uup", "Lv", "Uus"])
+
+metals = main_group | alkaline_earth | alkali | transition_metals | metalloids
 
 class MolecularGraph(nx.Graph):
     """Class to contain all information relating a structure file
@@ -227,27 +249,6 @@ class MolecularGraph(nx.Graph):
         """Computes bonds between atoms based on covalent radii."""
         # here assume bonds exist, populate data with lengths and 
         # symflags if needed.
-        organic = set(["H", "C", "N", "O", "S"])
-        non_metals = set(["H", "He", "C", "N", "O", "F", "Ne",
-                          "P", "S", "Cl", "Ar", "Se", "Br", "Kr",
-                          "I", "Xe", "Rn"])
-        noble_gases = set(["He", "Ne", "Ar", "Kr", "Xe", "Rn"])
-        metalloids = set(["B", "Si", "Ge", "As", "Sb", "Te", "At"])
-        lanthanides = set(["La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu",
-                           "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu"])
-        actinides = set(["Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk",
-                         "Cf", "Es", "Fm", "Md", "No", "Lr"])
-        transition_metals = set(["Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni",
-                                 "Cu", "Zn", "Y", "Zr", "Nb", "Mo", "Tc", "Ru",
-                                 "Rh", "Pd", "Ag", "Cd", "Hf", "Ta", "W", "Re",
-                                 "Os", "Ir", "Pt", "Ir", "Pt", "Au", "Hg", "Rf",
-                                 "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn"])
-        alkali = set(["Li", "Na", "K", "Rb", "Cs", "Fr"])
-        alkaline_earth = set(["Be", "Mg", "Ca", "Sr", "Ba", "Ra"])
-        main_group = set(["Al", "Ga", "Ge", "In", "Sn", "Sb", "Tl", "Pb", "Bi",
-                          "Po", "At", "Cn", "Uut", "Fl", "Uup", "Lv", "Uus"])
-
-        metals = main_group | alkaline_earth | alkali | transition_metals | metalloids
         if (self.number_of_edges() > 0):
             # bonding found in cif file
             sf = []
@@ -582,8 +583,7 @@ class MolecularGraph(nx.Graph):
         is there a better way to catch chemical features?
         """ 
         #TODO(pboyd) return if bonds already 'typed' in the .cif file
-        organic = set(["H", "C", "N", "O", "S"])
-
+        double_check = [] 
         for n1, n2, data in self.edges_iter2(data=True):
             elements = [self.node[a]['element'] for a in (n1,n2)]
             hybridization = [self.node[a]['hybridization'] for a in (n1, n2)]
@@ -652,6 +652,7 @@ class MolecularGraph(nx.Graph):
                             car_data['hybridization'] = 'aromatic'
                             oxy_data['hybridization'] = 'aromatic'
                             data['order'] = 1.5
+
                 if "N" in carnelem:
                     at = carnn[carnelem.index("N")]
                     # C=O of amide group
@@ -673,7 +674,7 @@ class MolecularGraph(nx.Graph):
                         else:
                             oxy_data['hybridization'] = 'sp2'
                             data['order'] = 2.0
-            if set(elements) == set(["C", "N"]) and not samering:
+            elif set(elements) == set(["C", "N"]) and not samering:
                 car = n1 if self.node[n1]['element'] == "C" else n2
                 car_data = self.node[car]
                 nit = n2 if self.node[n2]['element'] == "N" else n1
@@ -691,9 +692,8 @@ class MolecularGraph(nx.Graph):
                     if "O" in carnelem:
                         data['order'] = 1.5 # (amide)
                         nit_data['hybridization'] = 'aromatic'
-            if (not self.node[n1]['cycle']) and (not self.node[n2]['cycle']) and (set(elements) <= organic):
+            elif (not self.node[n1]['cycle']) and (not self.node[n2]['cycle']) and (set(elements) <= organic):
                 if set(hybridization) == set(['sp2']):
-                    # check bond length.. probably not a good indicator..
                     try:
                         cr1 = COVALENT_RADII['%s_2'%elements[0]]
                     except KeyError:
@@ -703,8 +703,11 @@ class MolecularGraph(nx.Graph):
                     except KeyError:
                         cr2 = COVALENT_RADII[elements[1]]
                     covrad = cr1 + cr2
-                    if (data['length'] <= covrad*.95):
-                        data['order'] = 2.0
+                    # first pass: assign all to 2.0 bond order
+                    data['order'] = 2.0
+                    double_check += [n1, n2]
+                    #if (data['length'] <= covrad*.95):
+                    #    data['order'] = 2.0
                 elif set(hybridization) == set(['sp']):
                     try:
                         cr1 = COVALENT_RADII['%s_1'%elements[0]]
@@ -714,9 +717,124 @@ class MolecularGraph(nx.Graph):
                         cr2 = COVALENT_RADII['%s_1'%elements[1]]
                     except KeyError:
                         cr2 = COVALENT_RADII[elements[1]]
-                    covrad = cr1 + cr2 
-                    if (data['length'] <= covrad*.95):
-                        data['order'] = 3.0
+                    # first pass: assign all to 3.0 bond order
+                    double_check += [n1, n2]
+                    data['order'] = 3.0
+                    #covrad = cr1 + cr2 
+                    #if (data['length'] <= covrad*.95):
+                    #    data['order'] = 3.0
+        # second pass, check organic unsaturated bonds to make
+        # sure alkyl chains are alternating etc.
+        while double_check:
+            n = double_check.pop()
+            # rewind this atom to a 'terminal' connected atom
+            for i in self.recurse_bonds_to_end(n, pool=[], visited=[]):
+                start = i
+                try:
+                    idn = double_check.index(i)
+                    del double_check[idn]
+                except ValueError:
+                    pass
+            # iterate over all linear chains
+            # BE CAREFUL about overwriting bond orders here, the recursion
+            # can have duplicate bonds for each 'k' iteration since it iterates over
+            # all possible linear chains. So if the molecule is branched, there
+            # will be multiple recursions over the same set of bonds.
+            for k in self.recurse_linear_chains(start, visited=[], excluded=[]):
+                bond_orders = []
+                # first pass, store all the bond orders
+                for idx in range(len(k)-1):
+                    n1 = k[idx]
+                    n2 = k[idx+1]
+                    bond = self[n1][n2]
+                    bond_orders.append(bond['order'])
+                # second pass, check continuity
+                for idx in range(len(k)-1):
+                    n1 = k[idx]
+                    n2 = k[idx+1]
+                    data1 = self.node[n1]
+                    data2 = self.node[n2]
+                    
+                    hyb1 = data1['hybridization']
+                    hyb2 = data2['hybridization']
+
+                    elem1 = data1['element']
+                    elem2 = data2['element']
+                    if(idx == 0):
+                        order = bond_orders[idx]
+                        next_order = bond_orders[idx+1]
+                        if (hyb1 == 'sp2') and (hyb2 == 'sp2'):
+                            bond_orders[idx] = 2.
+                    elif (idx < len(k)-2):
+                        prev_order = bond_orders[idx-1]
+                        next_order = bond_orders[idx+1]
+                        order = bond_orders[idx]
+                        if (hyb1 == 'sp2') and (hyb2 == 'sp2'):
+                            if (prev_order == 2.) and (next_order == 1):
+                                bond_orders[idx-1] = 1.5
+                                bond_orders[idx] = 1.5
+                            elif (prev_order == 2.) and (next_order == 2.):
+                                bond_orders[idx] = 1.
+                        elif (hyb1 == 'sp') and (hyb2 == 'sp'):
+                            if (prev_order == 3.) and (next_order == 3.):
+                                bond_orders[idx] = 1.
+                    else:
+                        prev_order = bond_orders[idx-1]
+                        order = bond_orders[idx]
+                        if (hyb1 == 'sp2') and (hyb2 == 'sp2'):
+                            if (prev_order == 2.) and (order == 2):
+                                if set([elem1, elem2]) == set(["C", "O"]):
+                                    onode = n2 if self.node[n2]['element'] == "O" else n1
+                                    # this very specific case is a enol
+                                    if self.degree(onode) == 1:
+                                        bond_orders[idx] = 1.5
+                                        bond_orders[idx-1] = 1.5
+                        elif (hyb1 == 'sp') and (hyb2 == 'sp'):
+                            if (prev_order == 3.):
+                                bond_orders[idx] = 1.
+
+                for idx in range(len(k)-1):
+                    n1 = k[idx]
+                    n2 = k[idx+1]
+                    bond = self[n1][n2]
+                    # update bond orders.
+                    bond['order'] = bond_orders[idx]
+
+                #print([self.node[r]['element'] for r in k])
+    
+    def recurse_linear_chains(self, node, visited=[], excluded=[]):
+        """Messy recursion function to return all unique chains from a set of atoms between two 
+        metals (or terminal atoms in the case of molecules)"""
+        if self.node[node]['element'] == 'H':
+            yield
+        neighbors = [i for i in self.neighbors(node) if i not in excluded and self.node[i]['element'] != "H"]
+        if (not neighbors) and (node in excluded) and (not visited):
+            return
+        elif (not neighbors) and (node in excluded):
+            nde = visited.pop()
+        elif (not neighbors) and (not (node in excluded)):
+            excluded.append(node)
+            visited.append(node)
+            yield visited
+            nde = visited.pop()
+        else:
+            excluded.append(node)
+            visited.append(node)
+            nde = neighbors[0]
+        for x in self.recurse_linear_chains(nde, visited, excluded):
+            yield x
+
+    def recurse_bonds_to_end(self, node, pool=[], visited=[]):
+        if self.node[node]['element'] == 'H':
+            return
+        visited.append(node)
+        neighbors = [i for i in self.neighbors(node) if i not in visited and self.node[i]['element'] != "H"]
+        pool += neighbors
+        yield node
+        if (not pool) or (self.node[node]['element'] in list(metals)):
+            return
+        for x in self.recurse_bonds_to_end(pool[0], pool[1:], visited):
+            yield x
 
     def atomic_node_sanity_check(self):
         """Check for specific keyword/value pairs. Exit if non-existent"""
