@@ -935,12 +935,14 @@ class MolecularGraph(nx.Graph):
         # have to find the off-diagonal values, and what their
         # multiples are to determine the image cell of this
         # bond.
-        rd = redefine - np.identity(3)*maxcell
         imgcell = ocell % maxcell
+        if redefine is None:
+            return cells.index(tuple([tuple([i]) for i in imgcell]))
+        
         olde_imgcell = imgcell
         newcell = cell + np.dot(cell, redefine)%maxcell
         newocell = (newcell + translation) #% maxcell
-        rd2 = rd
+        rd2 = redefine - np.identity(3)*maxcell
         # check if the newcell translation spans a periodic boundary
         if (np.any(newocell >= maxcell, axis=0)) or (np.any(newocell < 0.)):
             
@@ -1153,7 +1155,7 @@ class MolecularGraph(nx.Graph):
         # not sure what this may break, but have to assume this new cell is the 'original'
         self.store_original_size()
 
-    def build_supercell(self, sc, lattice, track_molecule=False, molecule_len=0, redefine=np.identity(3)):
+    def build_supercell(self, sc, lattice, track_molecule=False, molecule_len=0, redefine=None):
         """Construct a graph with nodes supporting the size of the 
         supercell (sc)
         Oh man.. so ugly.        
