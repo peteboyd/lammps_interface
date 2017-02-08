@@ -692,6 +692,14 @@ class MolecularGraph(nx.Graph):
                     if "O" in carnelem:
                         data['order'] = 1.5 # (amide)
                         nit_data['hybridization'] = 'aromatic'
+                    # nitro
+                    if set(nitnelem) == set(["O"]):
+                        data['order'] = 1. 
+                        nit_data['hybridization'] = 'aromatic'
+                        for oatom in nitnn:
+                            nobond = self[nit][oatom]['order'] = 1.5
+                            self.node[oatom]['hybridization'] = 'aromatic'
+
             elif (not self.node[n1]['cycle']) and (not self.node[n2]['cycle']) and (set(elements) <= organic):
                 if set(hybridization) == set(['sp2']):
                     try:
