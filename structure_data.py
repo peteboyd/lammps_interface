@@ -1577,7 +1577,7 @@ def write_CIF(graph, cell):
     file.writelines(str(c))
     file.close()
 
-def write_RASPA_CIF(graph, cell):
+def write_RASPA_CIF(graph, cell,classifier=0):
     """
     Same as debugging cif write routine
         except _atom_site_label is now equal to _atom_site_description
@@ -1617,8 +1617,16 @@ def write_RASPA_CIF(graph, cell):
     # slight modification to make sure atoms printed out in same order as in data and original cif
     for node, data in sorted(graph.nodes_iter(data=True)):
         label = "%s%i"%(data['element'], node)
-        c.add_data("atoms", _atom_site_label=
-                                CIF.atom_site_label(data['force_field_type']))
+
+        # sometimes we need to keep the original CIF label in the case
+        # of slab geometries where charge symmetry is very reduced
+        if(classifier==0):
+            c.add_data("atoms", _atom_site_label=
+                              CIF.atom_site_label(data['force_field_type']))
+        elif(classifier==1):
+            c.add_data("atoms", _atom_site_label=
+                              CIF.atom_site_label(data['ciflabel']))
+
         c.add_data("atoms", _atom_site_type_symbol=
                                 CIF.atom_site_type_symbol(data['element']))
         #c.add_data("atoms", _atom_site_description=
@@ -1661,61 +1669,102 @@ def write_RASPA_CIF(graph, cell):
     file.writelines(str(c))
     file.close()
 
-def write_RASPA_sim_files(lammps_sim):
+
+
+def write_RASPA_sim_files(lammps_sim,classifier=0):
     """
     Write the RASPA pseudo_atoms.def file for this MOF
     All generic adsorbates info automatically included
     Additional framework atoms taken from lammps_interface anaylsis
+
+
+    classifier = 0 -> UFF atom label is used for pseudo atoms
+    classifier = 1 -> cif label is used for pseudo atoms (useful for 
+                      interface/defect systems where symmetry of charge density
+                      is very reduced)
+
     """
 
     MOF_PSEUDO_ATOMS = []
     MOF_FF_MIXING = []
 
-    keys = []
-    for key, n in sorted(lammps_sim.unique_atom_types.items()):
-        keys.append(lammps_sim.graph.node[n]['force_field_type'])
-    
-    for key in sorted(keys):
+    data_list = []
+    max_image = 0
+    if(classifier == 0):
+        for node, data in sorted(lammps_sim.unique_atom_types.items()):
+            data['node']=node
+            print(key)
+            print(data)
+            data_list.append(data)
 
-        ind = 0
-        for char in key:
-            if((ord(char) >= 65 and ord(char) <= 90) or (ord(char)>=97 and ord(char) <= 122)):
-                ind += 1
-            else:
-                break
-        atmtype_ = key[:ind]
+            if(int(data['image']) > max_image):
+                max_image = int(data['image'])
+            #keys.append(lammps_sim.graph.node[n]['force_field_type'])
+    
+    elif(classifier == 1):
+        for node, data in sorted(lammps_sim.graph.nodes_iter(data=True)):
+            data['node']=node
+            print(node)
+            print(data)
+            data_list.append(data)
+
+            if(int(data['image']) > max_image):
+                max_image = int(data['image'])
+            #keys.append(lammps_sim.graph.node[n]['force_field_type'])
+
+    print(max_image) 
+    for i in range(len(data_list)):
+
+        #ind = 0
+        ##for char in key:
+        #    # identify first non alphabetic character in string
+        #    if((ord(char) >= 65 and ord(char) <= 90) or (ord(char)>=97 and ord(char) <= 122)):
+        #        ind += 1
+        #    else:
+        #        break
+        #atmtype_ = key[:ind]
         #print(key,atmtype_)
         #print(atmtype_ in MASS)
         #print(atmtype_ in COVALENT_RADII)
         #print(key in UFF_DATA)
-        try:
-            type_spec_ = key
-            print_ = 'yes'
-            as_ = atmtype_
-            chem_ = atmtype_
-            oxidation_ = '0'
-            mass_ = str(MASS[atmtype_])
-            charge_ = '0.0'
-            polarization_ = '0.0'
-            B_factor_ = '1.0'
-            radii_ = str(COVALENT_RADII[atmtype_])
-            connectivity_ = '0'
-            anisotropic_ = '0'
-            anisotropic_type_ = 'relative'
-            tinker_type_ = '0'
 
-            potential_ = 'lennard-jones'
-            eps_ = str(UFF_DATA[key][3]*500)
-            sig_ = str(UFF_DATA[key][2]*(2**(-1./6.)))
-        except:
-            print("%s %s not found!\n"%(key, atmtype_))
-            continue
+        if(data_list[i]['node']<max_image):
+            element_ = data_list[i]['element']
+            fftype_ = data_list[i]['force_field_type']
 
-        MOF_PSEUDO_ATOMS.append([type_spec_, print_, as_,chem_, oxidation_,mass_, charge_, \
-                                 polarization_, B_factor_, radii_, connectivity_, \
-                                 anisotropic_, anisotropic_type_, tinker_type_])
+            try:
+                if(classifier==0):
+                    type_spec_ = data_list[i]['force_field_type']
+                elif(classifier==1):
+                    type_spec_ = data_list[i]['ciflabel']
 
-        MOF_FF_MIXING.append([type_spec_, potential_, eps_, sig_])
+                print_ = 'yes'
+                as_ = element_
+                chem_ = element_
+                oxidation_ = '0'
+                mass_ = str(MASS[element_])
+                charge_ = str(data_list[i]['charge'])
+                polarization_ = '0.0'
+                B_factor_ = '1.0'
+                radii_ = str(COVALENT_RADII[element_])
+                connectivity_ = '0'
+                anisotropic_ = '0'
+                anisotropic_type_ = 'relative'
+                tinker_type_ = '0'
+
+                potential_ = 'lennard-jones'
+                eps_ = str(UFF_DATA[fftype_][3]*500)
+                sig_ = str(UFF_DATA[fftype_][2]*(2**(-1./6.)))
+            except:
+                print("%s %s not found!\n"%(element_, fftype_))
+                continue
+
+            # finally, add strings to list for each RASPA file
+            MOF_PSEUDO_ATOMS.append([type_spec_, print_, as_,chem_, oxidation_,mass_, charge_, \
+                                     polarization_, B_factor_, radii_, connectivity_, \
+                                     anisotropic_, anisotropic_type_, tinker_type_])
+
+            MOF_FF_MIXING.append([type_spec_, potential_, eps_, sig_])
 
     if(len(MOF_PSEUDO_ATOMS) == 0):
         print("Error! No MOF atoms found. Exiting...")

@@ -1842,8 +1842,9 @@ def main():
     # Additional capability to write RASPA files if requested
     if options.output_raspa:
         print("Writing RASPA files to current WD")
-        write_RASPA_CIF(graph, cell)
-        write_RASPA_sim_files(sim)
+        classifier=1
+        write_RASPA_CIF(graph, cell,classifier)
+        write_RASPA_sim_files(sim,classifier)
         this_config = MDMC_config(sim)
         sim.set_MDMC_config(this_config)
 
