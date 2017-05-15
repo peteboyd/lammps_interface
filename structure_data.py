@@ -4,6 +4,7 @@ import numpy as np
 from scipy.spatial import distance
 import math
 import shlex
+import re
 from CIFIO import CIF
 from atomic import METALS, MASS, COVALENT_RADII
 from copy import copy
@@ -420,7 +421,7 @@ class MolecularGraph(nx.Graph):
         n1 = kwargs.pop('_geom_bond_atom_site_label_1')
         n2 = kwargs.pop('_geom_bond_atom_site_label_2')
         try:
-            length = float(kwargs.pop('_geom_bond_distance'))
+            length = float(del_parenth(kwargs.pop('_geom_bond_distance')))
         except KeyError:
             length = 0.0
 
@@ -457,9 +458,9 @@ class MolecularGraph(nx.Graph):
         for node, data in self.nodes_iter(data=True):
             #TODO(pboyd) probably need more error checking..
             try:
-                coordinates = np.array([float(data[i]) for i in coord_keys])
+                coordinates = np.array([float(del_parenth(data[i])) for i in coord_keys])
             except KeyError:
-                coordinates = np.array([float(data[i]) for i in fcoord_keys])
+                coordinates = np.array([float(del_parenth(data[i])) for i in fcoord_keys])
                 coordinates = np.dot(coordinates, cell.cell)
             data.update({'cartesian_coordinates':coordinates})
 
@@ -1447,6 +1448,9 @@ class MolecularGraph(nx.Graph):
         cliques.sort(key=len)
         return cliques[-1] 
 
+def del_parenth(string):
+    return re.sub(r'\([^)]*\)', '' , string)
+
 def from_CIF(cifname):
     """Reads the structure data from the CIF
     - currently does not read the symmetry of the cell
@@ -1462,7 +1466,7 @@ def from_CIF(cifname):
     cell = Cell()
     # add data to molecular graph (to be parsed later..)
     mg = MolecularGraph(name=clean(cifname))
-    cellparams = [float(i) for i in [data['_cell_length_a'], 
+    cellparams = [float(del_parenth(i)) for i in [data['_cell_length_a'], 
                                      data['_cell_length_b'], 
                                      data['_cell_length_c'],
                                      data['_cell_angle_alpha'], 
