@@ -9,9 +9,6 @@ Matthew Witman
 ## Link 
 https://github.com/peteboyd/lammps_interface 
 
-## Licence
-None
-
 ## Comments
 Designed for pain-free molecular simulations of MOFs
 
