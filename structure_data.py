@@ -361,7 +361,7 @@ class MolecularGraph(nx.Graph):
                     " This probably has something to do with the redefinition of the unitcell "+
                     "to a supercell. Please contact the developers!")
         return sym
-    
+
     def compute_angle_between(self, l, m, r):
         coordl = self.node[l]['cartesian_coordinates']
         coordm = self.node[m]['cartesian_coordinates']
@@ -386,6 +386,30 @@ class MolecularGraph(nx.Graph):
 
         angle = a / DEG2RAD
         return angle
+    
+    def coplanar(self, node):
+        """ Determine if this node, and it's neighbors are
+        all co-planar.
+
+        """
+        coord = self.node[node]['cartesian_coordinates']
+        vects = []
+        for j in self.neighbors(node):
+            vects.append(self.node[j]['cartesian_coordinates'] - coord)
+
+        # use the first two vectors to define a plane
+        v1 = vects[0]
+        v2 = vects[1]
+        n = np.cross(v1, v2)
+        n /= np.linalg.norm(n)
+        for v in vects[2:]:
+            v /= np.linalg.norm(v)
+            # what is a good tolerance for co-planarity in MOFs?
+            # this is used solely to determine if a 4-coordinated metal atom
+            # is square planar or tetrahedral..
+            if not np.allclose(np.dot(v,n), 0., atol=0.02):
+                return False
+        return True
     
     def compute_dihedral_between(self, a, b, c, d):
         coorda = self.node[a]['cartesian_coordinates']

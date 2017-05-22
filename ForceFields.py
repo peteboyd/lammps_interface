@@ -3596,11 +3596,48 @@ class UFF4MOF(ForceField):
                     data['force_field_type'] = data['element']
                     if data['element'] == "F":
                         data['force_field_type'] += "_"
+                elif data['element'] in METALS:
+                    if len(data['element']) == 1:
+                        fftype = data['element'] + "_"
+                    else:
+                        fftype = data['element']
+
+                    # get coordination number and angles between atoms
+                    if(len(self.graph.neighbors(node)) == 2):
+                        fftype += "1f1"
+                    elif(len(self.graph.neighbors(node)) == 3):
+                        fftype += "2f2"
+                    elif(len(self.graph.neighbors(node)) == 4):
+                        # tetrahedral or square planar
+                        if self.graph.coplanar(node):
+                            fftype += "4f2"
+                        # Could implement a tetrahedrality index here, but that would be overkill.
+                        else:
+                            fftype += "3f2"
+                    elif(len(self.graph.neighbors(node)) == 8):
+                        fftype += "8f4"
+                    elif(len(self.graph.neighbors(node)) == 6):
+                        fftype += "6f3"
+                    try: 
+                        UFF4MOF_DATA[fftype] 
+                        data['force_field_type'] = fftype 
+                    # couldn't find the force field type! 
+                    except KeyError: 
+                        pass 
+                    for n in self.graph.neighbors(node): 
+                        if self.graph.node[n]['element'] in METALS: 
+                            self.graph[node][n]['order'] = 0.25 
+                        elif self.graph.node[n]['element'] == "O": 
+                            self.graph[node][n]['order'] = 0.5  
+                        # else: bond order stays = 1 
+
                 # WARNING, the following else statement will do unknown things to the system.
-                else:
+                if data['force_field_type'] is None:
                     ffs = list(UFF4MOF_DATA.keys())
                     for j in ffs:
                         if data['element'] == j[:2].strip("_"):
+                            print("WARNING: Could not find an appropriate UFF4MOF type for %s. Assigning %s"%(
+                                  data['element'], j))
                             data['force_field_type'] = j
             if data['force_field_type'] is None:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
