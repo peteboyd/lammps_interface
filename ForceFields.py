@@ -3618,6 +3618,9 @@ class UFF4MOF(ForceField):
                         # Could implement a tetrahedrality index here, but that would be overkill.
                         else:
                             fftype += "3f2"
+                    elif(self.graph.degree(node) == 5):
+                        # assume paddlewheels........
+                        fftype += "4+2"
                     elif(self.graph.degree(node) == 6):
                         fftype += "6f3"
                     elif(self.graph.degree(node) == 8):
