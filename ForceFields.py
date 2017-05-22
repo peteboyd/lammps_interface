@@ -10,6 +10,8 @@ from water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms
 from gas_models import EPM2_atoms, EPM2_angles
 from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
 from atomic import METALS
+from atomic import organic, non_metals, noble_gases, metalloids, lanthanides, actinides, transition_metals
+from atomic import alkali, alkaline_earth, main_group, metals
 import math
 import numpy as np
 from operator import mul
@@ -2283,6 +2285,8 @@ class UFF(ForceField):
             return 'trigonal-bipyrimidal'
         elif coord_type == "6":
             return 'octahedral'
+        elif coord_type == "8":
+            return 'cubic-antiprism'
         else:
             print("ERROR: Cannot find coordination type for %s"%name)
             sys.exit()
@@ -3596,36 +3600,41 @@ class UFF4MOF(ForceField):
                     data['force_field_type'] = data['element']
                     if data['element'] == "F":
                         data['force_field_type'] += "_"
-                elif data['element'] in METALS:
+                elif data['element'] in metals:
                     if len(data['element']) == 1:
                         fftype = data['element'] + "_"
                     else:
                         fftype = data['element']
 
                     # get coordination number and angles between atoms
-                    if(len(self.graph.neighbors(node)) == 2):
+                    if(self.graph.degree(node) == 2):
                         fftype += "1f1"
-                    elif(len(self.graph.neighbors(node)) == 3):
+                    elif(self.graph.degree(node) == 3):
                         fftype += "2f2"
-                    elif(len(self.graph.neighbors(node)) == 4):
+                    elif(self.graph.degree(node) == 4):
                         # tetrahedral or square planar
                         if self.graph.coplanar(node):
                             fftype += "4f2"
                         # Could implement a tetrahedrality index here, but that would be overkill.
                         else:
                             fftype += "3f2"
-                    elif(len(self.graph.neighbors(node)) == 8):
-                        fftype += "8f4"
-                    elif(len(self.graph.neighbors(node)) == 6):
+                    elif(self.graph.degree(node) == 6):
                         fftype += "6f3"
+                    elif(self.graph.degree(node) == 8):
+                        fftype += "8f4"
                     try: 
                         UFF4MOF_DATA[fftype] 
                         data['force_field_type'] = fftype 
                     # couldn't find the force field type! 
                     except KeyError: 
-                        pass 
+                    	try:
+                            fftype = fftype.replace("f", "+")
+                            UFF4MOF_DATA[fftype]
+                        except KeyError:
+                            pass
+ 
                     for n in self.graph.neighbors(node): 
-                        if self.graph.node[n]['element'] in METALS: 
+                        if self.graph.node[n]['element'] in metals: 
                             self.graph[node][n]['order'] = 0.25 
                         elif self.graph.node[n]['element'] == "O": 
                             self.graph[node][n]['order'] = 0.5  

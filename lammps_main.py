@@ -366,8 +366,9 @@ class LammpsSimulation(object):
         self.graph = graph
 
         try:
-            if(not self.options.force_field == "UFF") and (not self.options.force_field == "Dreiding"):
-                self.graph.find_metal_sbus = True # true for UFF4MOF, BTW_FF and Dubbeldam
+            if(not self.options.force_field == "UFF") and (not self.options.force_field == "Dreiding") and \
+                    (not self.options.force_field == "UFF4MOF"):
+                self.graph.find_metal_sbus = True # true for BTW_FF and Dubbeldam
             if (self.options.force_field == "Dubbeldam"):
                 self.graph.find_organic_sbus = True
 
