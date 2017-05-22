@@ -2482,7 +2482,12 @@ class UFF(ForceField):
                         data['force_field_type'] = "%s_3"%data['element']
                         if data['element'] == "O" and self.graph.degree(node) >= 2:
                             neigh_elem = set([self.graph.node[i]['element'] for i in self.graph.neighbors(node)])
-                            if not neigh_elem <= set(organics) | set(halides):
+                            if neigh_elem <= metals and self.graph.degree(node) == 2:
+                                data['force_field_type'] = "O_2"
+                            elif neigh_elem <= metals and self.graph.degree(node) == 3:
+                                data['force_field_type'] = "O_3"
+                            # zeolites
+                            if neigh_elem <= set(["Si", "Al"]):
                                 data['force_field_type'] = "O_3_z"
                         elif data['element'] == "S":
                             # default sp3 hybridized sulphur set to S_3+6
@@ -3581,12 +3586,9 @@ class UFF4MOF(ForceField):
                                 self.graph[node][n]['order'] = 1
 
                 elif data['element'] in organics:
+                    neigh_elem = set([self.graph.node[i]['element'] for i in self.graph.neighbors(node)])
                     if data['hybridization'] == "sp3":
                         data['force_field_type'] = "%s_3"%data['element']
-                        if data['element'] == "O" and self.graph.degree(node) >= 2:
-                            neigh_elem = set([self.graph.node[i]['element'] for i in self.graph.neighbors(node)])
-                            if not neigh_elem <= set(organics) | set(halides):
-                                data['force_field_type'] = "O_3_z"
 
                     elif data['hybridization'] == "aromatic":
                         data['force_field_type'] = "%s_R"%data['element']
@@ -3594,6 +3596,25 @@ class UFF4MOF(ForceField):
                         data['force_field_type'] = "%s_2"%data['element']
                     elif data['hybridization'] == "sp":
                         data['force_field_type'] = "%s_1"%data['element']
+                if data['element'] == "O" and self.graph.degree(node) == 2:
+                    if neigh_elem <= metals:
+                        data['force_field_type'] = "O_2"
+                    if neigh_elem <= set(["Si", "Al"]):
+                        data['force_field_type'] = "O_3_z"
+                    if neigh_elem <= metals | set(["C"]):
+                        data['force_field_type'] = "O_2"
+                elif data['element'] == "O" and self.graph.degree(node) == 3:
+                    if (neigh_elem <= metals):
+                        data['force_field_type'] = "O_2_z"
+                        # temp fix for UiO-series MOFs
+                        if neigh_elem == set(["Zr"]):
+                            data['force_field_type'] = "O_3_f"
+                    else:
+                        data['force_field_type'] = "O_2"
+                elif data['element'] == "O" and self.graph.degree(node) == 4:
+                    if (neigh_elem <= metals | set(["H"])):
+                        data['force_field_type'] = "O_3_f"
+
                 elif data['element'] == "H":
                     data['force_field_type'] = "H_"
                 elif data['element'] in halides:
