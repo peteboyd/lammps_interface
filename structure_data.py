@@ -559,7 +559,7 @@ class MolecularGraph(nx.Graph):
                     # make this true.
                     if (n_elems <= metals):
                         self.node[label].update({'hybridization': 'sp2'})
-                    else
+                    else:
                         self.node[label].update({'hybridization':'sp3'})
                 elif len(neighbours) == 1:
                     self.node[label].update({'hybridization':'sp2'})
@@ -783,7 +783,8 @@ class MolecularGraph(nx.Graph):
                     elem2 = data2['element']
                     if(idx == 0):
                         order = bond_orders[idx]
-                        next_order = bond_orders[idx+1]
+                        if (len(bond_orders) > idx+1):
+                            next_order = bond_orders[idx+1]
                         if (hyb1 == 'sp2') and (hyb2 == 'sp2'):
                             bond_orders[idx] = 2.
                     elif (idx < len(k)-2):

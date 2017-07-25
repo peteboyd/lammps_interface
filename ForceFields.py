@@ -3651,12 +3651,11 @@ class UFF4MOF(ForceField):
                         data['force_field_type'] = fftype 
                     # couldn't find the force field type! 
                     except KeyError: 
-                    	try:
+                        try:
                             fftype = fftype.replace("f", "+")
                             UFF4MOF_DATA[fftype]
                         except KeyError:
                             pass
- 
                     for n in self.graph.neighbors(node): 
                         if self.graph.node[n]['element'] in metals: 
                             self.graph[node][n]['order'] = 0.25 
