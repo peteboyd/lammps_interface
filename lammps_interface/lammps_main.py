@@ -5,7 +5,7 @@ main.py
 the program starts here.
 
 """
-
+import os
 import sys
 import math
 import re
@@ -732,7 +732,7 @@ class LammpsSimulation(object):
             for mgraph in self.subgraphs:
                 mgraph.reorder_labels(reorder_dic)
 
-    def write_lammps_files(self):
+    def write_lammps_files(self, wd=None):
         self.unique_atoms(self.graph)
         self.unique_bonds(self.graph)
         self.unique_angles(self.graph)
@@ -743,16 +743,18 @@ class LammpsSimulation(object):
         self.unique_pair_terms()
         self.define_styles()
 
+        if wd is None:
+            wd = os.getcwd()
+
         data_str = self.construct_data_file()
-        datafile = open("data.%s"%self.name, 'w')
-        datafile.writelines(data_str)
-        datafile.close()
+        with open(os.path.join(wd, "data.%s" % self.name), 'w') as datafile:
+            datafile.writelines(data_str)
 
         inp_str = self.construct_input_file()
-        inpfile = open("in.%s"%self.name, 'w')
-        inpfile.writelines(inp_str)
-        inpfile.close()
-        print("files created!")
+        with open(os.path.join(wd, "in.%s" % self.name), 'w') as inpfile:
+            inpfile.writelines(inp_str)
+
+        print("Files created! -> %s" % wd)
 
     def construct_data_file(self):
 
