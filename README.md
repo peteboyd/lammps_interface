@@ -1,4 +1,5 @@
-# LAMMPS Interface 
+[![Build Status](https://travis-ci.org/kbsezginel/lammps_interface.svg?branch=master)](https://travis-ci.org/kbsezginel/lammps_interface)
+# LAMMPS Interface
 ## Authors
 Peter Boyd
 
@@ -38,4 +39,3 @@ dx.doi.org/10.1021/acs.jpclett.6b02532
 
 [Lammps]: http://lammps.sandia.gov/
 [cif]: https://en.wikipedia.org/wiki/Crystallographic_Information_File
-
