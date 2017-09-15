@@ -1,0 +1,22 @@
+log             log.IRMOF-1 append
+units           real
+atom_style      full
+boundary        p p p
+
+pair_style      lj/cut/coul/long 12.500
+bond_style      harmonic
+angle_style     hybrid cosine/periodic fourier
+dihedral_style  harmonic
+improper_style  fourier
+kspace_style    ewald 0.000001
+
+special_bonds   lj/coul 0.0 0.0 1.0
+dielectric      1.0
+pair_modify     tail yes mix arithmetic
+box tilt        large
+read_data       data.IRMOF-1
+
+#### Atom Groupings ####
+group           fram     id   1:424
+#### END Atom Groupings ####
+
