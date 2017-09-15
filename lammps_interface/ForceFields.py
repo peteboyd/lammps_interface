@@ -1,3 +1,6 @@
+"""
+Force field methods.
+"""
 from .uff import UFF_DATA
 from .uff4mof import UFF4MOF_DATA
 from .dreiding import DREIDING_DATA
@@ -20,8 +23,11 @@ import abc
 import re
 import sys
 from .Molecules import *
-DEG2RAD = math.pi/180.
+
+
+DEG2RAD = math.pi / 180.
 kBtokcal = 0.00198588
+
 
 class ForceField(object):
 

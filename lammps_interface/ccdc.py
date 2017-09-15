@@ -1,3 +1,6 @@
+"""
+Bond order information.
+"""
 CCDC_BOND_ORDERS = {
     # http://cima.chem.usyd.edu.au:8080/cif/skunkworks/html/ddl1/mif/bond.html
     'S': 1.0,  # single (two-electron) bond or sigma bond to metal

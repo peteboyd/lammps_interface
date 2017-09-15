@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 """
-main.py
-
-the program starts here.
-
+Lammps interface main program. Lammps simulations are setup here.
 """
 import os
 import sys
@@ -22,8 +19,11 @@ from datetime import datetime
 from .InputHandler import Options
 from copy import deepcopy
 from . import Molecules
-if sys.version_info < (3,0):
+
+
+if sys.version_info < (3, 0):
     input = raw_input
+
 
 class LammpsSimulation(object):
     def __init__(self, options):

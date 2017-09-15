@@ -1,14 +1,18 @@
 #!/usr/bin/env python
-
+"""
+Argument parser for command line interface.
+"""
 from argparse import ArgumentParser
 import os
 import subprocess
+
+
 def git_revision_hash():
     try:
         src_dir = os.path.dirname(os.path.abspath(__file__))
         wrk_dir = os.getcwd()
         os.chdir(src_dir)
-        rev_no = len(subprocess.check_output(['git', 'rev-list', 'HEAD'], universal_newlines=True).strip().split("\n")) 
+        rev_no = len(subprocess.check_output(['git', 'rev-list', 'HEAD'], universal_newlines=True).strip().split("\n"))
         commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], universal_newlines=True).strip()
         os.chdir(wrk_dir)
     except:
@@ -19,6 +23,7 @@ def git_revision_hash():
 rev_no, commit = git_revision_hash()
 __version_info__ = (0, 0, rev_no, "%s"%commit)
 __version__ = "%i.%i.%i.%s"%__version_info__
+
 
 class Options(object):
 
@@ -50,7 +55,7 @@ class Options(object):
         #split the command line options into separate groups for nicer
         #visualization.
         force_field_group = parser.add_argument_group("Force Field options")
-        force_field_group.add_argument("-ff", "--force_field", action="store", 
+        force_field_group.add_argument("-ff", "--force_field", action="store",
                                        type=str, dest="force_field",
                                        default="UFF",
                                        help="Enter the requested force "+
@@ -59,7 +64,7 @@ class Options(object):
                                           "'UFF4MOF', and 'Dubbeldam'."+
                                           " The default is set to the Universal "+
                                           "Force Field [UFF].")
-        force_field_group.add_argument("--molecule-ff", action="store", 
+        force_field_group.add_argument("--molecule-ff", action="store",
                                        dest="mol_ff",
                                        default=None,
                                        help="Chose a force field for any molecules "+
@@ -69,26 +74,26 @@ class Options(object):
                                           "force fields between different molecules. Default is the "+
                                           "same force field requested for the framework (assumes some "+
                                           "generalized FF like UFF or Dreiding).")
-        force_field_group.add_argument("--h-bonding", action="store_true", 
+        force_field_group.add_argument("--h-bonding", action="store_true",
                                        dest="h_bonding",
                                        default=False,
                                        help="Add hydrogen bonding potentials "+
                                           "to the force field characterization."+
                                           " Currently only applies to Dreiding. "+
                                           "Default is off.")
-        force_field_group.add_argument("--dreid-bond-type", action="store", 
+        force_field_group.add_argument("--dreid-bond-type", action="store",
                                        dest="dreid_bond_type",
                                        type=str,
                                        default="harmonic",
                                        help="Request the Morse bond potential "+
-                                          "for the Dreiding force field. Default" + 
+                                          "for the Dreiding force field. Default" +
                                           " is harmonic.")
-        force_field_group.add_argument("--fix-metal", action="store_true", 
+        force_field_group.add_argument("--fix-metal", action="store_true",
                                        dest="fix_metal",
                                        default=False,
                                        help="Fix the metal geometries with "+
                                           "modified potentials to match their "+
-                                          "input geometries. The potential isn't set "+ 
+                                          "input geometries. The potential isn't set "+
                                           "to be overly rigid so that the material "+
                                           "will behave physically in finite temperature "+
                                           "calculations, however it may introduce some "+
@@ -96,7 +101,7 @@ class Options(object):
                                           "Useful for structure minimizations. Currently only "+
                                           "applies to UFF and Dreiding Force Fields. Default is "+
                                           "off.")
-        
+
         simulation_group = parser.add_argument_group("Simulation options")
         simulation_group.add_argument("--minimize", action="store_true",
                                       dest="minimize",
@@ -136,7 +141,7 @@ class Options(object):
                                       type=float, dest="cutoff",
                                       default=12.5,
                                       help="Set the long-range cutoff "+
-                                      "to this value in Angstroms." + 
+                                      "to this value in Angstroms." +
                                       " This will determine the size of "+
                                       "the supercell computed for the simulation. "+
                                       "Default is 12.5 angstroms.")
@@ -144,7 +149,7 @@ class Options(object):
                                       type=str, dest="replication",
                                       default=None,
                                       help="Manually specify the replications to form the supercell "+
-                                      "Use comma, space or 'x' delimited values for the a,b,c directions." + 
+                                      "Use comma, space or 'x' delimited values for the a,b,c directions." +
                                       " This is useful when dealing with flexible materials " +
                                       "where you know that structural collapse will result in " +
                                       "the box decreasing past 2*rcut")
@@ -193,7 +198,7 @@ class Options(object):
                                       help="Store last snapshot of trajectory of simulation in "+
                                            "lammps traj file format. index of last step RESTART = NEQSTP + NPRODSTP. "+
                                            "If NEQSTP and NPRODSTP are not specified, then RESTART=1")
-        
+
         parameter_group = parser.add_argument_group("Parameter options")
         parameter_group.add_argument("-t", "--tolerance",
                                      action="store",
@@ -278,7 +283,7 @@ class Options(object):
                                                    " Default is no molecule insertion. Current options are "+
                                                    "TIP5P_Water, TIP4P_Water, SPC_E, TIP3P."+
                                                    " More to come ;)")
-        
+
         molecule_insertion_group.add_argument("--deposit",
                                               action="store",
                                               type=int,

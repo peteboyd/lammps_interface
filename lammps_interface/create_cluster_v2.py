@@ -5,7 +5,6 @@ main.py
 the program starts here.
 
 """
-
 import sys
 import math
 import re
@@ -22,16 +21,17 @@ from datetime import datetime
 from .InputHandler import Options
 from copy import deepcopy
 from .import Molecules
-if sys.version_info < (3,0):
-    input = raw_input
-
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
 import os
 from .structure_data import MolecularGraph
 from .atomic import ATOMIC_NUMBER
+
+
+matplotlib.use('Agg')
+if sys.version_info < (3, 0):
+    input = raw_input
+
 
 class LammpsSimulation(object):
     def __init__(self, options):

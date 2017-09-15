@@ -1,3 +1,6 @@
+"""
+Elemental information.
+"""
 MASS = {
     "H": 1.00794,
     "He": 4.002602,
@@ -176,7 +179,7 @@ COVALENT_RADII = {
     "Rb": 2.2,
     "Sr": 1.95,
     "Y": 1.9,
-    "Zr": 1.5,  # 1.75  !! temporarily added to correct the UIO cluster bonding problem 
+    "Zr": 1.5,  # 1.75  !! temporarily added to correct the UIO cluster bonding problem
     "Nb": 1.64,
     "Mo": 1.54,
     "Tc": 1.47,

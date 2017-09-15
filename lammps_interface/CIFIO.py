@@ -1,5 +1,9 @@
+"""
+CIF format file I/O operations.
+"""
 import shlex
 from datetime import date
+
 
 class CIF(object):
 
@@ -39,7 +43,7 @@ class CIF(object):
                 elif ('_geom_bond' in line):
                     self.insert_block_order('bonds', loopcount, _REPLACE=True)
                 loopentries[loopcount].append(line)
-        
+
 
 
             elif loopread and not line.startswith("_"):
@@ -49,7 +53,7 @@ class CIF(object):
             elif not loopread and line.startswith("_"):
                 block = self.get_non_loop_block(line)
                 self.insert_block_order(block)
-                # hopefully all non-loop entries are just single value entries, 
+                # hopefully all non-loop entries are just single value entries,
                 # otherwise this is invalid.
                 try:
                     key, val = line.strip().split()
@@ -58,7 +62,7 @@ class CIF(object):
                 if val.endswith("(0)"):
                     val = val[:-3]
                 self.add_data(block, **{key.strip():self.general_label(val)})
-            
+
             if blockread and (line.startswith("loop_") or line.startswith("_") or not line):
                 blockread = False
 
@@ -128,7 +132,7 @@ class CIF(object):
             # NOTE still be able to write CIFS if blond bock not specified
             if block in self._headings:
                 heads = self._headings[block]
-                if block in self.non_loops: 
+                if block in self.non_loops:
                     vals = zip([CIF.label(i) for i in heads], [self._data[i] for i in heads])
                 else:
                     line += "loop_\n"+"\n".join([CIF.label(i) for i in heads])+"\n"
@@ -213,11 +217,10 @@ class CIF(object):
         if x == "data_":
             return x
         elif x == "_symmetry_space_group_name_H_M":
-            # replace H_M with H-M. 
+            # replace H_M with H-M.
             x = x[:28] + "-" + x[29:]
         return "%-34s"%(x)
-    
+
     @staticmethod
     def general_label(x):
         return "%s     "%(x)
-

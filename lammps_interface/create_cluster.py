@@ -3,13 +3,13 @@
 # TODO incorporate this functionality as an additional
 # feature for lammps_main
 """
-an alternative main py file
+Create molecular clusters v1.
 
 this execution turns a periodic molecular graph
 into creates an H-capped
 
 """
-
+import os
 import sys
 import math
 import numpy as np
@@ -18,19 +18,20 @@ import .ForceFields
 import itertools
 import operator
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from .structure_data import from_CIF, write_CIF, clean
 from .CIFIO import CIF
 from .ccdc import CCDC_BOND_ORDERS
 from datetime import datetime
 from .InputHandler import Options
-from copy import deepcopy
-
-import os
-import pybel
-import openbabel
 from .structure_data import MolecularGraph
+from copy import deepcopy
+import pybel         # Not included in dependencies!!
+import openbabel     # Not included in dependencies!!
+
+
+matplotlib.use('Agg')
+
 
 class LammpsSimulation(object):
     def __init__(self, options):

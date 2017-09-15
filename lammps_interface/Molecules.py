@@ -1,8 +1,12 @@
+"""
+Molecule class.
+"""
 import numpy as np
 from .water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms
 from .gas_models import EPM2_atoms
 from .structure_data import MolecularGraph
 import networkx as nx
+
 
 class Molecule(MolecularGraph):
     #TODO(pboyd):add bonding calculations for the atoms in each molecular template.
