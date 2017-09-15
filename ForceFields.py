@@ -3656,8 +3656,7 @@ class UFF4MOF(ForceField):
                             UFF4MOF_DATA[fftype]
                         except KeyError:
                             pass
-
-                    for n in self.graph.neighbors(node): 
+                    for n in self.graph.neighbors(node):
                         if self.graph.node[n]['element'] in metals:
                             self.graph[node][n]['order'] = 0.25
                         elif self.graph.node[n]['element'] == "O":

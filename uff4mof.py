@@ -150,8 +150,8 @@ UFF4MOF_DATA = {
     "Zn4+2": (1.34, 90.0, 2.763, 0.124, 12.0, 1.308, 0, 0.7, 5.106, 4.285, 1.4),
     "Zn3f2": (1.24, 109.47, 2.763, 0.124, 12.0, 1.308, 0, 0.7, 5.106, 4.285, 1.4),
     # Exension as of 2016 : Coupry, D. E., Addicoat, M. A. & Heine, T. 
-    #                      Extension of the Universal Force Field for Metal–Organic Frameworks. 
-    #                      J. Chem. Theory Comput. 12, 5215–5225 (2016). 
+    #                      Extension of the Universal Force Field for Metal-Organic Frameworks. 
+    #                      J. Chem. Theory Comput. 12, 5215-5225 (2016). 
     # dx.doi.org/10.1021/acs.jctc.6b00664
     # Atom, r1, theta0, x1, D1, zeta, Z1, Vi, Uj, Xi, Hard, Radius
     "Li3f2": (1.28, 109.47, 2.451, 0.025, 12, 1.026, 0, 2, 3.006, 2.386, 1.557), # CN 4
