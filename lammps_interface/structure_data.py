@@ -5,17 +5,18 @@ from scipy.spatial import distance
 import math
 import shlex
 import re
-from CIFIO import CIF
-from atomic import METALS, MASS, COVALENT_RADII
+from .CIFIO import CIF
+from .atomic import METALS, MASS, COVALENT_RADII
 from copy import copy
-from mof_sbus import InorganicCluster, OrganicCluster
+from .mof_sbus import InorganicCluster, OrganicCluster
 from copy import deepcopy
 import itertools
-import os, sys
-from generic_raspa import GENERIC_PSEUDO_ATOMS_HEADER, GENERIC_PSEUDO_ATOMS, \
-                          GENERIC_FF_MIXING_HEADER, GENERIC_FF_MIXING,\
-                          GENERIC_FF_MIXING_FOOTER
-from uff import UFF_DATA
+import os
+import sys
+from .generic_raspa import GENERIC_PSEUDO_ATOMS_HEADER, GENERIC_PSEUDO_ATOMS, \
+                           GENERIC_FF_MIXING_HEADER, GENERIC_FF_MIXING,\
+                           GENERIC_FF_MIXING_FOOTER
+from .uff import UFF_DATA
 import networkx as nx
 import operator
 
@@ -27,10 +28,10 @@ except ImportError:
     print("Warning: could not load networkx module, this is needed to produce the lammps data file.")
     sys.exit()
 from collections import OrderedDict
-from atomic import MASS, ATOMIC_NUMBER, COVALENT_RADII
-from atomic import organic, non_metals, noble_gases, metalloids, lanthanides, actinides, transition_metals
-from atomic import alkali, alkaline_earth, main_group, metals
-from ccdc import CCDC_BOND_ORDERS
+from .atomic import MASS, ATOMIC_NUMBER, COVALENT_RADII
+from .atomic import organic, non_metals, noble_gases, metalloids, lanthanides, actinides, transition_metals
+from .atomic import alkali, alkaline_earth, main_group, metals
+from .ccdc import CCDC_BOND_ORDERS
 DEG2RAD=np.pi/180.
 
 class MolecularGraph(nx.Graph):

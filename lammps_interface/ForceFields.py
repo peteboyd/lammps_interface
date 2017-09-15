@@ -1,17 +1,17 @@
-from uff import UFF_DATA
-from uff4mof import UFF4MOF_DATA
-from dreiding import DREIDING_DATA
-from uff_nonbonded import UFF_DATA_nonbonded
-from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds, BTW_charges
-from Dubbeldam import Dub_atoms, Dub_bonds, Dub_angles, Dub_dihedrals, Dub_impropers
+from .uff import UFF_DATA
+from .uff4mof import UFF4MOF_DATA
+from .dreiding import DREIDING_DATA
+from .uff_nonbonded import UFF_DATA_nonbonded
+from .BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds, BTW_charges
+from .Dubbeldam import Dub_atoms, Dub_bonds, Dub_angles, Dub_dihedrals, Dub_impropers
 #from FMOFCu import FMOFCu_angles, FMOFCu_dihedrals, FMOFCu_opbends, FMOFCu_atoms, FMOFCu_bonds
-from MOFFF import MOFFF_angles, MOFFF_dihedrals, MOFFF_opbends, MOFFF_atoms, MOFFF_bonds
-from water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms
-from gas_models import EPM2_atoms, EPM2_angles
-from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
-from atomic import METALS
-from atomic import organic, non_metals, noble_gases, metalloids, lanthanides, actinides, transition_metals
-from atomic import alkali, alkaline_earth, main_group, metals
+from .MOFFF import MOFFF_angles, MOFFF_dihedrals, MOFFF_opbends, MOFFF_atoms, MOFFF_bonds
+from .water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms
+from .gas_models import EPM2_atoms, EPM2_angles
+from .lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
+from .atomic import METALS
+from .atomic import organic, non_metals, noble_gases, metalloids, lanthanides, actinides, transition_metals
+from .atomic import alkali, alkaline_earth, main_group, metals
 import math
 import numpy as np
 from operator import mul
@@ -19,7 +19,7 @@ import itertools
 import abc
 import re
 import sys
-from Molecules import *
+from .Molecules import *
 DEG2RAD = math.pi/180.
 kBtokcal = 0.00198588
 
