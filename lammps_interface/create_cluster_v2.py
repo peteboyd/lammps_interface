@@ -11,27 +11,27 @@ import math
 import re
 import numpy as np
 import networkx as nx
-import ForceFields
+from .import ForceFields
 import itertools
 import operator
-from structure_data import from_CIF, write_CIF, clean
-from structure_data import write_RASPA_CIF, write_RASPA_sim_files, MDMC_config
-from CIFIO import CIF
-from ccdc import CCDC_BOND_ORDERS
+from .structure_data import from_CIF, write_CIF, clean
+from .structure_data import write_RASPA_CIF, write_RASPA_sim_files, MDMC_config
+from .CIFIO import CIF
+from .ccdc import CCDC_BOND_ORDERS
 from datetime import datetime
-from InputHandler import Options
+from .InputHandler import Options
 from copy import deepcopy
-import Molecules
+from .import Molecules
 if sys.version_info < (3,0):
     input = raw_input
 
-import matplotlib                                                               
-matplotlib.use('Agg')                                                           
-import matplotlib.pyplot as plt 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
-import os                                                                       
-from structure_data import MolecularGraph
-from atomic import ATOMIC_NUMBER
+import os
+from .structure_data import MolecularGraph
+from .atomic import ATOMIC_NUMBER
 
 class LammpsSimulation(object):
     def __init__(self, options):
@@ -49,7 +49,7 @@ class LammpsSimulation(object):
         self.unique_pair_types = {}
         self.pair_in_data = True
         self.separate_molecule_types = True
-        self.framework = False # Flag if a framework exists in the simulation. 
+        self.framework = False # Flag if a framework exists in the simulation.
         self.type_molecules = {}
         self.no_molecule_pair = True  # ensure that h-bonding will not occur between molecules of the same type
         self.fix_shake = {}
@@ -67,7 +67,7 @@ class LammpsSimulation(object):
         for k in sorted(self.molecule_types.keys()):
             nds = []
             for m in self.molecule_types[k]:
-            
+
                 jnodes = sorted(self.subgraphs[m].nodes())
                 nds += jnodes
 
@@ -104,7 +104,7 @@ class LammpsSimulation(object):
             except KeyError:
                 count += 1
                 type = count
-                ff_type[label] = type  
+                ff_type[label] = type
                 self.unique_atom_types[type] = node
                 self.type_molecules[type] = molid
             data['ff_type_index'] = type
@@ -120,7 +120,7 @@ class LammpsSimulation(object):
                 type = bb_type[btype]
 
             except KeyError:
-                try: 
+                try:
                     if data['potential'].special_flag == 'shake':
                         self.fix_shake.setdefault('bonds', []).append(count+1)
                 except AttributeError:
@@ -129,10 +129,10 @@ class LammpsSimulation(object):
                 type = count
                 bb_type[btype] = type
 
-                self.unique_bond_types[type] = (n1, n2, data) 
+                self.unique_bond_types[type] = (n1, n2, data)
 
             data['ff_type_index'] = type
-    
+
     def unique_angles(self):
         ang_type = {}
         count = 0
@@ -140,7 +140,7 @@ class LammpsSimulation(object):
             # compute and store angle terms
             try:
                 ang_data = data['angles']
-            
+
                 for (a, c), val in ang_data.items():
                     atype = "%s"%val['potential']
                     try:
@@ -148,14 +148,14 @@ class LammpsSimulation(object):
 
                     except KeyError:
                         count += 1
-                        try: 
+                        try:
                             if val['potential'].special_flag == 'shake':
                                 self.fix_shake.setdefault('angles', []).append(count)
                         except AttributeError:
                             pass
                         type = count
                         ang_type[atype] = type
-                        self.unique_angle_types[type] = (a, b, c, val) 
+                        self.unique_angle_types[type] = (a, b, c, val)
                     val['ff_type_index'] = type
                     # update original dictionary
                     data['angles'][(a, c)] = val
@@ -174,7 +174,7 @@ class LammpsSimulation(object):
                     try:
                         type = dihedral_type[dtype]
                     except KeyError:
-                        count += 1 
+                        count += 1
                         type = count
                         dihedral_type[dtype] = type
                         self.unique_dihedral_types[type] = (a, b, c, d, val)
@@ -188,7 +188,7 @@ class LammpsSimulation(object):
     def unique_impropers(self):
         count = 0
         improper_type = {}
-        
+
         for b, data in self.graph.nodes_iter(data=True):
             try:
                 rem = []
@@ -253,21 +253,21 @@ class LammpsSimulation(object):
                     hdata = deepcopy(j_data)
                     hdata['tabulated_potential'] = False
                     hdata['h_bond_potential'] = hdata['h_bond_function'](n1, self.graph, flipped=True)
-                    self.unique_pair_types[(i,j,'hb')] = hdata 
+                    self.unique_pair_types[(i,j,'hb')] = hdata
                 # mix Lorentz-Berthelot rules
                 pair_data = deepcopy(i_data)
                 if 'buck' in i_data['pair_potential'].name and 'buck' in j_data['pair_potential'].name:
-                    eps1 = i_data['pair_potential'].eps 
-                    eps2 = j_data['pair_potential'].eps 
-                    sig1 = i_data['pair_potential'].sig 
-                    sig2 = j_data['pair_potential'].sig 
+                    eps1 = i_data['pair_potential'].eps
+                    eps2 = j_data['pair_potential'].eps
+                    sig1 = i_data['pair_potential'].sig
+                    sig2 = j_data['pair_potential'].sig
                     eps = np.sqrt(eps1*eps2)
                     Rv = (sig1 + sig2)
                     Rho = Rv/12.0
                     A = 1.84e5 * eps
                     C=2.25*(Rv)**6*eps
 
-                    pair_data['pair_potential'].A = A 
+                    pair_data['pair_potential'].A = A
                     pair_data['pair_potential'].rho = Rho
                     pair_data['pair_potential'].C = C
                     pair_data['tabulated_potential'] = False
@@ -341,10 +341,10 @@ class LammpsSimulation(object):
                 if (i['potential'].name == "class2"):
                     i['potential'].aa.reduced=True
         else:
-            self.improper_style = "" 
+            self.improper_style = ""
         pairs = set(["%r"%(j['pair_potential']) for j in list(self.unique_pair_types.values())]) | \
                 set(["%r"%(j['h_bond_potential']) for j in list(self.unique_pair_types.values()) if j['h_bond_potential'] is not None]) | \
-                set(["%r"%(j['table_potential']) for j in list(self.unique_pair_types.values()) if j['tabulated_potential']]) 
+                set(["%r"%(j['table_potential']) for j in list(self.unique_pair_types.values()) if j['tabulated_potential']])
         if len(list(pairs)) > 1:
             self.pair_style = "hybrid/overlay %s"%(" ".join(list(pairs)))
         else:
@@ -362,7 +362,7 @@ class LammpsSimulation(object):
                 self.graph.find_organic_sbus = True
             self.graph.compute_topology_information(self.cell, self.options.tol, self.options.neighbour_size)
         except AttributeError:
-            # no cell set yet 
+            # no cell set yet
             pass
 
     def set_cell(self, cell):
@@ -376,7 +376,7 @@ class LammpsSimulation(object):
     def split_graph(self):
 
         self.compute_molecules()
-        if (self.molecules): 
+        if (self.molecules):
             print("Molecules found in the framework, separating.")
             molid=0
             for molecule in self.molecules:
@@ -417,7 +417,7 @@ class LammpsSimulation(object):
             self.molecule_types[type] = [j]
 
     def assign_force_fields(self):
-        
+
         attr = {'graph':self.graph, 'cutoff':self.options.cutoff, 'h_bonding':self.options.h_bonding,
                 'keep_metal_geometry':self.options.fix_metal, 'bondtype':self.options.dreid_bond_type}
         param = getattr(ForceFields, self.options.force_field)(**attr)
@@ -434,7 +434,7 @@ class LammpsSimulation(object):
             #if response.lower() in ['y','yes']:
             #    ff = input("Please enter the name of the force field: ")
             #elif response.lower() in ['n', 'no']:
-            #    pass 
+            #    pass
             #else:
             #    print("Unrecognized command: %s"%response)
 
@@ -463,8 +463,8 @@ class LammpsSimulation(object):
                 if ff[-5:] == "Water":
                     self.add_water_model(ngraph, ff)
                     ff = ff[:-6] # remove _Water from end of name
-                p = getattr(ForceFields, ff)(graph=self.subgraphs[m], 
-                                         cutoff=self.options.cutoff, 
+                p = getattr(ForceFields, ff)(graph=self.subgraphs[m],
+                                         cutoff=self.options.cutoff,
                                          h_bonding=h_bonding)
                 self.special_commands += p.special_commands()
 
@@ -480,7 +480,7 @@ class LammpsSimulation(object):
         and pair terms will be dealt with yet..
 
         """
-        
+
         #I think the Molecule class should be generalized so that
         #this kind of input can be generated easily
         molecule = getattr(Molecule, mol)()
@@ -549,7 +549,7 @@ class LammpsSimulation(object):
                             )
             ngraph.sorted_edge_dict.update({(oid, os): (oid, os)})
             ngraph.sorted_edge_dict.update({(os, oid): (oid, os)})
-            
+
         # compute new angles between dummy atoms
         ngraph.compute_angles()
 
@@ -566,7 +566,7 @@ class LammpsSimulation(object):
         supercell = self.cell.minimum_supercell(self.options.cutoff)
         if np.any(np.array(supercell) > 1):
             print("Warning: unit cell is not large enough to"
-                  +" support a non-bonded cutoff of %.2f Angstroms."%self.options.cutoff) 
+                  +" support a non-bonded cutoff of %.2f Angstroms."%self.options.cutoff)
 
         if(self.options.replication is not None):
             supercell = tuple(map(int, re.split('x| |, |,',self.options.replication)))
@@ -579,13 +579,13 @@ class LammpsSimulation(object):
 
         if np.any(np.array(supercell) > 1):
             print("Re-sizing to a %i x %i x %i supercell. "%(supercell))
-            
+
             #TODO(pboyd): apply to subgraphs as well, if requested.
             self.graph.build_supercell(supercell, self.cell)
             molcount = 0
             if self.subgraphs:
                 molcount = max([g.molecule_id for g in self.subgraphs])
-            
+
             for mtype in list(self.molecule_types.keys()):
                 # prompt for replication of this molecule in the supercell.
                 rep = self.subgraphs[self.molecule_types[mtype][0]]
@@ -596,33 +596,33 @@ class LammpsSimulation(object):
                         self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True, molecule_len=molcount)
             self.cell.update_supercell(supercell)
 
-    def compute_cluster_box_size(self):                                         
+    def compute_cluster_box_size(self):
         """
-        Added by MW b/c simbox size can need to be  even bigger than a normal 
+        Added by MW b/c simbox size can need to be  even bigger than a normal
         simbox when we are making a cluster from one unit cell
         """
-                                                                                
-        supercell = self.cell.minimum_supercell(self.options.cutoff)            
+
+        supercell = self.cell.minimum_supercell(self.options.cutoff)
         # we really need a 3x3x3 grid of supercells to 100% ensure we get all components of cluster accurately
-        supercell = (supercell[0]+2, supercell[1]+2, supercell[2]+2)            
-        self.supercell_tuple = (supercell[0], supercell[1], supercell[2])       
-                                                                                
-        if np.any(np.array(supercell) > 1):                                     
-            print("Warning: unit cell is not large enough to"                   
+        supercell = (supercell[0]+2, supercell[1]+2, supercell[2]+2)
+        self.supercell_tuple = (supercell[0], supercell[1], supercell[2])
+
+        if np.any(np.array(supercell) > 1):
+            print("Warning: unit cell is not large enough to"
                   +" support a non-bonded cutoff of %.2f Angstroms\n"%self.options.cutoff +
-                   "Re-sizing to a %i x %i x %i supercell. "%(supercell))       
-                                                                                
-            #TODO(pboyd): apply to subgraphs as well, if requested.             
-            self.graph.build_supercell(supercell, self.cell)                    
-            for mtype in list(self.molecule_types.keys()):                      
-                # prompt for replication of this molecule in the supercell.     
-                rep = self.subgraphs[self.molecule_types[mtype][0]]             
+                   "Re-sizing to a %i x %i x %i supercell. "%(supercell))
+
+            #TODO(pboyd): apply to subgraphs as well, if requested.
+            self.graph.build_supercell(supercell, self.cell)
+            for mtype in list(self.molecule_types.keys()):
+                # prompt for replication of this molecule in the supercell.
+                rep = self.subgraphs[self.molecule_types[mtype][0]]
                 response = input("Would you like to replicate moleule %i with atoms (%s) in the supercell? [y/n]: "%
                         (mtype, ", ".join([rep.node[j]['element'] for j in rep.nodes()])))
-                if response in ['y', 'Y', 'yes']:                               
-                    for m in self.molecule_types[mtype]:                        
+                if response in ['y', 'Y', 'yes']:
+                    for m in self.molecule_types[mtype]:
                         self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True)
-            self.cell.update_supercell(supercell)  
+            self.cell.update_supercell(supercell)
 
     def count_dihedrals(self):
         count = 0
@@ -673,7 +673,7 @@ class LammpsSimulation(object):
         self.unique_pair_terms()
         self.define_styles()
 
-        data_str = self.construct_data_file() 
+        data_str = self.construct_data_file()
         datafile = open("data.%s"%self.name, 'w')
         datafile.writelines(data_str)
         datafile.close()
@@ -685,10 +685,10 @@ class LammpsSimulation(object):
         print("files created!")
 
     def construct_data_file(self):
-    
+
         t = datetime.today()
         string = "Created on %s\n\n"%t.strftime("%a %b %d %H:%M:%S %Y %Z")
-    
+
         if(len(self.unique_atom_types.keys()) > 0):
             string += "%12i atoms\n"%(nx.number_of_nodes(self.graph))
         if(len(self.unique_bond_types.keys()) > 0):
@@ -699,7 +699,7 @@ class LammpsSimulation(object):
             string += "%12i dihedrals\n"%(self.count_dihedrals())
         if (len(self.unique_improper_types.keys()) > 0):
             string += "%12i impropers\n"%(self.count_impropers())
-    
+
         if(len(self.unique_atom_types.keys()) > 0):
             string += "\n%12i atom types\n"%(len(self.unique_atom_types.keys()))
         if(len(self.unique_bond_types.keys()) > 0):
@@ -710,19 +710,19 @@ class LammpsSimulation(object):
             string += "%12i dihedral types\n"%(len(self.unique_dihedral_types.keys()))
         if (len(self.unique_improper_types.keys()) > 0):
             string += "%12i improper types\n"%(len(self.unique_improper_types.keys()))
-    
+
         string += "%19.6f %10.6f %s %s\n"%(0., self.cell.lx, "xlo", "xhi")
         string += "%19.6f %10.6f %s %s\n"%(0., self.cell.ly, "ylo", "yhi")
         string += "%19.6f %10.6f %s %s\n"%(0., self.cell.lz, "zlo", "zhi")
         if (np.any(np.array([self.cell.xy, self.cell.xz, self.cell.yz]) > 0.0)):
             string += "%19.6f %10.6f %10.6f %s %s %s\n"%(self.cell.xy, self.cell.xz, self.cell.yz, "xy", "xz", "yz")
-    
+
         # Let's track the forcefield potentials that haven't been calc'd or user specified
         no_bond = []
         no_angle = []
         no_dihedral = []
         no_improper = []
-        
+
         # this should be non-zero, but just in case..
         if(len(self.unique_atom_types.keys()) > 0):
             string += "\nMasses\n\n"
@@ -730,23 +730,23 @@ class LammpsSimulation(object):
                 unq_atom = self.graph.node[self.unique_atom_types[key]]
                 mass, type = unq_atom['mass'], unq_atom['force_field_type']
                 string += "%5i %15.9f # %s\n"%(key, mass, type)
-    
+
         if(len(self.unique_bond_types.keys()) > 0):
             string += "\nBond Coeffs\n\n"
             for key in sorted(self.unique_bond_types.keys()):
                 n1, n2, bond = self.unique_bond_types[key]
                 atom1, atom2 = self.graph.node[n1], self.graph.node[n2]
                 if bond['potential'] is None:
-                    no_bond.append("%5i : %s %s"%(key, 
-                                                  atom1['force_field_type'], 
+                    no_bond.append("%5i : %s %s"%(key,
+                                                  atom1['force_field_type'],
                                                   atom2['force_field_type']))
                 else:
-                    ff1, ff2 = (atom1['force_field_type'], 
+                    ff1, ff2 = (atom1['force_field_type'],
                                 atom2['force_field_type'])
-    
+
                     string += "%5i %s "%(key, bond['potential'])
                     string += "# %s %s\n"%(ff1, ff2)
-    
+
         class2angle = False
         if(len(self.unique_angle_types.keys()) > 0):
             string += "\nAngle Coeffs\n\n"
@@ -754,22 +754,22 @@ class LammpsSimulation(object):
                 a, b, c, angle = self.unique_angle_types[key]
                 atom_a, atom_b, atom_c = self.graph.node[a], \
                                          self.graph.node[b], \
-                                         self.graph.node[c] 
-    
+                                         self.graph.node[c]
+
                 if angle['potential'] is None:
-                    no_angle.append("%5i : %s %s %s"%(key, 
-                                          atom_a['force_field_type'], 
-                                          atom_b['force_field_type'], 
+                    no_angle.append("%5i : %s %s %s"%(key,
+                                          atom_a['force_field_type'],
+                                          atom_b['force_field_type'],
                                           atom_c['force_field_type']))
                 else:
                     if (angle['potential'].name == "class2"):
                         class2angle = True
-    
+
                     string += "%5i %s "%(key, angle['potential'])
-                    string += "# %s %s %s\n"%(atom_a['force_field_type'], 
-                                              atom_b['force_field_type'], 
+                    string += "# %s %s %s\n"%(atom_a['force_field_type'],
+                                              atom_b['force_field_type'],
                                               atom_c['force_field_type'])
-    
+
         if(class2angle):
             string += "\nBondBond Coeffs\n\n"
             for key in sorted(self.unique_angle_types.keys()):
@@ -779,18 +779,18 @@ class LammpsSimulation(object):
                                          self.graph.node[c]
                 if (angle['potential'].name!="class2"):
                     string += "%5i skip "%(key)
-                    string += "# %s %s %s\n"%(atom_a['force_field_type'], 
-                                              atom_b['force_field_type'], 
+                    string += "# %s %s %s\n"%(atom_a['force_field_type'],
+                                              atom_b['force_field_type'],
                                               atom_c['force_field_type'])
                 else:
                     try:
                         string += "%5i %s "%(key, angle['potential'].bb)
-                        string += "# %s %s %s\n"%(atom_a['force_field_type'], 
-                                                  atom_b['force_field_type'], 
+                        string += "# %s %s %s\n"%(atom_a['force_field_type'],
+                                                  atom_b['force_field_type'],
                                                   atom_c['force_field_type'])
                     except AttributeError:
                         pass
-        
+
             string += "\nBondAngle Coeffs\n\n"
             for key in sorted(self.unique_angle_types.keys()):
                 a, b, c, angle = self.unique_angle_types[key]
@@ -799,18 +799,18 @@ class LammpsSimulation(object):
                                          self.graph.node[c]
                 if (angle['potential'].name!="class2"):
                     string += "%5i skip  "%(key)
-                    string += "# %s %s %s\n"%(atom_a['force_field_type'], 
-                                              atom_b['force_field_type'], 
+                    string += "# %s %s %s\n"%(atom_a['force_field_type'],
+                                              atom_b['force_field_type'],
                                               atom_c['force_field_type'])
                 else:
                     try:
                         string += "%5i %s "%(key, angle['potential'].ba)
-                        string += "# %s %s %s\n"%(atom_a['force_field_type'], 
-                                                  atom_b['force_field_type'], 
+                        string += "# %s %s %s\n"%(atom_a['force_field_type'],
+                                                  atom_b['force_field_type'],
                                                   atom_c['force_field_type'])
                     except AttributeError:
-                        pass   
-    
+                        pass
+
         class2dihed = False
         if(len(self.unique_dihedral_types.keys()) > 0):
             string +=  "\nDihedral Coeffs\n\n"
@@ -821,20 +821,20 @@ class LammpsSimulation(object):
                                                  self.graph.node[c], \
                                                  self.graph.node[d]
                 if dihedral['potential'] is None:
-                    no_dihedral.append("%5i : %s %s %s %s"%(key, 
-                                       atom_a['force_field_type'], 
-                                       atom_b['force_field_type'], 
-                                       atom_c['force_field_type'], 
+                    no_dihedral.append("%5i : %s %s %s %s"%(key,
+                                       atom_a['force_field_type'],
+                                       atom_b['force_field_type'],
+                                       atom_c['force_field_type'],
                                        atom_d['force_field_type']))
                 else:
                     if(dihedral['potential'].name == "class2"):
                         class2dihed = True
                     string += "%5i %s "%(key, dihedral['potential'])
-                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                                 atom_b['force_field_type'], 
-                                                 atom_c['force_field_type'], 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                                 atom_b['force_field_type'],
+                                                 atom_c['force_field_type'],
                                                  atom_d['force_field_type'])
-    
+
         if (class2dihed):
             string += "\nMiddleBondTorsion Coeffs\n\n"
             for key in sorted(self.unique_dihedral_types.keys()):
@@ -846,15 +846,15 @@ class LammpsSimulation(object):
 
                 if (dihedral['potential'].name!="class2"):
                     string += "%5i skip "%(key)
-                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                              atom_b['force_field_type'], 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                              atom_b['force_field_type'],
                                               atom_c['force_field_type'],
                                               atom_d['force_field_type'])
                 else:
                     try:
-                        string += "%5i %s "%(key, dihedral['potential'].mbt) 
-                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                                  atom_b['force_field_type'], 
+                        string += "%5i %s "%(key, dihedral['potential'].mbt)
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                                  atom_b['force_field_type'],
                                                   atom_c['force_field_type'],
                                                   atom_d['force_field_type'])
                     except AttributeError:
@@ -868,15 +868,15 @@ class LammpsSimulation(object):
                                                  self.graph.node[d]
                 if (dihedral['potential'].name!="class2"):
                     string += "%5i skip "%(key)
-                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                              atom_b['force_field_type'], 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                              atom_b['force_field_type'],
                                               atom_c['force_field_type'],
                                               atom_d['force_field_type'])
                 else:
                     try:
-                        string += "%5i %s "%(key, dihedral['potential'].ebt) 
-                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                                  atom_b['force_field_type'], 
+                        string += "%5i %s "%(key, dihedral['potential'].ebt)
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                                  atom_b['force_field_type'],
                                                   atom_c['force_field_type'],
                                                   atom_d['force_field_type'])
                     except AttributeError:
@@ -890,15 +890,15 @@ class LammpsSimulation(object):
                                                  self.graph.node[d]
                 if (dihedral['potential'].name!="class2"):
                     string += "%5i skip "%(key)
-                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                              atom_b['force_field_type'], 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                              atom_b['force_field_type'],
                                               atom_c['force_field_type'],
                                               atom_d['force_field_type'])
                 else:
                     try:
-                        string += "%5i %s "%(key, dihedral['potential'].at) 
-                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                                  atom_b['force_field_type'], 
+                        string += "%5i %s "%(key, dihedral['potential'].at)
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                                  atom_b['force_field_type'],
                                                   atom_c['force_field_type'],
                                                   atom_d['force_field_type'])
                     except AttributeError:
@@ -912,15 +912,15 @@ class LammpsSimulation(object):
                                                  self.graph.node[d]
                 if (dihedral['potential'].name!="class2"):
                     string += "%5i skip "%(key)
-                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                              atom_b['force_field_type'], 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                              atom_b['force_field_type'],
                                               atom_c['force_field_type'],
                                               atom_d['force_field_type'])
                 else:
                     try:
-                        string += "%5i %s "%(key, dihedral['potential'].aat) 
-                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                                  atom_b['force_field_type'], 
+                        string += "%5i %s "%(key, dihedral['potential'].aat)
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                                  atom_b['force_field_type'],
                                                   atom_c['force_field_type'],
                                                   atom_d['force_field_type'])
                     except AttributeError:
@@ -934,22 +934,22 @@ class LammpsSimulation(object):
                                                  self.graph.node[d]
                 if (dihedral['potential'].name!="class2"):
                     string += "%5i skip "%(key)
-                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                              atom_b['force_field_type'], 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                              atom_b['force_field_type'],
                                               atom_c['force_field_type'],
                                               atom_d['force_field_type'])
                 else:
                     try:
-                        string += "%5i %s "%(key, dihedral['potential'].bb13) 
-                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                                     atom_b['force_field_type'], 
+                        string += "%5i %s "%(key, dihedral['potential'].bb13)
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                                     atom_b['force_field_type'],
                                                      atom_c['force_field_type'],
                                                      atom_d['force_field_type'])
                     except AttributeError:
                         pass
-        
-        
-        class2improper = False 
+
+
+        class2improper = False
         if (len(self.unique_improper_types.keys()) > 0):
             string += "\nImproper Coeffs\n\n"
             for key in sorted(self.unique_improper_types.keys()):
@@ -960,18 +960,18 @@ class LammpsSimulation(object):
                                                  self.graph.node[d]
 
                 if improper['potential'] is None:
-                    no_improper.append("%5i : %s %s %s %s"%(key, 
-                        atom_a['force_field_type'], 
-                        atom_b['force_field_type'], 
-                        atom_c['force_field_type'], 
+                    no_improper.append("%5i : %s %s %s %s"%(key,
+                        atom_a['force_field_type'],
+                        atom_b['force_field_type'],
+                        atom_c['force_field_type'],
                         atom_d['force_field_type']))
                 else:
                     if(improper['potential'].name == "class2"):
                         class2improper = True
                     string += "%5i %s "%(key, improper['potential'])
-                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                                 atom_b['force_field_type'], 
-                                                 atom_c['force_field_type'], 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                                 atom_b['force_field_type'],
+                                                 atom_c['force_field_type'],
                                                  atom_d['force_field_type'])
         if (class2improper):
             string += "\nAngleAngle Coeffs\n\n"
@@ -983,29 +983,29 @@ class LammpsSimulation(object):
                                                  self.graph.node[d]
                 if (improper['potential'].name!="class2"):
                     string += "%5i skip "%(key)
-                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                                 atom_b['force_field_type'], 
-                                                 atom_c['force_field_type'], 
+                    string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                                 atom_b['force_field_type'],
+                                                 atom_c['force_field_type'],
                                                  atom_d['force_field_type'])
                 else:
                     try:
                         string += "%5i %s "%(key, improper['potential'].aa)
-                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'], 
-                                                     atom_b['force_field_type'], 
-                                                     atom_c['force_field_type'], 
+                        string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
+                                                     atom_b['force_field_type'],
+                                                     atom_c['force_field_type'],
                                                      atom_d['force_field_type'])
                     except AttributeError:
                         pass
-    
+
         if((len(self.unique_pair_types.keys()) > 0) and (self.pair_in_data)):
             string += "\nPair Coeffs\n\n"
             for key, n in sorted(self.unique_atom_types.items()):
                 pair = self.graph.node[n]
                 string += "%5i %s "%(key, pair['pair_potential'])
-                string += "# %s %s\n"%(self.graph.node[n]['force_field_type'], 
+                string += "# %s %s\n"%(self.graph.node[n]['force_field_type'],
                                        self.graph.node[n]['force_field_type'])
-       
- 
+
+
         # Nest this in an if statement
         if any([no_bond, no_angle, no_dihedral, no_improper]):
         # WARNING MESSAGE for potentials we think are unique but have not been calculated
@@ -1028,8 +1028,8 @@ class LammpsSimulation(object):
             print("If you think you specified one of these in your user_input.txt " +
                   "and this is an error, please contact developers\n")
             print("CONTINUING...")
-    
-    
+
+
         #************[atoms]************
     	# Added 1 to all atom, bond, angle, dihedral, improper indices (LAMMPS does not accept atom of index 0)
         sorted_nodes = sorted(self.graph.nodes())
@@ -1037,14 +1037,14 @@ class LammpsSimulation(object):
             string += "\nAtoms\n\n"
             for node in sorted_nodes:
                 atom = self.graph.node[node]
-                string += "%8i %8i %8i %11.5f %10.5f %10.5f %10.5f\n"%(node, 
-                                                                       atom['molid'], 
+                string += "%8i %8i %8i %11.5f %10.5f %10.5f %10.5f\n"%(node,
+                                                                       atom['molid'],
                                                                        atom['ff_type_index'],
                                                                        atom['charge'],
-                                                                       atom['cartesian_coordinates'][0], 
-                                                                       atom['cartesian_coordinates'][1], 
+                                                                       atom['cartesian_coordinates'][0],
+                                                                       atom['cartesian_coordinates'][1],
                                                                        atom['cartesian_coordinates'][2])
-    
+
         #************[bonds]************
         if(len(self.unique_bond_types.keys()) > 0):
             string += "\nBonds\n\n"
@@ -1052,10 +1052,10 @@ class LammpsSimulation(object):
             for n1, n2, bond in sorted(list(self.graph.edges_iter2(data=True))):
                 idx += 1
                 string += "%8i %8i %8i %8i\n"%(idx,
-                                               bond['ff_type_index'], 
-                                               n1, 
+                                               bond['ff_type_index'],
+                                               n1,
                                                n2)
-    
+
         #************[angles]***********
         if(len(self.unique_angle_types.keys()) > 0):
             string += "\nAngles\n\n"
@@ -1066,8 +1066,8 @@ class LammpsSimulation(object):
                     for (a, c), angle in list(atom['angles'].items()):
                         idx += 1
                         string += "%8i %8i %8i %8i %8i\n"%(idx,
-                                                           angle['ff_type_index'], 
-                                                           a, 
+                                                           angle['ff_type_index'],
+                                                           a,
                                                            node,
                                                            c)
                 except KeyError:
@@ -1080,12 +1080,12 @@ class LammpsSimulation(object):
             for n1, n2, data in sorted(list(self.graph.edges_iter2(data=True))):
                 try:
                     for (a, d), dihedral in list(data['dihedrals'].items()):
-                        idx+=1     
-                        string += "%8i %8i %8i %8i %8i %8i\n"%(idx, 
-                                                              dihedral['ff_type_index'], 
-                                                              a, 
+                        idx+=1
+                        string += "%8i %8i %8i %8i %8i %8i\n"%(idx,
+                                                              dihedral['ff_type_index'],
+                                                              a,
                                                               n1,
-                                                              n2, 
+                                                              n2,
                                                               d)
                 except KeyError:
                     pass
@@ -1100,13 +1100,13 @@ class LammpsSimulation(object):
                         idx += 1
                         string += "%8i %8i %8i %8i %8i %8i\n"%(idx,
                                                                improper['ff_type_index'],
-                                                               a, 
+                                                               a,
                                                                node,
                                                                c,
                                                                d)
                 except KeyError:
                     pass
-    
+
         return string
     def fixcount(self, count=[]):
         count.append(1)
@@ -1132,23 +1132,23 @@ class LammpsSimulation(object):
             inp_str += "%-15s %s\n"%("dihedral_style", self.dihedral_style)
         if(len(self.unique_improper_types.keys()) > 0):
             inp_str += "%-15s %s\n"%("improper_style", self.improper_style)
-        if(self.kspace_style): 
-            inp_str += "%-15s %s\n"%("kspace_style", self.kspace_style) 
+        if(self.kspace_style):
+            inp_str += "%-15s %s\n"%("kspace_style", self.kspace_style)
         inp_str += "\n"
-    
+
         # general catch-all for extra force field commands needed.
         inp_str += "\n".join(list(set(self.special_commands)))
         inp_str += "\n"
         inp_str += "%-15s %s\n"%("box tilt","large")
         inp_str += "%-15s %s\n"%("read_data","data.%s"%(self.name))
-    
+
         if(not self.pair_in_data):
             inp_str += "#### Pair Coefficients ####\n"
             for pair,data in sorted(self.unique_pair_types.items()):
                 n1, n2 = self.unique_atom_types[pair[0]], self.unique_atom_types[pair[1]]
                 try:
                     if pair[2] == 'hb':
-                        inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
+                        inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff",
                             pair[0], pair[1], data['h_bond_potential'],
                             self.graph.node[n1]['force_field_type'],
                             self.graph.node[n2]['force_field_type'])
@@ -1158,28 +1158,28 @@ class LammpsSimulation(object):
                             self.graph.node[n1]['force_field_type'],
                             self.graph.node[n2]['force_field_type'])
                     else:
-                        inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff", 
+                        inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff",
                             pair[0], pair[1], data['pair_potential'],
                             self.graph.node[n1]['force_field_type'],
                             self.graph.node[n2]['force_field_type'])
                 except IndexError:
                     pass
             inp_str += "#### END Pair Coefficients ####\n\n"
-        
+
         if(self.molecules)and(len(self.molecule_types.keys()) < 32):
-            # lammps cannot handle more than 32 groups including 'all' 
-            total_count = 0 
+            # lammps cannot handle more than 32 groups including 'all'
+            total_count = 0
             for k,v in self.molecule_types.items():
                 total_count += len(v)
-            list_individual_molecules = True 
+            list_individual_molecules = True
             if total_count > 31:
                 list_individual_molecules = False
 
             inp_str += "\n#### Atom Groupings ####\n"
             idx = 1
             framework_atoms = self.graph.nodes()
-            for mtype in list(self.molecule_types.keys()): 
-                
+            for mtype in list(self.molecule_types.keys()):
+
                 inp_str += "%-15s %-8s %s  "%("group", "%i"%(mtype), "id")
                 all_atoms = []
                 for j in self.molecule_types[mtype]:
@@ -1230,7 +1230,7 @@ class LammpsSimulation(object):
                         inp_str += " %i"%(x[0])
                 inp_str += "\n"
             inp_str += "#### END Atom Groupings ####\n\n"
-    
+
         if self.options.dump_dcd:
             inp_str += "%-15s %s\n"%("dump","%s_dcdmov all dcd 10 %s_mov.dcd"%
                             (self.name, self.name))
@@ -1238,16 +1238,16 @@ class LammpsSimulation(object):
             inp_str += "%-15s %s\n"%("dump","%s_xyzmov all xyz 1 %s_mov.xyz"%
                                 (self.name, self.name))
             inp_str += "%-15s %s\n"%("dump_modify", "%s_xyzmov element %s"%(
-                                     self.name, 
-                                     " ".join([self.graph.node[self.unique_atom_types[key]]['element'] 
+                                     self.name,
+                                     " ".join([self.graph.node[self.unique_atom_types[key]]['element']
                                                 for key in sorted(self.unique_atom_types.keys())])))
 
 
-    
+
         if (self.options.minimize):
             box_min = "tri"
             min_style="cg"
-            nmins = 2 
+            nmins = 2
             #inp_str += "%-15s %s\n"%("min_style","fire")
             #inp_str += "%-15s %i %s\n"%("compute", 1, "all msd com yes")
             #inp_str += "%-15s %-10s %s\n"%("variable", "Dx", "equal c_1[1]")
@@ -1259,7 +1259,7 @@ class LammpsSimulation(object):
 
             inp_str += "%-15s %s\n"%("min_style", min_style)
             inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-            #inp_str += "%-15s %i\n"%("run", 1) 
+            #inp_str += "%-15s %i\n"%("run", 1)
 
             for j in range(nmins):
                 fix = self.fixcount()
@@ -1267,12 +1267,12 @@ class LammpsSimulation(object):
                 inp_str += "%-15s %s\n"%("fix","%i all box/relax %s 0.0 vmax 0.01"%(fix, box_min))
                 inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
                 inp_str += "%-15s %s\n"%("unfix", "%i"%fix)
-            
+
                 #inp_str += "%-15s %s\n"%("min_style","fire")
                 inp_str += "%-15s %s\n"%("minimize","1.0e-15 1.0e-15 10000 100000")
-                #inp_str += "%-15s %i\n"%("run", 1) 
-            
-           # inp_str += "%-15s %s\n"%("unfix", "output") 
+                #inp_str += "%-15s %i\n"%("run", 1)
+
+           # inp_str += "%-15s %s\n"%("unfix", "output")
         # delete bond types etc, for molecules that are rigid
         for mol in sorted(self.molecule_types.keys()):
             rep = self.subgraphs[self.molecule_types[mol][0]]
@@ -1280,7 +1280,7 @@ class LammpsSimulation(object):
                 inp_str += "%-15s %s\n"%("neigh_modify", "exclude molecule %i"%(mol))
                 # find and delete all bonds, angles, dihedrals, and impropers associated
                 # with this molecule, as they will consume unnecessary amounts of CPU time
-                inp_str += "%-15s %i %s\n"%("delete_bonds", mol, "multi remove") 
+                inp_str += "%-15s %i %s\n"%("delete_bonds", mol, "multi remove")
 
 
         if (self.fix_shake):
@@ -1301,21 +1301,21 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
             molecule_fixes = []
             mollist = sorted(list(self.molecule_types.keys()))
-            for molid in mollist: 
+            for molid in mollist:
                 id = self.fixcount()
                 molecule_fixes.append(id)
                 rep = self.subgraphs[self.molecule_types[molid][0]]
                 if(rep.rigid):
-                    inp_str += "%-15s %s\n"%("fix", "%i %s rigid/small molecule langevin %.2f %.2f ${tdamp} %i"%(id, 
-                                                                                            str(molid), 
-                                                                                            self.options.temp, 
+                    inp_str += "%-15s %s\n"%("fix", "%i %s rigid/small molecule langevin %.2f %.2f ${tdamp} %i"%(id,
+                                                                                            str(molid),
+                                                                                            self.options.temp,
                                                                                             self.options.temp,
                                                                                             np.random.randint(1,3000000)
                                                                                             ))
                 else:
-                    inp_str += "%-15s %s\n"%("fix", "%i %s langevin %.2f %.2f ${tdamp} %i"%(id, 
-                                                                                        str(molid), 
-                                                                                        self.options.temp, 
+                    inp_str += "%-15s %s\n"%("fix", "%i %s langevin %.2f %.2f ${tdamp} %i"%(id,
+                                                                                        str(molid),
+                                                                                        self.options.temp,
                                                                                         self.options.temp,
                                                                                         np.random.randint(1,3000000)
                                                                                         ))
@@ -1325,9 +1325,9 @@ class LammpsSimulation(object):
             if self.framework:
                 id = self.fixcount()
                 molecule_fixes.append(id)
-                inp_str += "%-15s %s\n"%("fix", "%i %s langevin %.2f %.2f ${tdamp} %i"%(id, 
-                                                                                        "fram", 
-                                                                                        self.options.temp, 
+                inp_str += "%-15s %s\n"%("fix", "%i %s langevin %.2f %.2f ${tdamp} %i"%(id,
+                                                                                        "fram",
+                                                                                        self.options.temp,
                                                                                         self.options.temp,
                                                                                         np.random.randint(1,3000000)
                                                                                         ))
@@ -1345,29 +1345,29 @@ class LammpsSimulation(object):
                 molecule_fixes.append(id)
                 rep = self.subgraphs[self.molecule_types[molid][0]]
                 if(rep.rigid):
-                    inp_str += "%-15s %s\n"%("fix", "%i %s rigid/nvt/small molecule temp %.2f %.2f ${tdamp}"%(id, 
-                                                                                            str(molid), 
-                                                                                            self.options.temp, 
+                    inp_str += "%-15s %s\n"%("fix", "%i %s rigid/nvt/small molecule temp %.2f %.2f ${tdamp}"%(id,
+                                                                                            str(molid),
+                                                                                            self.options.temp,
                                                                                             self.options.temp
                                                                                             ))
                 else:
-                    inp_str += "%-15s %s\n"%("fix", "%i %s nvt temp %.2f %.2f ${tdamp}"%(id, 
-                                                                                   str(molid), 
-                                                                                   self.options.temp, 
+                    inp_str += "%-15s %s\n"%("fix", "%i %s nvt temp %.2f %.2f ${tdamp}"%(id,
+                                                                                   str(molid),
+                                                                                   self.options.temp,
                                                                                    self.options.temp
                                                                                    ))
             if self.framework:
                 id = self.fixcount()
                 molecule_fixes.append(id)
-                inp_str += "%-15s %s\n"%("fix", "%i %s nvt temp %.2f %.2f ${tdamp}"%(id, 
-                                                                                   "fram", 
-                                                                                   self.options.temp, 
+                inp_str += "%-15s %s\n"%("fix", "%i %s nvt temp %.2f %.2f ${tdamp}"%(id,
+                                                                                   "fram",
+                                                                                   self.options.temp,
                                                                                    self.options.temp
                                                                                    ))
-            
+
             inp_str += "%-15s %i\n"%("thermo", 1)
             inp_str += "%-15s %i\n"%("run", self.options.nprodstp)
-            
+
             while(molecule_fixes):
                 fid = molecule_fixes.pop(0)
                 inp_str += "%-15s %i\n"%("unfix", fid)
@@ -1385,7 +1385,7 @@ class LammpsSimulation(object):
             inp_str += "%-15s %i\n"%("thermo", 1)
             inp_str += "%-15s %i\n"%("run", self.options.nprodstp)
 
-            inp_str += "%-15s %i\n"%("unfix", id) 
+            inp_str += "%-15s %i\n"%("unfix", id)
 
         if(self.options.bulk_moduli):
             min_style=True
@@ -1397,7 +1397,7 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "readstep", "equal ${rs}")
             inp_str += "%-15s %-10s %s\n"%("variable", "rs", "delete")
             inp_str += "%-15s %s\n"%("undump", "str")
-            
+
             inp_str += "\n%-15s %-10s %s\n"%("variable", "simTemp", "equal %.4f"%(self.options.temp))
             inp_str += "%-15s %-10s %s\n"%("variable", "dt", "equal %.2f"%(1.0))
             inp_str += "%-15s %-10s %s\n"%("variable", "tdamp", "equal 100*${dt}")
@@ -1411,11 +1411,11 @@ class LammpsSimulation(object):
             inp_str += "%-15s %-10s %s\n"%("variable", "at", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "bt", "delete")
             inp_str += "%-15s %-10s %s\n"%("variable", "ct", "delete")
-            
+
             inp_str += "%-15s %-10s %s\n"%("variable", "N", "equal %i"%self.options.iter_count)
             inp_str += "%-15s %-10s %s\n"%("variable", "totDev", "equal %.5f"%self.options.max_dev)
             inp_str += "%-15s %-10s %s\n"%("variable", "sf", "equal ${totDev}/${N}*2")
-            inp_str += "%-15s %s\n"%("print", "\"Loop,CellScale,Vol,Pressure,E_total,E_pot,E_kin" + 
+            inp_str += "%-15s %s\n"%("print", "\"Loop,CellScale,Vol,Pressure,E_total,E_pot,E_kin" +
                                               ",E_bond,E_angle,E_torsion,E_imp,E_vdw,E_coul\""+
                                               " file %s.output.csv screen no"%(self.name))
             inp_str += "%-15s %-10s %s\n"%("variable", "do", "loop ${N}")
@@ -1454,12 +1454,12 @@ class LammpsSimulation(object):
 
         if (self.options.thermal_scaling):
             temperature = self.options.temp # kelvin
-            equil_steps = self.options.neqstp 
-            prod_steps = self.options.nprodstp 
+            equil_steps = self.options.neqstp
+            prod_steps = self.options.nprodstp
             temprange = np.linspace(temperature, self.options.max_dev, self.options.iter_count).tolist()
             temprange.append(298.0)
             temprange.insert(0,1.0) # add 1 and 298 K simulations.
-            
+
             inp_str += "\n%-15s %s\n"%("dump", "str all atom 1 initial_structure.dump")
             inp_str += "%-15s\n"%("run 0")
             inp_str += "%-15s %-10s %s\n"%("variable", "rs", "equal step")
@@ -1482,11 +1482,11 @@ class LammpsSimulation(object):
 
             inp_str += "%-15s %s\n"%("read_dump", "initial_structure.dump ${readstep} x y z box yes format native")
             inp_str += "%-15s %s\n"%("thermo_style", "custom step temp cella cellb cellc vol etotal")
-            
+
             # the ave/time fix must be after read_dump, or the averages are reported as '0'
             #inp_str += "%-15s %s\n"%("fix", "%i all ave/time 1 %i %i v_t v_a v_myVol ave one"%(fix1, prod_steps,
             #                                                                                   prod_steps + equil_steps))
-            id = self.fixcount() 
+            id = self.fixcount()
             # creating velocity may cause instability at high temperatures.
             inp_str += "%-15s %s\n"%("velocity", "all create 50 %i"%(np.random.randint(1,3000000)))
             inp_str += "%-15s %i %s %s %s %s\n"%("fix", id,
@@ -1508,14 +1508,14 @@ class LammpsSimulation(object):
             #inp_str += "%-15s %-10s %s\n"%("variable", "inst_t", "delete")
             #inp_str += "%-15s %-10s %s\n"%("variable", "inst_a", "delete")
             #inp_str += "%-15s %-10s %s\n\n"%("variable", "inst_v", "delete")
-            inp_str += "%-15s %i\n"%("unfix", id) 
+            inp_str += "%-15s %i\n"%("unfix", id)
             #inp_str += "%-15s %i\n"%("unfix", fix1)
             inp_str += "\n%-15s %s\n"%("next", "sim_temp")
             inp_str += "%-15s %s\n"%("jump", "SELF loop")
             inp_str += "%-15s %s\n"%("label", "break")
             inp_str += "%-15s %-10s %s\n"%("variable", "sim_temp", "delete")
 
-        if self.options.dump_dcd: 
+        if self.options.dump_dcd:
             inp_str += "%-15s %s\n"%("undump", "%s_dcdmov"%(self.name))
         if self.options.dump_xyz:
             inp_str += "%-15s %s\n"%("undump", "%s_xyzmov"%(self.name))
@@ -1538,17 +1538,17 @@ class LammpsSimulation(object):
 
             # write a string that tells you how to read the dump file for this structure
             f=open("dump_restart_string.txt","w")
-            f.write("read_dump %s_restart.lammpstrj %d x y z box yes"%(self.name, 
+            f.write("read_dump %s_restart.lammpstrj %d x y z box yes"%(self.name,
                                                                        0))
             f.close()
-        
+
         try:
             inp_str += "%-15s %i\n"%("unfix", shk_fix)
         except NameError:
             # no shake fix id in this input file.
             pass
         return inp_str
-    
+
     def groups(self, ints):
         ints = sorted(ints)
         for k, g in itertools.groupby(enumerate(ints), lambda ix : ix[0]-ix[1]):
@@ -1561,11 +1561,11 @@ class LammpsSimulation(object):
             # return a list of nodes of connected graphs (decisions to isolate them will come later)
             if(len(j) <= self.graph.original_size*size_cutoff) or (len(j) < 25):
                 self.molecules.append(j)
-    
+
     def cut_molecule(self, nodes):
         mgraph = self.graph.subgraph(nodes).copy()
         self.graph.remove_nodes_from(nodes)
-        indices = np.array(list(nodes)) 
+        indices = np.array(list(nodes))
         indices -= 1
         mgraph.coordinates = self.graph.coordinates[indices,:].copy()
         mgraph.sorted_edge_dict = self.graph.sorted_edge_dict.copy()
@@ -1608,8 +1608,8 @@ class Cluster(object):
         # all nodes that must be kept bc they are within the cutoff radius
         self.kept_nodes = set()
         self.num_keep = 0
-       
-        # dict of hydrogens to add later on 
+
+        # dict of hydrogens to add later on
         self.hydrogens = {}
 
         # set of all metals that can exist in nanoprous materials
@@ -1642,10 +1642,10 @@ class Cluster(object):
 
     def get_start_and_kept_nodes(self):
         """
-        Analyze a super box of a nanoporous material 
+        Analyze a super box of a nanoporous material
 
         Determine which nodes are inside the cutoff and which nodes are outside
-    
+
         Return the index of the starting node we will use to build the cluster
         """
         print("\n\nGETTING START NODE AND NODES INSIDE CUTOFF")
@@ -1709,7 +1709,7 @@ class Cluster(object):
             self.cxtd_comp_num_keep()
             # add hydrogens to all valid truncated bonds
             self.cxtd_comp_cap()
-            # convert cxtd_comp to old style to write files easily b/c lazy for now 
+            # convert cxtd_comp to old style to write files easily b/c lazy for now
             self.cxtd_comp_convert_to_orig()
             # write all necessary files for DEC-MP2 calc
             self.write_cluster_to_xyz_host_guest_v2(include_guest=True)
@@ -1730,39 +1730,39 @@ class Cluster(object):
         for n1, n2, data in self.origraph.edges_iter2(data=True):
             if(self.truncation_criteria(n1, n2)):
                 self.pot_truncs.add((n1, n2))
-       
+
         print("Identified %s num of potential truncations" % (str(len(self.pot_truncs))))
 
-    
-    def cxtd_comp_from_undirected(self): 
+
+    def cxtd_comp_from_undirected(self):
         """
         Find connected components of the disconnect graph
         """
         self.cxtd_comp = list(nx.connected_component_subgraphs(self.disgraph))
-        print("Num of cxtd comps in disgarph: %d"%(len(self.cxtd_comp)))        
+        print("Num of cxtd comps in disgarph: %d"%(len(self.cxtd_comp)))
 
     def cxtd_comp_to_keep(self):
         """
         Identify which connected components have an atom within the cutoff radius
         """
-       
+
         self.cxtd_comp_to_keep = []
         self.cxtd_comp_primary = -1
         for i in range(len(self.cxtd_comp)):
             # get the component that contains the cluster origin (primary component)
-            # ID primary component 
+            # ID primary component
             if(self.start_index in self.cxtd_comp[i]):
                 self.cxtd_comp_primary = i
 
-            # get all components with an atom inside the cutoff    
+            # get all components with an atom inside the cutoff
             for node in self.cxtd_comp[i]:
-                this_cart = self.origraph.node[node]['cartesian_coordinates'] 
+                this_cart = self.origraph.node[node]['cartesian_coordinates']
                 if(self.cart_dist(this_cart, self.xyz) < self.rcut):
                     self.cxtd_comp_to_keep.append(i)
                     break
-            
-        print("Num of cxtd comps to keep in disgraph: %d"%(len(self.cxtd_comp_to_keep)))        
-        print(self.cxtd_comp_to_keep)        
+
+        print("Num of cxtd comps to keep in disgraph: %d"%(len(self.cxtd_comp_to_keep)))
+        print(self.cxtd_comp_to_keep)
         print([len(self.cxtd_comp[self.cxtd_comp_to_keep[i]]) for i in range(len(self.cxtd_comp_to_keep))])
         print("Primary comp is: %d" %(self.cxtd_comp_primary))
 
@@ -1772,8 +1772,8 @@ class Cluster(object):
         """
         self.secgraph = nx.Graph()
         self.secgraph.add_nodes_from(self.cxtd_comp)
-        
-        
+
+
         for edge in self.pot_truncs:
             n1 = edge[0]
             n2 = edge[1]
@@ -1785,9 +1785,9 @@ class Cluster(object):
                     comp_edge_n2 = i
 
             # reverse edge will be taken care of because self.pot_truncs
-            # has both forward and reverse edges        
+            # has both forward and reverse edges
             self.secgraph.add_edge(comp_edge_n1, comp_edge_n2)
-        
+
     def cxtd_comp_continuous(self):
         """
         This part is critical, make sure that the final list of connected components
@@ -1796,9 +1796,9 @@ class Cluster(object):
         In other words, the final cluster MUST not be a disconnected graph
         """
         print("Ensuring final cluster is continuous...")
-        # any additional comps necessary to make sure final cluster is continuous 
+        # any additional comps necessary to make sure final cluster is continuous
         add_comp = []
-    
+
         for i in range(len(self.cxtd_comp_to_keep)):
 
             # get the shortest path between the primary component and each kept component
@@ -1813,14 +1813,14 @@ class Cluster(object):
                 if(comp not in self.cxtd_comp_to_keep):
                     print("Adding a cxtd comp to keep to make final cluster continuous: %d"%(comp))
                     self.cxtd_comp_to_keep.append(comp)
-        print("Num of cxtd comps to keep in disgraph: %d"%(len(self.cxtd_comp_to_keep)))        
+        print("Num of cxtd comps to keep in disgraph: %d"%(len(self.cxtd_comp_to_keep)))
 
     def cxtd_comp_num_keep(self):
         for i in range(len(self.cxtd_comp_to_keep)):
             self.num_keep += len(self.cxtd_comp[self.cxtd_comp_to_keep[i]])
-        print("Num nodes kept from original structure: %d"%(self.num_keep)) 
-            
-    def cxtd_comp_cap(self): 
+        print("Num nodes kept from original structure: %d"%(self.num_keep))
+
+    def cxtd_comp_cap(self):
         print("\n\nCAPPING 3D ORGANIC")
         print("--------------------------------------")
 
@@ -1828,7 +1828,7 @@ class Cluster(object):
         for component in self.cxtd_comp_to_keep:
             for node in self.cxtd_comp[component]:
                 all_nodes_to_keep.add(node)
-            
+
         for i in range(len(self.cxtd_comp_to_keep)):
 
             component = self.cxtd_comp[self.cxtd_comp_to_keep[i]]
@@ -1848,18 +1848,18 @@ class Cluster(object):
                        # NOTE this makes sure we don't place a cap somewhere
                        # that constitutes an atom we want to keep
 
-       
+
                         print((node, nbr))
 
                         #print("Capping edge: " + str((node,nbr)))
-                        bond_start = self.origraph.node[node]['cartesian_coordinates'] 
+                        bond_start = self.origraph.node[node]['cartesian_coordinates']
                         bond_end =    self.origraph.node[nbr]['cartesian_coordinates']
                         start_type = self.origraph.node[node]['atomic_number']
                         end_type = self.origraph.node[nbr]['atomic_number']
-                
+
                         bond_vec_mag = self.cart_dist(bond_start, bond_end)
-                        bond_vec = bond_end - bond_start 
-                
+                        bond_vec = bond_end - bond_start
+
                         # these are the easy cases
                         if(start_type == 6):
                             h_dist = 1.09
@@ -1870,15 +1870,15 @@ class Cluster(object):
 
                         scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
                         new_bond_end = bond_start + scaled_bond_vec
-                    
-                        # store necessary modifications 
+
+                        # store necessary modifications
                         self.hydrogens[len(self.hydrogens.keys())] = {
                                                                       'cartesian_coordinates': new_bond_end,
                                                                       'atomic_number': 1,
                                                                       'element': 'H'
                                                                     }
                         self.num_keep += 1
-            
+
         print("%s hydrogens added as caps: " % (str(len(self.hydrogens))))
         print("%s num atoms in final cluster: " % (str(self.num_keep)))
 
@@ -1904,26 +1904,26 @@ class Cluster(object):
         # begin operating on this tree
         self.iterative_BFS_tree_structure(self.start_index)
         return tree
-         
+
 
     def iterative_BFS_tree_structure(self, v):
         """
-        Construct a dict with key that indexes depth of BFS tree, 
+        Construct a dict with key that indexes depth of BFS tree,
         and the value is a set of all nodes at that depth
         """
         print("\n\nTURNING BFS TREE INTO DICT OF DEPTHS")
         print("--------------------------------------")
-        
+
 
         # intitialize first level
-        stack = set() 
+        stack = set()
         stack.add(v)
         curr_depth = 0
 
         self.BFS_tree_dict = {
                                 curr_depth: set(stack)
                              }
-    
+
         curr_depth += 1
 
 
@@ -1932,7 +1932,7 @@ class Cluster(object):
 
             # iterate over all up_nodes in stack
             for up_node in stack.copy():
-        
+
                 # get all down nodes from this up_node
                 for down_node in self.tree.successors_iter(up_node):
                     stack.add(down_node)
@@ -1945,28 +1945,28 @@ class Cluster(object):
                 self.BFS_tree_dict[curr_depth] = set(stack)
                 curr_depth += 1
 
-            
+
 
         print("Depth of BFS tree: " + str(len(self.BFS_tree_dict.keys())))
         for i in range(len(self.BFS_tree_dict.keys())):
-            print("Level " + str(i) + ": " + str(len(self.BFS_tree_dict[i]))) 
+            print("Level " + str(i) + ": " + str(len(self.BFS_tree_dict[i])))
 
 
         self.visualize_n_levels_of_tree(20)
         self.nodes_w_2plus_parents()
         #self.nodes_that_DNE_in_origraph() DEPRECATED
         #self.distree = self.tree.copy() DEPRECATED
-        
+
         #print(self.get_nth_heirarcy_BFS_tree(46))
         self.preliminary_truncate_BFS_tree()
         self.truncate_all()
-        
+
         #exit()
-            
+
         #self.compute_cluster_in_tree()
         self.compute_cluster_in_disgraph()
         self.cap_by_material()
-        
+
 
     def visualize_n_levels_of_tree(self, n):
 
@@ -2000,7 +2000,7 @@ class Cluster(object):
                     print("Node %s: %s parents" % (str(node), str(parents)))
 
 
-    def nodes_that_DNE_in_origraph(self): 
+    def nodes_that_DNE_in_origraph(self):
         print("\n\nFINDING MISSING EDGES IN ORIGRAPH")
         print("--------------------------------------")
         for n1, n2, data in self.origraph.edges_iter2(data=True):
@@ -2023,23 +2023,23 @@ class Cluster(object):
                     self.tree.add_edge(n1, n2, data)
                 else:
                     self.tree.add_edge(n2, n1, data)
-        
+
 
     def get_nth_heirarcy_BFS_tree(self, n):
         return self.BFS_tree_dict[n]
-            
+
     def truncation_criteria(self, up_node, down_node):
         # For 3D organics
-       
-        # For now only C-C bond truncation supported 
+
+        # For now only C-C bond truncation supported
         if(self.mat_type == "organic"):
             # get data associated with this edge
             data = self.origraph.get_edge_data(up_node, down_node)
 
-            # first criteria is that we are truncating a C-C single bond 
+            # first criteria is that we are truncating a C-C single bond
             if(self.origraph.node[up_node]['atomic_number'] in [6] and \
                self.origraph.node[down_node]['atomic_number'] in [6] and \
-               data['order'] == 1.0): 
+               data['order'] == 1.0):
 
                 # get cartesian coords of nodes
                 up_cart = self.origraph.node[up_node]['cartesian_coordinates']
@@ -2077,8 +2077,8 @@ class Cluster(object):
         else:
             print("Material type unknown, can't truncate")
             exit()
-            
-                
+
+
 
     def preliminary_truncate_BFS_tree(self):
         print("\n\nTRUNCATING BFS TREE BASED ON MATERIAL TYPE")
@@ -2157,8 +2157,8 @@ class Cluster(object):
                                 # only consider truncation if both atoms are
                                 # outside the cutoff radius
                                 if((up_dist > self.rcut) and (down_dist > self.rcut)):
-                                
-                                # NOTE: new if statment test here                        
+
+                                # NOTE: new if statment test here
                                 #if((up_dist > self.rcut) and (down_dist > self.rcut)
                                 #   and self.origraph.node[up_node]['cycle']):
 
@@ -2191,7 +2191,7 @@ class Cluster(object):
                                         #                      'element': 'X'
                                         #                    }
                                         #self.num_keep += 1
-                                    
+
 
         print("Identified %s num of potential truncations" % (str(len(self.pot_truncs))))
         print("%s num of which are invalid because the directed child node are shared with another truncation" \
@@ -2207,40 +2207,40 @@ class Cluster(object):
 
         #    self.pot_truncs.remove(this_edge)
         #    self.pot_truncs_directed.remove(directed_edge)
-            
+
 
     def truncate_all(self):
         print("\n\nFINALIZE ALL TRUNCTAIONS TO MAKE")
         print("--------------------------------------")
-        print("Truncating disgraph at all finalized truncation locations") 
+        print("Truncating disgraph at all finalized truncation locations")
         self.actual_truncs = set()
         self.actual_truncs_directed = set()
 
         for n1, n2, data in self.origraph.edges_iter2(data=True):
             this_edge = (n1, n2)
-        
+
             # if we identified a potential truncation bond that is periodic
-            # our simbox wasn't big enough to start with    
+            # our simbox wasn't big enough to start with
             if(data['symflag'] != '.'):
                 #if(this_edge in self.pot_truncs):
                 #    print("ERROR! Truncating a periodic edge that is too close to the cutoff...")
                 #    print("Modify source code to start with more replications of unit cell...\nExiting...")
                 #    exit()
-                #self.disgraph.remove_edge(this_edge[0], this_edge[1]) 
+                #self.disgraph.remove_edge(this_edge[0], this_edge[1])
                 #self.pot_truncs.add(this_edge)
                 pass
 
-                
+
         for this_edge in self.pot_truncs:
             # remove the current edge from the disconnect graph
             # remember this is still the undirected graph, but we remove the reverse
             # edge because both forward and reverse edges are stored in self.pot_truncs
-            self.disgraph.remove_edge(this_edge[0], this_edge[1]) 
+            self.disgraph.remove_edge(this_edge[0], this_edge[1])
 
             # keep track of the edge removed
             self.actual_truncs.add(this_edge)
 
-            # keep track of the direction of this removed edge only if we 
+            # keep track of the direction of this removed edge only if we
             # are keeping track of a directed version of the graph
             try:
                 if(this_edge[0] in self.tree.successors(this_edge[1])):
@@ -2269,10 +2269,10 @@ class Cluster(object):
             iter_ += 1
 
         print("Total number of components: %d" % (iter_))
-        print("Primary cluster determined:") 
+        print("Primary cluster determined:")
         print("Comp %s: %s nodes" % (str(primary_cluster_ind), str(len(self.components[primary_cluster_ind]))))
         self.components_to_keep.append(primary_cluster)
-        #self.update_num_keep()    
+        #self.update_num_keep()
 
     def compute_cluster_in_disgraph(self):
         print("\n\nIDENTIFYING PRIMARY CLUSTER IN DISGRAPH")
@@ -2292,7 +2292,7 @@ class Cluster(object):
             print("Comp %s: %s nodes" % (str(iter_), str(len(component))))
             self.components.append(component)
 
-            # ID primary component 
+            # ID primary component
             if(self.start_index in component):
                 primary_cluster = component.copy()
                 primary_cluster_ind = int(iter_)
@@ -2302,7 +2302,7 @@ class Cluster(object):
 
             # ID of a component that has at least one atom in cutoff
             for node in component:
-                this_cart = self.origraph.node[node]['cartesian_coordinates'] 
+                this_cart = self.origraph.node[node]['cartesian_coordinates']
                 if(self.cart_dist(this_cart, self.xyz) < self.rcut):
                     self.components_to_keep_temp.add(iter_)
 
@@ -2320,9 +2320,9 @@ class Cluster(object):
                 self.components_to_keep_ind.append(keep_ind)
 
         print("Total number of components: %d" % (iter_))
-        print("Primary component determined:") 
+        print("Primary component determined:")
         print("Comp %s: %s nodes" % (str(primary_cluster_ind), str(len(self.components[primary_cluster_ind]))))
-    
+
         # Count how many truncations are associated with primary cluster
         num_truncs = 0
         for edge in self.actual_truncs_directed:
@@ -2336,15 +2336,15 @@ class Cluster(object):
 
         #self.components_to_keep.append(primary_cluster)
         #self.components_to_keep_ind.append(primary_cluster_ind)
-        print("Additional components to keep (%s in total):"%(len(self.components_to_keep)-1)) 
+        print("Additional components to keep (%s in total):"%(len(self.components_to_keep)-1))
         for i in range(1,len(self.components_to_keep)):
             print("Comp %d: %d" % (self.components_to_keep_ind[i], len(self.components_to_keep[i])))
 
-        self.update_num_keep()    
+        self.update_num_keep()
         print("%s num atoms in final cluster" % (str(self.num_keep)))
 
-        
-        
+
+
     def update_num_keep(self):
         for i in range(len(self.components_to_keep)):
             self.num_keep += len(self.components_to_keep[i])
@@ -2361,7 +2361,7 @@ class Cluster(object):
             self.cap_3D_organic()
         else:
             pass
-            
+
 
     def cap_zeolite_v2(self):
         """
@@ -2369,12 +2369,12 @@ class Cluster(object):
         """
         print("\n\nCAPPING ZEOLITE")
         print("--------------------------------------")
-        
+
 
         print("%d Atom X debug probes" % len(self.hydrogens.keys()))
         self.nodes_to_replace = set()
         #print(self.actual_truncs_directed)
-            
+
         for i in range(len(self.components_to_keep)):
 
             component = self.components_to_keep[i]
@@ -2385,11 +2385,11 @@ class Cluster(object):
 
                     if(nbr in self.hydrogens.keys()):
                         #self.hydrogens.pop(nbr, None)
-                        pass 
+                        pass
                     else:
                         if((node, nbr) in self.actual_truncs_directed):
                             print("Capping edge: " + str((node,nbr)))
-    
+
                             # Don't cap if we're wrapping around into a node that's already been kept
                             to_add = True
                             for component in self.components_to_keep:
@@ -2397,14 +2397,14 @@ class Cluster(object):
                                     to_add = False
                                     break
                             if(to_add):
-                                bond_start = self.origraph.node[node]['cartesian_coordinates'] 
+                                bond_start = self.origraph.node[node]['cartesian_coordinates']
                                 bond_end =    self.origraph.node[nbr]['cartesian_coordinates']
                                 start_type = self.origraph.node[node]['atomic_number']
                                 end_type = self.origraph.node[nbr]['atomic_number']
-                        
+
                                 bond_vec_mag = self.cart_dist(bond_start, bond_end)
-                                bond_vec = bond_end - bond_start 
-                        
+                                bond_vec = bond_end - bond_start
+
                                 # these are the easy cases
                                 if(start_type == 8):
                                     h_dist = 0.96
@@ -2413,15 +2413,15 @@ class Cluster(object):
 
                                 scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
                                 new_bond_end = bond_start + scaled_bond_vec
-                            
-                                # store necessary modifications 
+
+                                # store necessary modifications
                                 self.hydrogens[nbr] = {
                                                           'cartesian_coordinates': new_bond_end,
                                                           'atomic_number': 1,
                                                           'element': 'H'
                                                         }
                                 self.num_keep += 1
-                
+
             print("%s hydrogens added as caps: " % (str(len(self.hydrogens))))
 
     def cap_zeolite(self):
@@ -2430,11 +2430,11 @@ class Cluster(object):
         """
         print("\n\nCAPPING ZEOLITE")
         print("--------------------------------------")
-        
+
 
         print("%d Atom X debug probes" % len(self.hydrogens.keys()))
         self.nodes_to_replace = set()
-            
+
         for i in range(len(self.components_to_keep)):
 
             component = self.components_to_keep[i]
@@ -2454,17 +2454,17 @@ class Cluster(object):
                                 if(nbr in component):
                                     to_add = False
                                     break
-                        
-                            
+
+
                             if(to_add):
-                                bond_start = self.origraph.node[node]['cartesian_coordinates'] 
+                                bond_start = self.origraph.node[node]['cartesian_coordinates']
                                 bond_end =    self.origraph.node[nbr]['cartesian_coordinates']
                                 start_type = self.origraph.node[node]['atomic_number']
                                 end_type = self.origraph.node[nbr]['atomic_number']
-                        
+
                                 bond_vec_mag = self.cart_dist(bond_start, bond_end)
-                                bond_vec = bond_end - bond_start 
-                        
+                                bond_vec = bond_end - bond_start
+
                                 # these are the easy cases
                                 if(start_type == 8):
                                     h_dist = 0.96
@@ -2475,15 +2475,15 @@ class Cluster(object):
 
                                 scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
                                 new_bond_end = bond_start + scaled_bond_vec
-                            
-                                # store necessary modifications 
+
+                                # store necessary modifications
                                 self.hydrogens[nbr] = {
                                                           'cartesian_coordinates': new_bond_end,
                                                           'atomic_number': 1,
                                                           'element': 'H'
                                                         }
                                 self.num_keep += 1
-                
+
             print("%s hydrogens added as caps: " % (str(len(self.hydrogens))))
             print("%s num atoms in final cluster: " % (str(self.num_keep)))
 
@@ -2501,7 +2501,7 @@ class Cluster(object):
         for component in self.components_to_keep:
             for node in component:
                 all_nodes_to_keep.add(node)
-            
+
         for i in range(len(self.components_to_keep)):
 
             component = self.components_to_keep[i]
@@ -2520,18 +2520,18 @@ class Cluster(object):
                        # NOTE this makes sure we don't place a cap somewhere
                        # that constitutes an atom we want to keep
 
-       
+
                         print((node, nbr))
 
                         #print("Capping edge: " + str((node,nbr)))
-                        bond_start = self.origraph.node[node]['cartesian_coordinates'] 
+                        bond_start = self.origraph.node[node]['cartesian_coordinates']
                         bond_end =    self.origraph.node[nbr]['cartesian_coordinates']
                         start_type = self.origraph.node[node]['atomic_number']
                         end_type = self.origraph.node[nbr]['atomic_number']
-                
+
                         bond_vec_mag = self.cart_dist(bond_start, bond_end)
-                        bond_vec = bond_end - bond_start 
-                
+                        bond_vec = bond_end - bond_start
+
                         # these are the easy cases
                         if(start_type == 6):
                             h_dist = 1.09
@@ -2542,15 +2542,15 @@ class Cluster(object):
 
                         scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
                         new_bond_end = bond_start + scaled_bond_vec
-                    
-                        # store necessary modifications 
+
+                        # store necessary modifications
                         self.hydrogens[len(self.hydrogens.keys())] = {
                                                                       'cartesian_coordinates': new_bond_end,
                                                                       'atomic_number': 1,
                                                                       'element': 'H'
                                                                     }
                         self.num_keep += 1
-            
+
         print("%s hydrogens added as caps: " % (str(len(self.hydrogens))))
         print("%s num atoms in final cluster: " % (str(self.num_keep)))
 
@@ -2581,7 +2581,7 @@ class Cluster(object):
             self.iterable2 = [6,7,8]
         else:
             self.mat_type = 'zeolite'
-       
+
         print(self.mat_type)
         return self.mat_type
 
@@ -2591,16 +2591,16 @@ class Cluster(object):
         Break a super simulation box into every possible component where each disconnected
         bond represents a cappable bond BUT we only break bonds that straddle or are external
         to the cluster cutoff radius
-        """ 
+        """
         print("\n\nDISCONNECTING EXTERNAL BUILDING BLOCKS")
         print("--------------------------------------")
         self.edges_to_cut = set()
         self.all_edges = {}
         for node1,node2,data in self.origraph.edges_iter2(data=True):
-            # store all the data for later lookup so we don't have to iterate every time 
+            # store all the data for later lookup so we don't have to iterate every time
             # just to get the data associated with an edge we want
             self.all_edges[(node1, node2)] = data
-    
+
             if(data['order'] == 1.0):
                 # no point in identifying a Hydrogen bond to cleave only to cap it again right after
                 if(self.origraph.node[node1]['atomic_number'] != 1 and \
@@ -2609,17 +2609,17 @@ class Cluster(object):
                     # For now we have to limit ourselves to only cutting single C-C bonds
                     # it becomes too difficult to handle edge cases otherwise
                     if(self.origraph.node[node1]['atomic_number'] in [6,7,8,14] and \
-                       self.origraph.node[node2]['atomic_number'] in [6,7,8,14]):     
+                       self.origraph.node[node2]['atomic_number'] in [6,7,8,14]):
                     #if((self.origraph.node[node1]['atomic_number'] in [6,7,8] and \
                     #    self.origraph.node[node2]['atomic_number'] in [6,7,8]) and \
                     #   (self.origraph.node[node1]['hybridization'] == '3' and \
                     #    self.origraph.node[node2]['hybridization'] == '3')):
-                            # If all these criteria satsified, then we know how to cap a dangling bond 
+                            # If all these criteria satsified, then we know how to cap a dangling bond
                             cart1, cart2 = self.origraph.node[node1]['cartesian_coordinates'], \
                                            self.origraph.node[node2]['cartesian_coordinates']
 
                             if(self.cart_dist(cart1, self.xyz) > self.rcut or \
-                               self.cart_dist(cart2, self.xyz) < self.rcut):  
+                               self.cart_dist(cart2, self.xyz) < self.rcut):
                                 self.edges_to_cut.add((node1, node2))
                                 #print("Cutting edge: " + str((node1, node2)) + " " + \
                                 #      str((self.origraph.node[node1]['element'], \
@@ -2635,15 +2635,15 @@ class Cluster(object):
     def identify_1D_building_blocks(self):
         """
         By going through each component determined from all_external_building_blocks() we can determine
-        if the MOF is 1D rod.  If a component has two edges that eg have 'symflag' attribute of (4,x,x) and 
+        if the MOF is 1D rod.  If a component has two edges that eg have 'symflag' attribute of (4,x,x) and
         (6,x,x) respectively, then we found a component that spans across one crystallographic direction
         and reconnects with itself.  This is the definition of a 1D rod MOF
         """
-       
+
         print("\n\nCHECKING FOR 1D BUILDING BLOCKS")
         print("-------------------------------")
 
-        self.oneD_vec = [] 
+        self.oneD_vec = []
         self.directionality = []
         self.final_direct = -1
         print("Checking for dimensionality of components")
@@ -2655,7 +2655,7 @@ class Cluster(object):
             #    print(self.origraph.node[e])
         print("Num disconnected components: "  + str(len(self.components)))
 
-        
+
         for i in range(len(self.components)):
             #print("Comp " + str(i) + ": " + str(len(self.components[i])))
 
@@ -2685,7 +2685,7 @@ class Cluster(object):
                         else:
                             could_be_1D = True
                             possible_directionality = self.parse_sym_flag_for_directionality(symflag)
-                            
+
                     else:
                         print("Ya done messed up A-aron")
                         exit()
@@ -2729,22 +2729,22 @@ class Cluster(object):
             print(self.final_nondirect)
         else:
             print("No 1D rods detected")
-         
-    
-                
+
+
+
 
         if(len(self.oneD_vec)>0):
             self.mat_type == "oned"
-            return True            
+            return True
         else:
             return False
-                    
+
 
     def disconnect_1D_building_blocks(self):
         """
         Disconnect 1D rods so they can actually be capped
 
-        Best thing to do is still apply the same disconnection algorithm, only this time we are allowed to 
+        Best thing to do is still apply the same disconnection algorithm, only this time we are allowed to
         break a bond between a type in self.metals and [6,7,8]
         """
 
@@ -2756,9 +2756,9 @@ class Cluster(object):
         print("\n\nDISCONNECTING 1D ROD BUILDING BLOCKS")
         print("------------------------------------")
 
-        
+
         self.disgraph = self.origraph.copy()
-        
+
         self.edges_to_cut = set()
         self.all_edges = {}
         #for i in range(len(self.oneD_vec)):
@@ -2788,8 +2788,8 @@ class Cluster(object):
                             self.origraph.node[this_edge[1]]['atomic_number'] != 1)):
                            #(self.origraph.node[this_edge[0]]['atomic_number'] not in self.metals and \
                            # self.origraph.node[this_edge[1]]['atomic_number'] not in self.metals)):
-                       
-                            # we can cut a C-C bond 
+
+                            # we can cut a C-C bond
                             #if((self.origraph.node[this_edge[0]]['atomic_number'] in [6,7,8] and \
                             #    self.origraph.node[this_edge[1]]['atomic_number'] in [6,7,8]) or \
                             #   # or an M-O bond
@@ -2802,7 +2802,7 @@ class Cluster(object):
                                 self.origraph.node[this_edge[1]]['atomic_number'] in self.metals) or \
                                (self.origraph.node[this_edge[0]]['atomic_number'] in [6,8] and \
                                 self.origraph.node[this_edge[1]]['atomic_number'] in [6,8])):
- 
+
                                 cart1, cart2 = self.origraph.node[this_edge[0]]['cartesian_coordinates'], \
                                                self.origraph.node[this_edge[1]]['cartesian_coordinates']
 
@@ -2814,7 +2814,7 @@ class Cluster(object):
                                 rad_dist2 = self.cart_dist(cart2[self.final_nondirect],self.xyz[self.final_nondirect])
                                 cart_dist1 = self.cart_dist(cart1,self.xyz)
                                 cart_dist2 = self.cart_dist(cart2,self.xyz)
-                                
+
                                 if((axial_dist1 > self.rcut and axial_dist2 > self.rcut) or \
                                    (rad_dist1 > self.rcut and rad_dist2 > self.rcut)):
                                 #if(cart_dist1 > self.rcut and cart_dist2 > self.rcut):
@@ -2825,7 +2825,7 @@ class Cluster(object):
                                         #print("Cutting edge: " + str(this_edge) + " " + str(axial_dist1) + " " + str(rad_dist1) + " " + str(axial_dist2) + " " + str(rad_dist2))
                                         self.edges_to_cut.add((this_edge))
                                         self.disgraph.remove_edge(this_edge[0], this_edge[1])
-                           
+
         self.components = []
         for component in nx.connected_components(self.disgraph):
             self.components.append(component)
@@ -2835,29 +2835,29 @@ class Cluster(object):
         print("\n\nDEBUG EDGES TO CUT")
         print("-------------------------")
         for this_edge in self.edges_to_cut:
-            if(self.origraph.node[this_edge[0]]['atomic_number'] == 1 or 
+            if(self.origraph.node[this_edge[0]]['atomic_number'] == 1 or
                self.origraph.node[this_edge[0]]['atomic_number'] == 1):
                 print("ERROR: you cut an H covalent bond")
                 exit()
 
         print("Pass")
-                
 
-        
+
+
 
     def compute_primary_cluster(self):
         print("\n\nCOMPUTING PRIMARY CLUSTER")
         print("-------------------------")
         print("Node has keys of:")
         print(self.origraph.node[1].keys())
-       
+
         print("Computing connected components")
         self.components = []
         for component in nx.connected_components(self.disgraph):
             self.components.append(component)
         print("Num disconnected components: "  + str(len(self.components)))
 
-        
+
         self.components_to_keep = []
         for i in range(len(self.components)):
             #print(component)
@@ -2871,7 +2871,7 @@ class Cluster(object):
                 #for nbr in self.origraph[node]:
                 #    pass
 
-        
+
         print("Components to keep: "  + str(len(self.components_to_keep)))
         self.num_keep = 0
         for i in range(len(self.components_to_keep)):
@@ -2880,7 +2880,7 @@ class Cluster(object):
             #      str(len(self.components[self.components_to_keep[i]])))
 
     def compute_required_caps(self):
-        
+
         additional_components = set()
 
         # iterate over all kept components
@@ -2891,16 +2891,16 @@ class Cluster(object):
 
                 # look at each neighbor of each node in kept components
                 #           Nbr3
-                #            |    
-                #            | 
+                #            |
+                #            |
                 #            |
                 # Nbr1 --X-- Node ----- Nbr4
                 #            |
-                #            X 
+                #            X
                 #            |
                 #           Nbr2
                 for nbr in self.origraph[node]:
-                
+
                     # if the current edge was previously disconnected, we procede
                     if (node, nbr) in self.edges_to_cut or (nbr, node) in self.edges_to_cut:
 
@@ -2915,9 +2915,9 @@ class Cluster(object):
                                 attempt_to_cap = False
                                 break
 
-                        
 
-                
+
+
 
 
 
@@ -2934,7 +2934,7 @@ class Cluster(object):
         for i in range(len(self.components_to_keep)):
             #print("Comp " + str(self.components_to_keep[i]) + ": " + \
             #      str(len(self.components[self.components_to_keep[i]])))
-            # loop over every node in that component to get the broken bonds in this 
+            # loop over every node in that component to get the broken bonds in this
             for node in self.components[self.components_to_keep[i]]:
                 # get neighbor of each node in component
                 for nbr in self.origraph[node]:
@@ -2961,14 +2961,14 @@ class Cluster(object):
                             attempt_to_cap = False
 
                         if(attempt_to_cap):
-                            bond_start = self.origraph.node[node]['cartesian_coordinates'] 
+                            bond_start = self.origraph.node[node]['cartesian_coordinates']
                             bond_end =    self.origraph.node[nbr]['cartesian_coordinates']
                             start_type = self.origraph.node[node]['atomic_number']
                             end_type = self.origraph.node[nbr]['atomic_number']
-                            
+
                             bond_vec_mag = self.cart_dist(bond_start, bond_end)
-                            bond_vec = bond_end - bond_start 
-                    
+                            bond_vec = bond_end - bond_start
+
                             # these are the easy cases
                             if(start_type == 6):
                                 h_dist = 1.09
@@ -2987,16 +2987,16 @@ class Cluster(object):
                                 for nbrnbr in self.origraph[nbr]:
                                     # first make sure we don't replace the metal we are trying to cap
                                     if(nbrnbr != node):
-                                        bond_start = self.origraph.node[nbr]['cartesian_coordinates'] 
+                                        bond_start = self.origraph.node[nbr]['cartesian_coordinates']
                                         bond_end =    self.origraph.node[nbrnbr]['cartesian_coordinates']
                                         start_type = self.origraph.node[nbr]['atomic_number']
                                         end_type = self.origraph.node[nbrnbr]['atomic_number']
                                         start_elem = self.origraph.node[nbr]['element']
                                         end_elem = self.origraph.node[nbrnbr]['element']
                                         target_h = int(nbrnbr)
-                                    
+
                                         bond_vec_mag = self.cart_dist(bond_start, bond_end)
-                                        bond_vec = bond_end - bond_start 
+                                        bond_vec = bond_end - bond_start
                                         if(start_type == 6):
                                             h_dist = 1.09
                                         elif(start_type == 7):
@@ -3009,18 +3009,18 @@ class Cluster(object):
                                             #raise ValueError("ERROR! Unrecongnized coordination env of " + \
                                             #                 self.origraph.node[node]['element'] + "-" + \
                                             #                 self.origraph.node[nbr]['element'])
-                                            
+
                                         scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
                                         new_bond_end = bond_start + scaled_bond_vec
 
-                                        # store necessary modifications 
+                                        # store necessary modifications
                                         self.mods[nbrnbr] = {
                                                               'cartesian_coordinates': new_bond_end,
                                                               'atomic_number': 1,
                                                               'element': 'H',
                                                               'old_cartesian_coordinates': bond_end,
                                                               'old_atomic_number': end_type,
-                                                              'old_elem': end_elem  
+                                                              'old_elem': end_elem
                                                             }
 
                                         component_to_add.add(nbrnbr)
@@ -3028,7 +3028,7 @@ class Cluster(object):
                                         component_to_add.add(nbr)
                                         self.num_keep += 1
                                         break
-                                ## skip the regular capping step since we just did it        
+                                ## skip the regular capping step since we just did it
                                 skip_standard_cap = True
                             elif(start_type in self.metals and end_type == start_type):
                                 # NOTE we have to ignore metal-metal bonds in rods, if they actually exist
@@ -3037,14 +3037,14 @@ class Cluster(object):
                             else:
                                 raise ValueError("ERROR! Trying to cap a bond with " + \
                                                  self.origraph.node[node]['element'] + " node as start type")
-        
+
                             if(skip_standard_cap):
                                 continue
                             else:
                                 scaled_bond_vec = h_dist/bond_vec_mag * (bond_vec)
                                 new_bond_end = bond_start + scaled_bond_vec
-                            
-                                # store necessary modifications 
+
+                                # store necessary modifications
                                 self.mods[nbr] = {
                                                       'cartesian_coordinates': new_bond_end,
                                                       'atomic_number': 1,
@@ -3059,18 +3059,18 @@ class Cluster(object):
         print(component_to_add)
         self.components.append(component_to_add)
         self.components_to_keep.append(len(self.components)-1)
-                        
-                    
+
+
     def modify_structure_w_hydrogens(self):
         for this_node in self.mods.keys():
             self.origraph.node[this_node]['cartesian_coordinates'] = self.mods[this_node]['cartesian_coordinates']
             self.origraph.node[this_node]['atomic_number'] = self.mods[this_node]['atomic_number']
             self.origraph.node[this_node]['element'] = self.mods[this_node]['element']
-                        
-                    
-    def write_map_from_cluster_xyz_to_unique_types(self):        
-        struct = 'host'                                                         
-        guest = 'guest'                                                         
+
+
+    def write_map_from_cluster_xyz_to_unique_types(self):
+        struct = 'host'
+        guest = 'guest'
         filename = struct + '_' + guest + '_' + str(self.rcut) + '.XYZmap'
 
         outfile = open(filename,"w")
@@ -3089,28 +3089,28 @@ class Cluster(object):
                 if(elem in unique_elements.keys()):
                     unique_elem.append(this_id)
                 else:
-                    unique_elements[elem] = [this_id]                    
-                
+                    unique_elements[elem] = [this_id]
+
                 iter_ += 1
 
         outfile.close()
-       
+
         filename = struct + '_' + guest + '_' + str(self.rcut) + '.MOLECULEmap'
         filename1 = "MOLECULE.INP"
-        outfile = open(filename,"w") 
-        outfile1 = open(filename1,"w") 
-        # now write a map because                                       
+        outfile = open(filename,"w")
+        outfile1 = open(filename1,"w")
+        # now write a map because
         outfile1.write("BASIS\n6-31G\n\n\nAtomtypes=%s Nosymmetry Angstrom"%(len(unique_elements.keys())))
         for elem in unique_elements.keys():
             for entry in elem:
                 outfile.write(elem)
-            
 
-    def write_map_from_MOLECULE_to_unique_types(self):        
-        struct = 'host'                                                         
-        guest = 'guest'                                                         
+
+    def write_map_from_MOLECULE_to_unique_types(self):
+        struct = 'host'
+        guest = 'guest'
         filename = struct + '_' + guest + '_' + str(self.rcut) + '.MOLECULEmap'
- 
+
 
         iter_ = 0
         for i in range(len(self.components_to_keep)):
@@ -3129,7 +3129,7 @@ class Cluster(object):
         outfile = open(location, "w")
         outfile.write(outstring)
         outfile.close()
-                     
+
 
     def write_cutoff(self):
         """
@@ -3139,9 +3139,9 @@ class Cluster(object):
         f = open(filename,"w")
         f.write("%s"%str(self.rcut))
         f.close()
-        
-        
-        
+
+
+
 
     def write_cluster_to_xyz(self):
         """
@@ -3160,7 +3160,7 @@ class Cluster(object):
         outname = os.getcwd() + "/" + filename
 
         print("Writing cluster to <" + outname + ">")
-        
+
         outfile = open(outname, 'w')
         outfile.write(str(self.num_keep)+'\n')
         outfile.write('cluster formation of test struct\n')
@@ -3217,10 +3217,10 @@ class Cluster(object):
                                            self.hydrogens[i]['cartesian_coordinates'][1],
                                            self.hydrogens[i]['cartesian_coordinates'][2]))
             atom += 1
-            
+
         outfile.close()
 
-        
+
     def write_cluster_to_xyz_host_guest_v2(self,include_guest):
         """
         Write the computed and capped cluster to an xyz file
@@ -3256,7 +3256,7 @@ class Cluster(object):
 
         LSDALTONfilename = "LSDALTON.INP"
         LSDALTONoutname = os.getcwd() + subdir + LSDALTONfilename
-        self.write_LSDALTON(LSDALTONoutname) 
+        self.write_LSDALTON(LSDALTONoutname)
 
         # get probe data
         f = open("probe.xyz","r")
@@ -3275,7 +3275,7 @@ class Cluster(object):
         xyzmapstring = ""
         MOLstring = ""
         MOLmapstring = ""
-        
+
         unique_elements=[]
         unique_elements_data=[]
         mol_map = []
@@ -3290,7 +3290,7 @@ class Cluster(object):
                                                self.origraph.node[node]['cartesian_coordinates'][1],
                                                self.origraph.node[node]['cartesian_coordinates'][2])
                 xyzstring += string
-            
+
                 mapstring = "%s %s %s %s %s %s %s\n"%(elem,
                                                str(node),
                                                str(atom),
@@ -3298,7 +3298,7 @@ class Cluster(object):
                                                self.origraph.node[node]['cartesian_coordinates'][0],
                                                self.origraph.node[node]['cartesian_coordinates'][1],
                                                self.origraph.node[node]['cartesian_coordinates'][2])
-            
+
                 xyzmapstring += mapstring
 
                 if(elem in unique_elements):
@@ -3328,9 +3328,9 @@ class Cluster(object):
                                            self.hydrogens[i]['cartesian_coordinates'][0],
                                            self.hydrogens[i]['cartesian_coordinates'][1],
                                            self.hydrogens[i]['cartesian_coordinates'][2])
-        
+
             xyzmapstring += mapstring
-                                           
+
             if(elem in unique_elements):
                 ind = unique_elements.index(elem)
                 unique_elements_data[ind].append(string)
@@ -3364,7 +3364,7 @@ class Cluster(object):
                                                probe_xyz[i,2])
 
                 xyzmapstring += mapstring
-                                               
+
                 if(elem in unique_elements):
                     ind = unique_elements.index(elem)
                     unique_elements_data[ind].append(string)
@@ -3375,7 +3375,7 @@ class Cluster(object):
                     mol_map.append([mapstring])
 
                 atom += 1
-                
+
         print("Writing xyz host and guest to <" + xyzoutname + ">")
         outfile = open(xyzoutname, 'w')
         outfile.write(str(atom)+'\nhost+guest xyz file\n')
@@ -3389,7 +3389,7 @@ class Cluster(object):
 
         print("Writing MOLECULE.INP to <" + MOLoutname + ">")
         MOLstring += "BASIS\n6-31G\n\n\nAtomtypes=%s Nosymmetry Angstrom\n"%(len(unique_elements))
-        
+
         for i in range(len(unique_elements)):
             elem = unique_elements[i]
             MOLstring += "Charge=%2f Atoms=%d\n"%(float(ATOMIC_NUMBER.index(elem)),
@@ -3400,12 +3400,12 @@ class Cluster(object):
         outfile = open(MOLoutname, "w")
         outfile.write(MOLstring)
         outfile.close()
-        
+
         print("Writing molmap to <" + MOLmapoutname + ">")
         outfile = open(MOLmapoutname, "w")
         outfile.write(MOLmapstring)
         outfile.close()
-            
+
 
     def cut_cappable_bonds(self):
         print(type(self.graph))
@@ -3424,9 +3424,9 @@ class Cluster(object):
         # iterator for all nodes (ordered to match ) and data for edge
         for node1,node2,data in self.graph.edges_iter2(data=True):
             print(str(node1) + str(node2))
-    
+
             #print(type(edge))
-            
+
             #print(type(self.graph.edge))
             #print(type(self.graph.graph))
             #print(self.graph.graph.keys())
@@ -3452,7 +3452,7 @@ class Cluster(object):
             self.write_cluster_to_xyz_host_guest_v2(include_guest=False)
             #self.write_map_from_cluster_xyz_to_unique_types()
             self.write_cutoff()
-            
+
 
     def create_cluster_around_point(self):
         # STEP 1:
@@ -3462,7 +3462,7 @@ class Cluster(object):
         mat_type = self.identify_mat_type()
         self.disconnect_external_building_blocks()
         self.debug_edges_to_cut()
-    
+
         # STEP 2:
         # This step is very important, we now need to handle the edge cases of a 1D rod MOF
         # If it is indeed 1D rod, we will reset the calculation with a diff version of STEP 1
@@ -3470,7 +3470,7 @@ class Cluster(object):
         if(one_D):
             self.disconnect_1D_building_blocks()
         self.debug_edges_to_cut()
-    
+
 
         # STEP 3:
         # NOTE for now using the simplest capping algorithm
@@ -3482,7 +3482,7 @@ class Cluster(object):
         else:
             self.compute_primary_cluster()
         self.debug_edges_to_cut()
-    
+
 
         # STEP 4:
         # Any bonds that remain disconnected after calculation of the primary cluster are identified
@@ -3491,7 +3491,7 @@ class Cluster(object):
             self.cap_primary_cluster()
         else:
             self.cap_primary_cluster()
-            
+
 
         # STEP 5:
         # structure is capped with hydrogen
@@ -3513,7 +3513,7 @@ def main():
 
     # command line parsing
     #for r in [7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0]:
-    
+
     options = Options()
     #options.cutoff = float(r)
     sim = LammpsSimulation(options)
@@ -3546,7 +3546,7 @@ def main():
     offset=np.dot(sim.cell.get_cell().T, abc)-xyz
     xyz = np.dot(sim.cell.get_cell().T, abc)
     print("Cluster origin: " + str(xyz))
-           
+
     cluster = Cluster(sim.graph, xyz = xyz, offset=offset, rcut = options.cutoff)
 
     #sim.assign_force_fields()
@@ -3567,6 +3567,5 @@ def main():
     #    sys.exit()
     #sim.write_lammps_files()
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     main()
-
