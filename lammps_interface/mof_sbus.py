@@ -1,14 +1,18 @@
+"""
+MOF sbus.
+"""
 import networkx as nx
 import numpy as np
 from scipy.spatial import distance
+
 
 def add_distance_matrix(graph):
     carts = []
     for j, data in sorted(graph.nodes_iter(data=True)):
         carts.append(data['cartesian_coordinates'])
-    
     carts = np.array(carts)
     graph.distance_matrix = distance.cdist(carts, carts)
+
 
 InorganicCluster = {
         'Cu':{'Cu Paddlewheel': nx.Graph(name='Cu Paddlewheel') # taken from doi: 10.1126/science.283.5405.1148
@@ -25,6 +29,7 @@ InorganicCluster = {
         'Al':{'Al_pillar': nx.Graph(name='Al_pillar') # taken from doi:
               }
         }
+
 
 OrganicCluster = {
         'N':{'Thymine': nx.Graph(name='Thymine'),
@@ -53,18 +58,18 @@ InorganicCluster['Cu']['Cu Paddlewheel'].add_nodes_from([
          'cartesian_coordinates':np.array([-0.181,  1.755,  1.376])
          }
         ),
-    (4, {'element':'O', 
+    (4, {'element':'O',
          'special_flag':'O2_Cu_pdw',
          'cartesian_coordinates':np.array([0.181, -1.755,  1.376])
          }
         ),
     (5, {'element':'O',
-         'special_flag':'O1_Cu_pdw', 
+         'special_flag':'O1_Cu_pdw',
          'cartesian_coordinates':np.array([-1.755,  0.181,  1.376])
          }
         ),
     (6, {'element':'O',
-         'special_flag':'O2_Cu_pdw', 
+         'special_flag':'O2_Cu_pdw',
          'cartesian_coordinates':np.array([1.755, -0.181,  1.376])
          }
         ),
@@ -79,7 +84,7 @@ InorganicCluster['Cu']['Cu Paddlewheel'].add_nodes_from([
          }
         ),
     (9, {'element':'Cu',
-         'special_flag':'Cu_pdw', 
+         'special_flag':'Cu_pdw',
          'cartesian_coordinates':np.array([0.929,  0.929,  0.000])
          }
         ),
@@ -88,22 +93,22 @@ InorganicCluster['Cu']['Cu Paddlewheel'].add_nodes_from([
           'cartesian_coordinates':np.array([-0.929, -0.929,  0.000])
           }
         ),
-    (11, {'element':'C', 
+    (11, {'element':'C',
           'special_flag':'C_Cu_pdw',
           'cartesian_coordinates':np.array([1.233, -1.233, -1.810])
           }
         ),
-    (12, {'element':'C', 
+    (12, {'element':'C',
           'special_flag':'C_Cu_pdw',
           'cartesian_coordinates':np.array([-1.233, 1.233, -1.810])
           }
         ),
-    (13, {'element':'C', 
+    (13, {'element':'C',
           'special_flag':'C_Cu_pdw',
           'cartesian_coordinates':np.array([-1.233, 1.233, 1.810])
           }
         ),
-    (14, {'element':'C', 
+    (14, {'element':'C',
           'special_flag':'C_Cu_pdw',
           'cartesian_coordinates':np.array([1.233, -1.233, 1.810])
           }
@@ -126,18 +131,18 @@ InorganicCluster['Zn']['Zn Paddlewheel'].add_nodes_from([
          'cartesian_coordinates':np.array([-1.398, 0.853, 1.417])
          }
         ),
-    (4, {'element':'O', 
+    (4, {'element':'O',
          'special_flag':'O2_Zn_pdw',
          'cartesian_coordinates':np.array([-1.398, -1.339, -1.417])
          }
         ),
     (5, {'element':'O',
-         'special_flag':'O1_Zn_pdw', 
+         'special_flag':'O1_Zn_pdw',
          'cartesian_coordinates':np.array([1.398, -1.339, -1.417])
          }
         ),
     (6, {'element':'O',
-         'special_flag':'O2_Zn_pdw', 
+         'special_flag':'O2_Zn_pdw',
          'cartesian_coordinates':np.array([1.398, 0.853, 1.417])
          }
         ),
@@ -152,7 +157,7 @@ InorganicCluster['Zn']['Zn Paddlewheel'].add_nodes_from([
          }
         ),
     (9, {'element':'Zn',
-         'special_flag':'Zn_pdw', 
+         'special_flag':'Zn_pdw',
          'cartesian_coordinates':np.array([0.000, -1.717, 0.000])
          }
         ),
@@ -161,22 +166,22 @@ InorganicCluster['Zn']['Zn Paddlewheel'].add_nodes_from([
           'cartesian_coordinates':np.array([0.000, 1.230, 0.000])
           }
         ),
-    (11, {'element':'C', 
+    (11, {'element':'C',
           'special_flag':'C_Zn_pdw',
           'cartesian_coordinates':np.array([-1.761, -0.243, 1.837])
           }
         ),
-    (12, {'element':'C', 
+    (12, {'element':'C',
           'special_flag':'C_Zn_pdw',
           'cartesian_coordinates':np.array([-1.761, -0.243, -1.837])
           }
         ),
-    (13, {'element':'C', 
+    (13, {'element':'C',
           'special_flag':'C_Zn_pdw',
           'cartesian_coordinates':np.array([1.761, -0.243, 1.837])
           }
         ),
-    (14, {'element':'C', 
+    (14, {'element':'C',
           'special_flag':'C_Zn_pdw',
           'cartesian_coordinates':np.array([1.761, -0.243, -1.837])
           }
@@ -1024,7 +1029,7 @@ InorganicCluster['Al']['Al_pillar'].add_nodes_from([
     #      }
     #    )
     ])
-    
+
 OrganicCluster['N']['Adenine'].add_nodes_from([
     (1, {'element':'C',
          'special_flag':'C',
@@ -1225,12 +1230,12 @@ OrganicCluster['N']['CarboxylateImidazolate'].add_nodes_from([
           'special_flag':'O3',
           'cartesian_coordinates':np.array([-1.690000,-1.307000,2.803000])
           }
-        )  
+        )
     ])
 
-# Note, the special_flags for the organic linkers below are designed to be compatible 
+# Note, the special_flags for the organic linkers below are designed to be compatible
 # with the Dubbeldam force field, so changing these values will break if one requests
-# the Dubbeldam FF. 
+# the Dubbeldam FF.
 OrganicCluster['C']['Benzene-2C'].add_nodes_from([
     (1, {'element':'C',
          'special_flag':'Cb',

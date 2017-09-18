@@ -1,17 +1,20 @@
-from uff import UFF_DATA
-from uff4mof import UFF4MOF_DATA
-from dreiding import DREIDING_DATA
-from uff_nonbonded import UFF_DATA_nonbonded
-from BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds, BTW_charges
-from Dubbeldam import Dub_atoms, Dub_bonds, Dub_angles, Dub_dihedrals, Dub_impropers
+"""
+Force field methods.
+"""
+from .uff import UFF_DATA
+from .uff4mof import UFF4MOF_DATA
+from .dreiding import DREIDING_DATA
+from .uff_nonbonded import UFF_DATA_nonbonded
+from .BTW import BTW_angles, BTW_dihedrals, BTW_opbends, BTW_atoms, BTW_bonds, BTW_charges
+from .Dubbeldam import Dub_atoms, Dub_bonds, Dub_angles, Dub_dihedrals, Dub_impropers
 #from FMOFCu import FMOFCu_angles, FMOFCu_dihedrals, FMOFCu_opbends, FMOFCu_atoms, FMOFCu_bonds
-from MOFFF import MOFFF_angles, MOFFF_dihedrals, MOFFF_opbends, MOFFF_atoms, MOFFF_bonds
-from water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms
-from gas_models import EPM2_atoms, EPM2_angles
-from lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
-from atomic import METALS
-from atomic import organic, non_metals, noble_gases, metalloids, lanthanides, actinides, transition_metals
-from atomic import alkali, alkaline_earth, main_group, metals
+from .MOFFF import MOFFF_angles, MOFFF_dihedrals, MOFFF_opbends, MOFFF_atoms, MOFFF_bonds
+from .water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms
+from .gas_models import EPM2_atoms, EPM2_angles
+from .lammps_potentials import BondPotential, AnglePotential, DihedralPotential, ImproperPotential, PairPotential
+from .atomic import METALS
+from .atomic import organic, non_metals, noble_gases, metalloids, lanthanides, actinides, transition_metals
+from .atomic import alkali, alkaline_earth, main_group, metals
 import math
 import numpy as np
 from operator import mul
@@ -19,9 +22,12 @@ import itertools
 import abc
 import re
 import sys
-from Molecules import *
-DEG2RAD = math.pi/180.
-kBtokcal = 0.00198588 
+from .Molecules import *
+
+
+DEG2RAD = math.pi / 180.
+kBtokcal = 0.00198588
+
 
 class ForceField(object):
 
@@ -62,7 +68,7 @@ class ForceField(object):
                 del_edges.append((n1, n2))
         for (n1, n2) in del_edges:
             self.graph.remove_edge(n1, n2)
-    
+
     def compute_angle_terms(self):
         for b, data in self.graph.nodes_iter(data=True):
             # compute and store angle terms
@@ -88,7 +94,7 @@ class ForceField(object):
                         rem_dihed.append((a,d))
                 for i in rem_dihed:
                     del(data['dihedrals'][i])
-            
+
             except KeyError:
                 pass
 
@@ -106,11 +112,11 @@ class ForceField(object):
 
             except KeyError:
                 pass
-                        
+
 class UserFF(ForceField):
 
     def __init__(self, graph):
-        self.graph = graph 
+        self.graph = graph
         self.unique_atom_types = {}
         self.unique_bond_types = {}
         self.unique_angle_types = {}
@@ -143,59 +149,59 @@ class UserFF(ForceField):
             except KeyError:
                 count += 1
                 type = count
-                ff_type[label] = type  
-                self.unique_atom_types[type] = atom 
+                ff_type[label] = type
+                self.unique_atom_types[type] = atom
 
             atom.ff_type_index = type
             print(atom.ff_type_index)
-        
+
         for key, atom in list(self.unique_atom_types.items()):
             print(str(key) + " : " + str(atom.index))
 
     def unique_bonds(self):
-        print("Here are the unique bonds (Total = " + 
+        print("Here are the unique bonds (Total = " +
                 str(len(self.structure.bonds)) + ")")
         count = 0
         bb_type = {}
         for bond in self.structure.bonds:
             idx1, idx2 = bond.indices
             atm1, atm2 = self.structure.atoms[idx1], self.structure.atoms[idx2]
-            
-            self.bond_term(bond)        
+
+            self.bond_term(bond)
             try:
-                type = bb_type[(atm1.ff_type_index, 
+                type = bb_type[(atm1.ff_type_index,
                                 atm2.ff_type_index,
                                 bond.order)]
             except KeyError:
                 try:
-                    type = bb_type[(atm2.ff_type_index, 
-                                    atm1.ff_type_index, 
+                    type = bb_type[(atm2.ff_type_index,
+                                    atm1.ff_type_index,
                                     bond.order)]
                 except KeyError:
                     count += 1
                     type = count
-                    bb_type[(atm1.ff_type_index, 
-                             atm2.ff_type_index, 
+                    bb_type[(atm1.ff_type_index,
+                             atm2.ff_type_index,
                              bond.order)] = type
 
-                    self.unique_bond_types[type] = bond 
+                    self.unique_bond_types[type] = bond
             bond.ff_type_index = type
             print(bond.ff_type_index)
-        
+
         for key, bond in list(self.unique_bond_types.items()):
             print(str(key) + " : " + str(bond.atoms[0].index)
                     + " - " + str(bond.atoms[1].index))
 
 
     def unique_angles(self):
-        print("Here are the unique angles (Total = " + 
+        print("Here are the unique angles (Total = " +
                 str(len(self.structure.angles)) + ")")
         ang_type = {}
         count = 0
         for angle in self.structure.angles:
             atom_a, atom_b, atom_c = angle.atoms
-            type_a, type_b, type_c = (atom_a.ff_type_index, 
-                                      atom_b.ff_type_index, 
+            type_a, type_b, type_c = (atom_a.ff_type_index,
+                                      atom_b.ff_type_index,
                                       atom_c.ff_type_index)
             # compute and store angle terms
             self.angle_term(angle)
@@ -206,26 +212,26 @@ class UserFF(ForceField):
             except KeyError:
                 try:
                     type = ang_type[(type_c, type_b, type_a)]
-                
+
                 except KeyError:
                     count += 1
                     type = count
                     ang_type[(type_a, type_b, type_c)] = type
-                    self.unique_angle_types[type] = angle 
+                    self.unique_angle_types[type] = angle
             angle.ff_type_index = type
             print(angle.ff_type_index)
 
         for key, angle in list(self.unique_angle_types.items()):
-            print(str(key) + " : " + str(angle.atoms[0].index) + "-" + 
-                  str(angle.atoms[1].index) + "-" + 
+            print(str(key) + " : " + str(angle.atoms[0].index) + "-" +
+                  str(angle.atoms[1].index) + "-" +
                   str(angle.atoms[2].index))
             print(str(key) + " : " + str(angle.atoms[0].force_field_type)
                     + "-" + str(angle.atoms[1].force_field_type) +
                     "-" + str(angle.atoms[2].force_field_type))
 
-    
+
     def unique_dihedrals(self):
-        print("Here are the unique dihedrals (Total = " 
+        print("Here are the unique dihedrals (Total = "
                 + str(len(self.structure.dihedrals)) + ")")
         count = 0
         dihedral_type = {}
@@ -246,15 +252,15 @@ class UserFF(ForceField):
                     type = count
                     dihedral_type[(type_a, type_b, type_c, type_d, M)] = type
                     #self.dihedral_term(dihedral)
-                    self.unique_dihedral_types[type] = dihedral 
+                    self.unique_dihedral_types[type] = dihedral
             dihedral.ff_type_index = type
             print(dihedral.ff_type_index)
-    
+
         for key, dihedral in list(self.unique_dihedral_types.items()):
-            print(str(key) + " : " + str(dihedral.atoms[0].index) + "-" + 
-                    str(dihedral.atoms[1].index) + "-" + str(dihedral.atoms[2].index) 
+            print(str(key) + " : " + str(dihedral.atoms[0].index) + "-" +
+                    str(dihedral.atoms[1].index) + "-" + str(dihedral.atoms[2].index)
                     + "-" + str(dihedral.atoms[3].index))
-            print(str(key) + " : " + str(dihedral.atoms[0].force_field_type) 
+            print(str(key) + " : " + str(dihedral.atoms[0].force_field_type)
                     + "-" + str(dihedral.atoms[1].force_field_type) + "-"
                     + str(dihedral.atoms[2].force_field_type) + "-" +
                     str(dihedral.atoms[3].force_field_type))
@@ -262,7 +268,7 @@ class UserFF(ForceField):
 
     def unique_impropers(self):
         """How many times to list the same set of atoms ???"""
-        print("Here are the unique impropers (Total = " + 
+        print("Here are the unique impropers (Total = " +
                 str(len(self.structure.impropers)) + ")")
         count = 0
         improper_type = {}
@@ -311,11 +317,11 @@ class UserFF(ForceField):
 
             improper.ff_type_index = type
             print(improper.ff_type_index)
-        
+
         for key, improper in list(self.unique_improper_types.items()):
-            print(str(key) + " : " + str(improper.atoms[0].force_field_type) + 
-                    "-" + str(improper.atoms[1].force_field_type) + "-" + 
-                    str(improper.atoms[2].force_field_type) + "-" + 
+            print(str(key) + " : " + str(improper.atoms[0].force_field_type) +
+                    "-" + str(improper.atoms[1].force_field_type) + "-" +
+                    str(improper.atoms[2].force_field_type) + "-" +
                     str(improper.atoms[3].force_field_type))
 
     def van_der_waals_pairs(self):
@@ -323,14 +329,14 @@ class UserFF(ForceField):
         for type1, type2 in itertools.combinations_with_replacement(atom_types, 2):
             atm1 = self.unique_atom_types[type1]
             atm2 = self.unique_atom_types[type2]
-            
+
             print(str(re.findall(r'^[a-zA-Z]*',atm1.force_field_type)[0]))
             print(str(re.findall(r'^[a-zA-Z]*',atm2.force_field_type)[0]))
 
             # if we are using non-UFF atom types, need to splice off the end descriptors (first non alphabetic char)
             eps1 = UFF_DATA_nonbonded[re.findall(r'^[a-zA-Z]*',atm1.force_field_type)[0]][3]
             eps2 = UFF_DATA_nonbonded[re.findall(r'^[a-zA-Z]*',atm2.force_field_type)[0]][3]
-            
+
             # radius --> sigma = radius*2**(-1/6)
             sig1 = UFF_DATA_nonbonded[re.findall(r'^[a-zA-Z]*',atm1.force_field_type)[0]][2]*(2**(-1./6.))
             sig2 = UFF_DATA_nonbonded[re.findall(r'^[a-zA-Z]*',atm2.force_field_type)[0]][2]*(2**(-1./6.))
@@ -338,13 +344,13 @@ class UserFF(ForceField):
             # l-b mixing
             eps = math.sqrt(eps1*eps2)
             sig = (sig1 + sig2) / 2.
-            self.unique_pair_types[(type1, type2)] = (eps, sig)    
+            self.unique_pair_types[(type1, type2)] = (eps, sig)
 
     def parse_user_input(self, filename):
         infile = open("user_input.txt","r")
         lines = infile.readlines()
-       
-        # type of interaction found: 1= bonds, 2 = angles, 3 = dihedrals, 4 = torsions 
+
+        # type of interaction found: 1= bonds, 2 = angles, 3 = dihedrals, 4 = torsions
         parse_type = 0
 
         for line in lines:
@@ -370,7 +376,7 @@ class UserFF(ForceField):
             print(data)
             if parse_type == 1:
                 atms = [data[0], data[1]]
-                bond_pair = [self.map_user_to_unique_atom(atms[0]), 
+                bond_pair = [self.map_user_to_unique_atom(atms[0]),
                               self.map_user_to_unique_atom(atms[1])]
                 bond_id = self.map_pair_unique_bond(bond_pair, atms)
                 self.unique_bond_types[bond_id].function = data[2]
@@ -378,8 +384,8 @@ class UserFF(ForceField):
 
             elif parse_type == 2:
                 atms = [data[0], data[1], data[2]]
-                angle_triplet = [self.map_user_to_unique_atom(atms[0]), 
-                                 self.map_user_to_unique_atom(atms[1]), 
+                angle_triplet = [self.map_user_to_unique_atom(atms[0]),
+                                 self.map_user_to_unique_atom(atms[1]),
                                  self.map_user_to_unique_atom(atms[2])]
                 angle_id = self.map_triplet_unique_angle(angle_triplet, atms)
                 self.unique_angle_types[angle_id].function = data[3]
@@ -387,9 +393,9 @@ class UserFF(ForceField):
 
             elif parse_type == 3:
                 atms = [data[0], data[1], data[2], data[3]]
-                dihedral_quadruplet = [self.map_user_to_unique_atom(atms[0]), 
-                                       self.map_user_to_unique_atom(atms[1]), 
-                                       self.map_user_to_unique_atom(atms[2]), 
+                dihedral_quadruplet = [self.map_user_to_unique_atom(atms[0]),
+                                       self.map_user_to_unique_atom(atms[1]),
+                                       self.map_user_to_unique_atom(atms[2]),
                                        self.map_user_to_unique_atom(atms[3])]
                 dihedral_id = self.map_quadruplet_unique_dihedral(dihedral_quadruplet, atms)
                 self.unique_dihedral_types[dihedral_id].function = data[4]
@@ -397,18 +403,18 @@ class UserFF(ForceField):
 
             elif parse_type == 4:
                 atms = [data[0], data[1], data[2], data[3]]
-                improper_quadruplet = [self.map_user_to_unique_atom(atms[0]), 
-                                       self.map_user_to_unique_atom(atms[1]), 
-                                       self.map_user_to_unique_atom(atms[2]), 
+                improper_quadruplet = [self.map_user_to_unique_atom(atms[0]),
+                                       self.map_user_to_unique_atom(atms[1]),
+                                       self.map_user_to_unique_atom(atms[2]),
                                        self.map_user_to_unique_atom(atms[3])]
                 improper_id = self.map_quadruplet_unique_improper(improper_quadruplet, atms)
                 self.unique_improper_types[improper_id].function = data[4]
                 self.unique_improper_types[improper_id].parameters = data[5:]
-            
-            
- 
+
+
+
     def write_missing_uniques(self, description):
-        # Warn user about any unique bond, angle, etc. found that have not 
+        # Warn user about any unique bond, angle, etc. found that have not
         # been specified in user_input.txt
         pass
 
@@ -416,17 +422,17 @@ class UserFF(ForceField):
         for key, atom in list(self.unique_atom_types.items()):
             if descriptor == atom.force_field_type:
                 return atom.ff_type_index
-        
-        raise ValueError('Error! An atom identifier ' + str(description) + 
+
+        raise ValueError('Error! An atom identifier ' + str(description) +
                 ' in user_input.txt did not match any atom_site_description in your cif')
 
     def map_pair_unique_bond(self, pair, descriptor):
         for key, bond in list(self.unique_bond_types.items()):
-            if (pair == [bond.atoms[0].ff_type_index, bond.atoms[1].ff_type_index] 
+            if (pair == [bond.atoms[0].ff_type_index, bond.atoms[1].ff_type_index]
                 or pair == [bond.atoms[1].ff_type_index, bond.atoms[0].ff_type_index]):
                 return key
-            
-        raise ValueError('Error! An bond identifier ' + str(descriptor) + 
+
+        raise ValueError('Error! An bond identifier ' + str(descriptor) +
                 ' in user_input.txt did not match any bonds in your cif')
 
     def map_triplet_unique_angle(self, triplet, descriptor):
@@ -434,50 +440,50 @@ class UserFF(ForceField):
         #print(descriptor)
         for key, angle in list(self.unique_angle_types.items()):
             #print(str(key) + " : " + str([angle.atoms[2].ff_type_index, angle.atoms[1].ff_type_index, angle.atoms[0].ff_type_index]))
-            if (triplet == [angle.atoms[0].ff_type_index, 
-                            angle.atoms[1].ff_type_index, 
-                            angle.atoms[2].ff_type_index] or 
-                triplet == [angle.atoms[2].ff_type_index, 
-                            angle.atoms[1].ff_type_index, 
+            if (triplet == [angle.atoms[0].ff_type_index,
+                            angle.atoms[1].ff_type_index,
+                            angle.atoms[2].ff_type_index] or
+                triplet == [angle.atoms[2].ff_type_index,
+                            angle.atoms[1].ff_type_index,
                             angle.atoms[0].ff_type_index]):
                 return key
-            
-        raise ValueError('Error! An angle identifier ' + str(descriptor) + 
+
+        raise ValueError('Error! An angle identifier ' + str(descriptor) +
                 ' in user_input.txt did not match any angles in your cif')
 
     def map_quadruplet_unique_dihedral(self, quadruplet, descriptor):
         for key, dihedral in list(self.unique_dihedral_types.items()):
-            if (quadruplet == [dihedral.atoms[0].ff_type_index, 
-                               dihedral.atoms[1].ff_type_index, 
-                               dihedral.atoms[2].ff_type_index, 
-                               dihedral.atoms[3].ff_type_index] or 
-                quadruplet == [dihedral.atoms[3].ff_type_index, 
-                               dihedral.atoms[2].ff_type_index, 
-                               dihedral.atoms[1].ff_type_index, 
+            if (quadruplet == [dihedral.atoms[0].ff_type_index,
+                               dihedral.atoms[1].ff_type_index,
+                               dihedral.atoms[2].ff_type_index,
+                               dihedral.atoms[3].ff_type_index] or
+                quadruplet == [dihedral.atoms[3].ff_type_index,
+                               dihedral.atoms[2].ff_type_index,
+                               dihedral.atoms[1].ff_type_index,
                                dihedral.atoms[0].ff_type_index]):
                 return key
-            
-        raise ValueError('Error! A dihdral identifier ' + str(descriptor) + 
+
+        raise ValueError('Error! A dihdral identifier ' + str(descriptor) +
                 ' in user_input.txt did not match any dihedrals in your cif')
 
     def map_quadruplet_unique_improper(self, quadruplet, descriptor):
         for key, improper in list(self.unique_improper_types.items()):
-            if (quadruplet == [improper.atoms[0].ff_type_index, 
-                               improper.atoms[1].ff_type_index, 
-                               improper.atoms[2].ff_type_index, 
-                               improper.atoms[3].ff_type_index] or 
-                quadruplet == [improper.atoms[3].ff_type_index, 
+            if (quadruplet == [improper.atoms[0].ff_type_index,
+                               improper.atoms[1].ff_type_index,
                                improper.atoms[2].ff_type_index,
-                               improper.atoms[1].ff_type_index, 
+                               improper.atoms[3].ff_type_index] or
+                quadruplet == [improper.atoms[3].ff_type_index,
+                               improper.atoms[2].ff_type_index,
+                               improper.atoms[1].ff_type_index,
                                improper.atoms[0].ff_type_index]):
                 return key
-            
-        raise ValueError('Error! An improper identifier ' + str(descriptor) + 
+
+        raise ValueError('Error! An improper identifier ' + str(descriptor) +
                 ' in user_input.txt did not match any improper in your cif')
-    
+
     def overwrite_force_field_terms(self):
         self.parse_user_input("blah")
- 
+
     def compute_force_field_terms(self):
         self.unique_atoms()
         self.unique_bonds()
@@ -490,9 +496,9 @@ class UserFF(ForceField):
 
 class OverwriteFF(ForceField):
     """
-    Prepare a nanoprous material FF from a given structure for a known 
+    Prepare a nanoprous material FF from a given structure for a known
     FF type.
-    
+
     Then overwrite any parameters that are supplied by user_input.txt
 
     Methods are duplicated from UserFF, can reduce redundancy of code
@@ -520,12 +526,12 @@ class OverwriteFF(ForceField):
 
         # Overwrite any parameters specified by user_input.txt
         parse_user_input("user_input.txt")
-        
+
     def parse_user_input(self, filename):
         infile = open("user_input.txt","r")
         lines = infile.readlines()
-       
-        # type of interaction found: 1= bonds, 2 = angles, 3 = dihedrals, 4 = torsions 
+
+        # type of interaction found: 1= bonds, 2 = angles, 3 = dihedrals, 4 = torsions
         parse_type = 0
 
         for line in lines:
@@ -551,7 +557,7 @@ class OverwriteFF(ForceField):
             print(data)
             if parse_type == 1:
                 atms = [data[0], data[1]]
-                bond_pair = [self.map_user_to_unique_atom(atms[0]), 
+                bond_pair = [self.map_user_to_unique_atom(atms[0]),
                               self.map_user_to_unique_atom(atms[1])]
                 bond_id = self.map_pair_unique_bond(bond_pair, atms)
                 self.unique_bond_types[bond_id].function = data[2]
@@ -559,8 +565,8 @@ class OverwriteFF(ForceField):
 
             elif parse_type == 2:
                 atms = [data[0], data[1], data[2]]
-                angle_triplet = [self.map_user_to_unique_atom(atms[0]), 
-                                 self.map_user_to_unique_atom(atms[1]), 
+                angle_triplet = [self.map_user_to_unique_atom(atms[0]),
+                                 self.map_user_to_unique_atom(atms[1]),
                                  self.map_user_to_unique_atom(atms[2])]
                 angle_id = self.map_triplet_unique_angle(angle_triplet, atms)
                 self.unique_angle_types[angle_id].function = data[3]
@@ -568,9 +574,9 @@ class OverwriteFF(ForceField):
 
             elif parse_type == 3:
                 atms = [data[0], data[1], data[2], data[3]]
-                dihedral_quadruplet = [self.map_user_to_unique_atom(atms[0]), 
-                                       self.map_user_to_unique_atom(atms[1]), 
-                                       self.map_user_to_unique_atom(atms[2]), 
+                dihedral_quadruplet = [self.map_user_to_unique_atom(atms[0]),
+                                       self.map_user_to_unique_atom(atms[1]),
+                                       self.map_user_to_unique_atom(atms[2]),
                                        self.map_user_to_unique_atom(atms[3])]
                 dihedral_id = self.map_quadruplet_unique_dihedral(dihedral_quadruplet, atms)
                 self.unique_dihedral_types[dihedral_id].function = data[4]
@@ -578,18 +584,18 @@ class OverwriteFF(ForceField):
 
             elif parse_type == 4:
                 atms = [data[0], data[1], data[2], data[3]]
-                improper_quadruplet = [self.map_user_to_unique_atom(atms[0]), 
-                                       self.map_user_to_unique_atom(atms[1]), 
-                                       self.map_user_to_unique_atom(atms[2]), 
+                improper_quadruplet = [self.map_user_to_unique_atom(atms[0]),
+                                       self.map_user_to_unique_atom(atms[1]),
+                                       self.map_user_to_unique_atom(atms[2]),
                                        self.map_user_to_unique_atom(atms[3])]
                 improper_id = self.map_quadruplet_unique_improper(improper_quadruplet, atms)
                 self.unique_improper_types[improper_id].function = data[4]
                 self.unique_improper_types[improper_id].parameters = data[5:]
-            
-            
- 
+
+
+
     def write_missing_uniques(self, description):
-        # Warn user about any unique bond, angle, etc. found that have not 
+        # Warn user about any unique bond, angle, etc. found that have not
         # been specified in user_input.txt
         pass
 
@@ -599,17 +605,17 @@ class OverwriteFF(ForceField):
         for key, atom in list(self.unique_atom_types.items()):
             if descriptor == atom.force_field_type:
                 return atom.ff_type_index
-        
-        raise ValueError('Error! An atom identifier ' + str(description) + 
+
+        raise ValueError('Error! An atom identifier ' + str(description) +
                 ' in user_input.txt did not match any atom_site_description in your cif')
 
     def map_pair_unique_bond(self, pair, descriptor):
         for key, bond in list(self.unique_bond_types.items()):
-            if (pair == [bond.atoms[0].ff_type_index, bond.atoms[1].ff_type_index] 
+            if (pair == [bond.atoms[0].ff_type_index, bond.atoms[1].ff_type_index]
                 or pair == [bond.atoms[1].ff_type_index, bond.atoms[0].ff_type_index]):
                 return key
-            
-        raise ValueError('Error! A bond identifier ' + str(descriptor) + 
+
+        raise ValueError('Error! A bond identifier ' + str(descriptor) +
                 ' in user_input.txt did not match any bonds in your cif')
 
     def map_triplet_unique_angle(self, triplet, descriptor):
@@ -617,63 +623,63 @@ class OverwriteFF(ForceField):
         #print(descriptor)
         for key, angle in list(self.unique_angle_types.items()):
             #print(str(key) + " : " + str([angle.atoms[2].ff_type_index, angle.atoms[1].ff_type_index, angle.atoms[0].ff_type_index]))
-            if (triplet == [angle.atoms[0].ff_type_index, 
-                            angle.atoms[1].ff_type_index, 
-                            angle.atoms[2].ff_type_index] or 
-                triplet == [angle.atoms[2].ff_type_index, 
-                            angle.atoms[1].ff_type_index, 
+            if (triplet == [angle.atoms[0].ff_type_index,
+                            angle.atoms[1].ff_type_index,
+                            angle.atoms[2].ff_type_index] or
+                triplet == [angle.atoms[2].ff_type_index,
+                            angle.atoms[1].ff_type_index,
                             angle.atoms[0].ff_type_index]):
                 return key
-            
-        raise ValueError('Error! An angle identifier ' + str(descriptor) + 
+
+        raise ValueError('Error! An angle identifier ' + str(descriptor) +
                 ' in user_input.txt did not match any angles in your cif')
 
     def map_quadruplet_unique_dihedral(self, quadruplet, descriptor):
         for key, dihedral in list(self.unique_dihedral_types.items()):
-            if (quadruplet == [dihedral.atoms[0].ff_type_index, 
-                               dihedral.atoms[1].ff_type_index, 
-                               dihedral.atoms[2].ff_type_index, 
-                               dihedral.atoms[3].ff_type_index] or 
-                quadruplet == [dihedral.atoms[3].ff_type_index, 
-                               dihedral.atoms[2].ff_type_index, 
-                               dihedral.atoms[1].ff_type_index, 
+            if (quadruplet == [dihedral.atoms[0].ff_type_index,
+                               dihedral.atoms[1].ff_type_index,
+                               dihedral.atoms[2].ff_type_index,
+                               dihedral.atoms[3].ff_type_index] or
+                quadruplet == [dihedral.atoms[3].ff_type_index,
+                               dihedral.atoms[2].ff_type_index,
+                               dihedral.atoms[1].ff_type_index,
                                dihedral.atoms[0].ff_type_index]):
                 return key
-            
-        raise ValueError('Error! A dihdral identifier ' + str(descriptor) + 
+
+        raise ValueError('Error! A dihdral identifier ' + str(descriptor) +
                 ' in user_input.txt did not match any dihedrals in your cif')
 
     def map_quadruplet_unique_improper(self, quadruplet, descriptor):
         for key, improper in list(self.unique_improper_types.items()):
-            if (quadruplet == [improper.atoms[0].ff_type_index, 
-                               improper.atoms[1].ff_type_index, 
-                               improper.atoms[2].ff_type_index, 
-                               improper.atoms[3].ff_type_index] or 
-                quadruplet == [improper.atoms[3].ff_type_index, 
+            if (quadruplet == [improper.atoms[0].ff_type_index,
+                               improper.atoms[1].ff_type_index,
                                improper.atoms[2].ff_type_index,
-                               improper.atoms[1].ff_type_index, 
+                               improper.atoms[3].ff_type_index] or
+                quadruplet == [improper.atoms[3].ff_type_index,
+                               improper.atoms[2].ff_type_index,
+                               improper.atoms[1].ff_type_index,
                                improper.atoms[0].ff_type_index]):
                 return key
-            
-        raise ValueError('Error! An improper identifier ' + str(descriptor) + 
+
+        raise ValueError('Error! An improper identifier ' + str(descriptor) +
                 ' in user_input.txt did not match any improper in your cif')
 
 
 class BTW_FF(ForceField):
     def __init__(self,  **kwargs):
-        self.pair_in_data = False 
+        self.pair_in_data = False
         self.keep_metal_geometry = False
         self.graph = None
         # override existing arguments with kwargs
         for key, value in kwargs.items():
             setattr(self, key, value)
         if (self.graph is not None):
-            self.detect_ff_terms() 
+            self.detect_ff_terms()
             self.compute_force_field_terms()
 
     def detect_ff_terms(self):
         """
-        Assigning force field type of atoms 
+        Assigning force field type of atoms
         """
 
         # for each atom determine the ff type if it is None
@@ -708,7 +714,7 @@ class BTW_FF(ForceField):
             sbu_type = next(iter(mof_sbus))
             chrg_flag=sbu_type+"_"
 
-        #Assigning force field type of atoms 
+        #Assigning force field type of atoms
         for node, atom in self.graph.nodes_iter(data=True):
             # check if element not in one of the SBUS
             if atom['element'] == "Cu":
@@ -716,7 +722,7 @@ class BTW_FF(ForceField):
                     if atom['special_flag'] == 'Cu_pdw':
                         atom['force_field_type']="185"
                         chrg_key = chrg_flag+atom['force_field_type']
-                        
+
                         atom['charge']=BTW_charges[chrg_key]
                     else:
                         print("ERROR: Cu %i is not assigned to a Cu Paddlewheel! exiting"%(node))
@@ -730,7 +736,7 @@ class BTW_FF(ForceField):
                     if atom['special_flag'] == 'Zn4O':
                         atom['force_field_type']="172"
                         chrg_key = chrg_flag+atom['force_field_type']
-                        
+
                         atom['charge']=BTW_charges[chrg_key]
 
                     else:
@@ -746,7 +752,7 @@ class BTW_FF(ForceField):
                     if atom['special_flag'] == 'Zr_UiO':
                         atom['force_field_type']="192"
                         chrg_key = chrg_flag+atom['force_field_type']
-                        
+
                         atom['charge']=BTW_charges[chrg_key]
 
                     else:
@@ -783,7 +789,7 @@ class BTW_FF(ForceField):
                         atom['force_field_type'] = "75"
                         chrg_key = chrg_flag+atom['force_field_type']
                         atom['charge']=BTW_charges[chrg_key]
-                    elif atom['special_flag'] == "O_c_Zr_UiO": 
+                    elif atom['special_flag'] == "O_c_Zr_UiO":
                         atom['force_field_type'] = "170"
                         chrg_key = chrg_flag+atom['force_field_type']
                         atom['charge']=BTW_charges[chrg_key]
@@ -824,11 +830,11 @@ class BTW_FF(ForceField):
                     else:
                         print("Hydrogen number %i type cannot be detected!"%node)
                         sys.exit()
-                
+
                 # currently no oxygens assigned types outside of metal SBUs
                 elif (atom['element'] == "O") and not special:
                     print("Oxygen number %i type cannot be detected!"%node)
-                    sys.exit() 
+                    sys.exit()
 
                 elif (atom['element'] == "C") and not special:
                     # all organic SBUs have the same types..
@@ -843,22 +849,22 @@ class BTW_FF(ForceField):
                         else:
                             atom['force_field_type'] = "903"
                         chrg_key = chrg_flag+atom['force_field_type']
-                        
+
                         atom['charge']=BTW_charges[chrg_key]
                     else:
                         print("Carbon number %i type cannot be detected!"%node)
-                        sys.exit() 
+                        sys.exit()
 
                 elif (atom['element'] == "H") and not special:
                     if set(neighbour_elements)<=set(["C"]):
                         atom['force_field_type'] = "915"
                         chrg_key = chrg_flag+atom['force_field_type']
-                        
+
                         atom['charge']=BTW_charges[chrg_key]
                     else:
                         print("Hydrogen number %i type cannot be detected!"%node)
-                        sys.exit() 
-                 
+                        sys.exit()
+
         # Assigning force field type of bonds
         for a, b, bond in self.graph.edges_iter2(data=True):
             a_atom = self.graph.node[a]
@@ -882,7 +888,7 @@ class BTW_FF(ForceField):
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
                     a_atom = self.graph.node[a]
-                    b_atom = data 
+                    b_atom = data
                     c_atom = self.graph.node[c]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
@@ -906,7 +912,7 @@ class BTW_FF(ForceField):
         for ff_label in set(missing_labels):
             print ("%s angle is deleted since the angle was not parametrized in BTW-FF!"%(ff_label))
 
-        #Assigning force field type of dihedrals 
+        #Assigning force field type of dihedrals
         missing_labels=[]
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
@@ -915,7 +921,7 @@ class BTW_FF(ForceField):
                 for (a, d), val in dihed_data.items():
                     a_atom = self.graph.node[a]
                     b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c] 
+                    c_atom = self.graph.node[c]
                     d_atom = self.graph.node[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
@@ -925,9 +931,9 @@ class BTW_FF(ForceField):
                     dihedral_fflabel2=atom_d_fflabel+"_"+atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
 
                     if dihedral_fflabel1 in BTW_dihedrals:
-                        val['force_field_type']=dihedral_fflabel1     
+                        val['force_field_type']=dihedral_fflabel1
                     elif dihedral_fflabel2 in BTW_dihedrals:
-                        val['force_field_type']=dihedral_fflabel2     
+                        val['force_field_type']=dihedral_fflabel2
                     else:
                         missing_dihedral.append((a,d))
                         missing_labels.append(dihedral_fflabel1)
@@ -937,8 +943,8 @@ class BTW_FF(ForceField):
                 pass
         for ff_label in set(missing_labels):
             print ("%s dihedral is deleted since the dihedral was not parametrized in BTW-FF!"%(ff_label))
-        
-        #Assigning force field type of impropers 
+
+        #Assigning force field type of impropers
         missing_labels=[]
         for b, data in self.graph.nodes_iter(data=True):
             try:
@@ -947,7 +953,7 @@ class BTW_FF(ForceField):
                 for (a, c, d), val in imp_data.items():
                     a_atom = self.graph.node[a]
                     b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c] 
+                    c_atom = self.graph.node[c]
                     d_atom = self.graph.node[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
@@ -966,15 +972,15 @@ class BTW_FF(ForceField):
 
         for ff_label in set(missing_labels):
             print ("%s improper is deleted since the improper was not parametrized in BTW-FF!"%(ff_label))
-        
+
     def bond_term(self, edge):
         """class2 bond: 4-order polynomial """
         n1, n2, data = edge
-        Ks =  BTW_bonds[data['force_field_type']][0] 
-        l0 =  BTW_bonds[data['force_field_type']][1] 
+        Ks =  BTW_bonds[data['force_field_type']][0]
+        l0 =  BTW_bonds[data['force_field_type']][1]
         ### All the factors are conversion to kcal/mol from the units in the paper ###
-        K2= 71.94*Ks   
-        K3= -2.55*K2   
+        K2= 71.94*Ks
+        K3= -2.55*K2
         K4= 3.793125*K2
         data['potential'] = BondPotential.Class2()
         data['potential'].K2 = K2
@@ -982,17 +988,17 @@ class BTW_FF(ForceField):
         data['potential'].K4 = K4
         data['potential'].R0 = l0
         return 1
-         
+
     def angle_term(self, angle):
         """class2 angle
-        
-        NOTE: We ignored the 5and6 order terms of polynomial since the functional is not implemented in LAMMPS!! 
+
+        NOTE: We ignored the 5and6 order terms of polynomial since the functional is not implemented in LAMMPS!!
         """
         a, b, c, data = angle
 
         if (data['force_field_type']=="170_185_170"):   ### in the case of square planar coordination of Cu-paddle-wheel, fourier angle must be used
             data['potential'] = AnglePotential.CosinePeriodic()
-            data['potential'].C = 126.64 # conversion from the K value in MOF-FF to the C value for LAMMPS in cosine/periodic 
+            data['potential'].C = 126.64 # conversion from the K value in MOF-FF to the C value for LAMMPS in cosine/periodic
             data['potential'].B = 1
             data['potential'].n = 4
             return 1
@@ -1036,22 +1042,22 @@ class BTW_FF(ForceField):
             bond2_label = atom_c_fflabel+"_"+atom_b_fflabel
             r2 = BTW_bonds[bond2_label][1]
         ### Unit conversion ###
-        bbM = bbM *71.94   
-        baN1 = 2.51118 * baN1 / (DEG2RAD) 
-        baN2 = 2.51118 * baN2/ (DEG2RAD) 
+        bbM = bbM *71.94
+        baN1 = 2.51118 * baN1 / (DEG2RAD)
+        baN2 = 2.51118 * baN2/ (DEG2RAD)
         # 0.021914 is 143.82/2 * (pi/180)**2
         K2 = 0.021914*Ktheta/(DEG2RAD**2)
         K3 = -0.014*K2/(DEG2RAD**1)
         K4 = 5.6e-5*K2/(DEG2RAD**2)
 
         data['potential'] = AnglePotential.Class2()
-        data['potential'].theta0 = theta0 
+        data['potential'].theta0 = theta0
         data['potential'].K2 = K2
-        data['potential'].K3 = K3 
-        data['potential'].K4 = K4 
-        data['potential'].ba.N1 = baN1 
-        data['potential'].ba.N2 = baN2 
-        data['potential'].ba.r1 = r1 
+        data['potential'].K3 = K3
+        data['potential'].K4 = K4
+        data['potential'].ba.N1 = baN1
+        data['potential'].ba.N2 = baN2
+        data['potential'].ba.r1 = r1
         data['potential'].ba.r2 = r2
         return 1
 
@@ -1060,23 +1066,23 @@ class BTW_FF(ForceField):
         """ fourier diherdral """
         a,b,c,d, data = dihedral
 
-        kt1 = 0.5 * BTW_dihedrals[data['force_field_type']][0]        
-        kt2 = 0.5 * BTW_dihedrals[data['force_field_type']][3]        
-        kt3 = 0.5 * BTW_dihedrals[data['force_field_type']][6]        
-        kt4 = 0.5 * BTW_dihedrals[data['force_field_type']][9]        
-        n1 = BTW_dihedrals[data['force_field_type']][2]        
-        n2 = BTW_dihedrals[data['force_field_type']][5]        
-        n3 = BTW_dihedrals[data['force_field_type']][8]        
-        n4 = BTW_dihedrals[data['force_field_type']][11]        
-        d1 = BTW_dihedrals[data['force_field_type']][1]        
-        d2 = BTW_dihedrals[data['force_field_type']][4]        
-        d3 = BTW_dihedrals[data['force_field_type']][7]         
-        d4 = BTW_dihedrals[data['force_field_type']][10]         
+        kt1 = 0.5 * BTW_dihedrals[data['force_field_type']][0]
+        kt2 = 0.5 * BTW_dihedrals[data['force_field_type']][3]
+        kt3 = 0.5 * BTW_dihedrals[data['force_field_type']][6]
+        kt4 = 0.5 * BTW_dihedrals[data['force_field_type']][9]
+        n1 = BTW_dihedrals[data['force_field_type']][2]
+        n2 = BTW_dihedrals[data['force_field_type']][5]
+        n3 = BTW_dihedrals[data['force_field_type']][8]
+        n4 = BTW_dihedrals[data['force_field_type']][11]
+        d1 = BTW_dihedrals[data['force_field_type']][1]
+        d2 = BTW_dihedrals[data['force_field_type']][4]
+        d3 = BTW_dihedrals[data['force_field_type']][7]
+        d4 = BTW_dihedrals[data['force_field_type']][10]
 
         ki = [kt1,kt2,kt3,kt4]
         ni = [n1,n2,n3,n4]
         di = [d1,d2,d3,d4]
-        
+
         data['potential'] = DihedralPotential.Fourier()
         data['potential'].Ki = ki
         data['potential'].ni = ni
@@ -1121,13 +1127,13 @@ class BTW_FF(ForceField):
         else:
             ang3_ff_label = atom_d_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
             Theta3 =  BTW_angles[ang3_ff_label][1]
-                
+
         data['potential'] =  ImproperPotential.Class2() #does not work now!
-        data['potential'].K = Kopb 
+        data['potential'].K = Kopb
         data['potential'].chi0 = c0
-        data['potential'].aa.M1 = M1 
-        data['potential'].aa.M2 = M2 
-        data['potential'].aa.M3 = M3 
+        data['potential'].aa.M1 = M1
+        data['potential'].aa.M2 = M2
+        data['potential'].aa.M3 = M3
         data['potential'].aa.theta1 = Theta1
         data['potential'].aa.theta2 = Theta2
         data['potential'].aa.theta3 = Theta3
@@ -1142,28 +1148,28 @@ class BTW_FF(ForceField):
 
         data['pair_potential']=PairPotential.BuckCoulLong()
         data['pair_potential'].cutoff= cutoff
-        data['pair_potential'].eps = eps 
+        data['pair_potential'].eps = eps
         data['pair_potential'].sig = sig
 
 
     def special_commands(self):
-        st = ["%-15s %s"%("pair_modify", "tail yes"), 
-              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1"), 
+        st = ["%-15s %s"%("pair_modify", "tail yes"),
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1"),
               "%-15s %.2f"%('dielectric', 1.5)]
         return st
 
 
 class MOF_FF(ForceField):
-    
+
     def __init__(self, **kwargs):
-        self.pair_in_data = False 
+        self.pair_in_data = False
         self.keep_metal_geometry = False
-        self.graph = None 
+        self.graph = None
         # override existing arguments with kwargs
         for key, value in kwargs.items():
             setattr(self, key, value)
         if (self.graph is not None):
-            self.detect_ff_terms() 
+            self.detect_ff_terms()
             self.compute_force_field_terms()
     def detect_ff_terms(self):
         """ MOF-FF contains force field descriptions for three different
@@ -1181,8 +1187,8 @@ class MOF_FF(ForceField):
         if not (mof_sbus <= MOF_FF_sbus):
             print("The system cannot be simulated with MOF-FF!")
             sys.exit()
-            
-        #Assigning force field type of atoms 
+
+        #Assigning force field type of atoms
         for node, atom in self.graph.nodes_iter(data=True):
             # check if element not in one of the SBUS
             if atom['element'] == "Cu":
@@ -1247,7 +1253,7 @@ class MOF_FF(ForceField):
                     elif atom['special_flag'] == "O_h_Zr_UiO":
                         atom['force_field_type'] = "103"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
-                    elif atom['special_flag'] == "O_c_Zr_UiO": 
+                    elif atom['special_flag'] == "O_c_Zr_UiO":
                         atom['force_field_type'] = "106"
                         atom['charge']=MOFFF_atoms[atom['force_field_type']][6]
                     # Cu Paddlewheel case
@@ -1282,11 +1288,11 @@ class MOF_FF(ForceField):
                     else:
                         print("Hydrogen number %i type cannot be detected!"%node)
                         sys.exit()
-                
+
                 # currently no oxygens assigned types outside of metal SBUs
                 elif (atom['element'] == "O") and not special:
                     print("Oxygen number %i type cannot be detected!"%node)
-                    sys.exit() 
+                    sys.exit()
 
                 elif (atom['element'] == "C") and not special:
                     # all organic SBUs have the same types..
@@ -1304,7 +1310,7 @@ class MOF_FF(ForceField):
                             atom['charge']=  0.15   #special charge for C_ph - C_carb
                     else:
                         print("Carbon number %i type cannot be detected!"%node)
-                        sys.exit() 
+                        sys.exit()
 
                 elif (atom['element'] == "H") and not special:
                     if set(neighbour_elements)<=set(["C"]):
@@ -1339,7 +1345,7 @@ class MOF_FF(ForceField):
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
                     a_atom = self.graph.node[a]
-                    b_atom = data 
+                    b_atom = data
                     c_atom = self.graph.node[c]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
@@ -1366,7 +1372,7 @@ class MOF_FF(ForceField):
 
         for ff_label in set(missing_labels):
             print ("%s angle does not exist in FF!"%(ff_label))
-        #Assigning force field type of dihedrals 
+        #Assigning force field type of dihedrals
         missing_labels=[]
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
@@ -1375,7 +1381,7 @@ class MOF_FF(ForceField):
                 for (a, d), val in dihed_data.items():
                     a_atom = self.graph.node[a]
                     b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c] 
+                    c_atom = self.graph.node[c]
                     d_atom = self.graph.node[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
@@ -1385,9 +1391,9 @@ class MOF_FF(ForceField):
                     dihedral2_fflabel=atom_d_fflabel+"_"+atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
 
                     if dihedral1_fflabel in MOFFF_dihedrals:
-                        val['force_field_type']=dihedral1_fflabel     
+                        val['force_field_type']=dihedral1_fflabel
                     elif dihedral2_fflabel in MOFFF_dihedrals:
-                        val['force_field_type']=dihedral2_fflabel     
+                        val['force_field_type']=dihedral2_fflabel
                     else:
                         missing_dihedral.append((a,d))
                         missing_labels.append(dihedral1_fflabel)
@@ -1398,7 +1404,7 @@ class MOF_FF(ForceField):
         for ff_label in set(missing_labels):
             print ("%s dihedral does not exist in FF!"%(ff_label))
 
-        #Assigning force field type of impropers 
+        #Assigning force field type of impropers
         missing_labels=[]
         for b, data in self.graph.nodes_iter(data=True):
             try:
@@ -1407,7 +1413,7 @@ class MOF_FF(ForceField):
                 for (a, c, d), val in imp_data.items():
                     a_atom = self.graph.node[a]
                     b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c] 
+                    c_atom = self.graph.node[c]
                     d_atom = self.graph.node[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
@@ -1434,8 +1440,8 @@ class MOF_FF(ForceField):
 
         """
         n1, n2, data = edge
-        Ks =  MOFFF_bonds[data['force_field_type']][0] 
-        l0 =  MOFFF_bonds[data['force_field_type']][1] 
+        Ks =  MOFFF_bonds[data['force_field_type']][0]
+        l0 =  MOFFF_bonds[data['force_field_type']][1]
         D =   MOFFF_bonds[data['force_field_type']][2] # the value should be in kcal/mol
 
         if (D!=0):  # in case of coordination bond, MOF-FF used morse potential
@@ -1458,31 +1464,31 @@ class MOF_FF(ForceField):
 
     def angle_term(self, angle):
         """class2 angle
-        
+
         Be careful that the 5and6 order terms are vanished here since they are not implemented in LAMMPS!!
-        Etheta = 0.021914*Ktheta*(theta-theta0)^2[1-0.014(theta-theta0)+5.6(10^-5)*(theta-theta0)^2-7.0*(10^-7)*(theta-theta0)^3+9.0*(10^-10)*(theta-theta0)^4]        
+        Etheta = 0.021914*Ktheta*(theta-theta0)^2[1-0.014(theta-theta0)+5.6(10^-5)*(theta-theta0)^2-7.0*(10^-7)*(theta-theta0)^3+9.0*(10^-10)*(theta-theta0)^4]
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """
         a, b, c, data = angle
         if (data['force_field_type']=="167_165_167"):   ### in the case of square planar coordination of Cu-paddle-wheel, fourier angle must be used
             data['potential'] = AnglePotential.CosinePeriodic()
-            data['potential'].C = 100 #  Need to be parameterized!  
+            data['potential'].C = 100 #  Need to be parameterized!
             data['potential'].B = 1
             data['potential'].n = 4
             return 1
         elif (data['force_field_type']=="106_101_106"):   ### in the case of square planar coordination of Cu-paddle-wheel, fourier angle must be used
             data['potential'] = AnglePotential.CosinePeriodic()
-            data['potential'].C = 0 #  Need to be parameterized!  
+            data['potential'].C = 0 #  Need to be parameterized!
             data['potential'].B = 1
             data['potential'].n = 4
             return 1
         elif (data['force_field_type']=="103_101_106"):   ### in the case of square planar coordination of Cu-paddle-wheel, fourier angle must be used
             data['potential'] = AnglePotential.CosinePeriodic()
-            data['potential'].C = 0 #  Need to be parameterized!  
+            data['potential'].C = 0 #  Need to be parameterized!
             data['potential'].B = 1
             data['potential'].n = 4
             return 1
-        
+
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
         c_data = self.graph.node[c]
@@ -1523,54 +1529,54 @@ class MOF_FF(ForceField):
             bond2_label = atom_c_fflabel+"_"+atom_b_fflabel
             r2 = MOFFF_bonds[bond2_label][1]
         ### Unit conversion ###
-        bbM = bbM *71.94 # (TODO) maybe is wrong! 
-        baN1 = 2.51118 * baN1 / (DEG2RAD) 
-        baN2 = 2.51118 * baN2/ (DEG2RAD) 
+        bbM = bbM *71.94 # (TODO) maybe is wrong!
+        baN1 = 2.51118 * baN1 / (DEG2RAD)
+        baN2 = 2.51118 * baN2/ (DEG2RAD)
         K2 = 0.021914*Ktheta/(DEG2RAD**2)
         K3 = -0.014*K2/(DEG2RAD**1)
         K4 = 5.6e-5*K2/(DEG2RAD**2)
 
 
         data['potential'] = AnglePotential.Class2()
-        data['potential'].theta0 = theta0 
+        data['potential'].theta0 = theta0
         data['potential'].K2 = K2
-        data['potential'].K3 = K3 
-        data['potential'].K4 = K4 
-        data['potential'].bb.M = 0.0 #bbM 
-        data['potential'].bb.r1 = r1 
-        data['potential'].bb.r2 = r2 
-        data['potential'].ba.N1 = 0.0 #baN1 
-        data['potential'].ba.N2 = 0.0 # baN2 
-        data['potential'].ba.r1 = r1 
+        data['potential'].K3 = K3
+        data['potential'].K4 = K4
+        data['potential'].bb.M = 0.0 #bbM
+        data['potential'].bb.r1 = r1
+        data['potential'].bb.r2 = r2
+        data['potential'].ba.N1 = 0.0 #baN1
+        data['potential'].ba.N2 = 0.0 # baN2
+        data['potential'].ba.r1 = r1
         data['potential'].ba.r2 = r2
         return 1
 
     def dihedral_term(self, dihedral):
         """fourier diherdral
-        
+
         Ew = (V1/2)(1 + cos w) + (V2/2)(1 - cos 2*w)+(V3/2)(1 + cos 3*w)+(V4/2)(1 + cos 4*w)
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
-        
-        """ 
+
+        """
         a,b,c,d, data = dihedral
 
-        kt1 = 0.5 * MOFFF_dihedrals[data['force_field_type']][0]        
-        kt2 = 0.5 * MOFFF_dihedrals[data['force_field_type']][3]        
-        kt3 = 0.5 * MOFFF_dihedrals[data['force_field_type']][6]        
-        kt4 = 0.5 * MOFFF_dihedrals[data['force_field_type']][9]        
-        n1 = MOFFF_dihedrals[data['force_field_type']][2]        
-        n2 = MOFFF_dihedrals[data['force_field_type']][5]        
-        n3 = MOFFF_dihedrals[data['force_field_type']][8]        
-        n4 = MOFFF_dihedrals[data['force_field_type']][11]        
-        d1 = -1.0 * MOFFF_dihedrals[data['force_field_type']][1]        
-        d2 = -1.0 * MOFFF_dihedrals[data['force_field_type']][4]        
-        d3 = -1.0 * MOFFF_dihedrals[data['force_field_type']][7]         
-        d4 = -1.0 * MOFFF_dihedrals[data['force_field_type']][10]         
+        kt1 = 0.5 * MOFFF_dihedrals[data['force_field_type']][0]
+        kt2 = 0.5 * MOFFF_dihedrals[data['force_field_type']][3]
+        kt3 = 0.5 * MOFFF_dihedrals[data['force_field_type']][6]
+        kt4 = 0.5 * MOFFF_dihedrals[data['force_field_type']][9]
+        n1 = MOFFF_dihedrals[data['force_field_type']][2]
+        n2 = MOFFF_dihedrals[data['force_field_type']][5]
+        n3 = MOFFF_dihedrals[data['force_field_type']][8]
+        n4 = MOFFF_dihedrals[data['force_field_type']][11]
+        d1 = -1.0 * MOFFF_dihedrals[data['force_field_type']][1]
+        d2 = -1.0 * MOFFF_dihedrals[data['force_field_type']][4]
+        d3 = -1.0 * MOFFF_dihedrals[data['force_field_type']][7]
+        d4 = -1.0 * MOFFF_dihedrals[data['force_field_type']][10]
 
         ki = [kt1,kt2,kt3,kt4]
         ni = [n1,n2,n3,n4]
         di = [d1,d2,d3,d4]
-        
+
         data['potential'] = DihedralPotential.Fourier()
         data['potential'].Ki = ki
         data['potential'].ni = ni
@@ -1583,14 +1589,14 @@ class MOF_FF(ForceField):
         Kopb = MOFFF_opbends[data['force_field_type']][0]/(DEG2RAD**2)*0.02191418
         c0 =  MOFFF_opbends[data['force_field_type']][1]
         data['potential'] = ImproperPotential.Harmonic()
-        data['potential'].K = Kopb 
+        data['potential'].K = Kopb
         data['potential'].chi0 = c0
         return 1
 
     def pair_terms(self, node, data, cutoff):
         """
         Buckingham equation in MM3 type is used!
-        
+
         Also, Table for short range coulombic interactions
         """
         eps = MOFFF_atoms[data['force_field_type']][4]
@@ -1598,17 +1604,17 @@ class MOF_FF(ForceField):
 
         data['pair_potential'] = PairPotential.Buck()
         data['pair_potential'].cutoff = cutoff
-        data['pair_potential'].eps = eps 
+        data['pair_potential'].eps = eps
         data['pair_potential'].sig = sig
 
         data['tabulated_potential'] = True
         data['table_function'] = self.pair_coul_term
         data['table_potential'] = PairPotential.Table()
-    
+
     def pair_coul_term(self, node1, node2, data):
         """MOF-FF uses a damped gaussian for close-range interactions.
         This is added in a tabulated form.
-        
+
         k = 332.063711 kcal*angstroms/e^2
 
         E_ij = k*qi*qj*erf(r_ij/sig_ij)/r_ij
@@ -1624,7 +1630,7 @@ class MOF_FF(ForceField):
         # kcal/mol energy units assumed...
         K = 332.063711
 
-        n = 5000 
+        n = 5000
         rlow=0.01
         R = np.linspace(rlow, self.cutoff+2., n)
         ff1 = node1['force_field_type']
@@ -1648,14 +1654,14 @@ class MOF_FF(ForceField):
 
         for i, r in enumerate(R):
             rsq = r**2
-            e = E_coeff*math.erf(r/sigij)/r 
+            e = E_coeff*math.erf(r/sigij)/r
             f = -E_coeff  * (math.exp(-(rsq)/(sigij**2))/ r* 2/(math.sqrt(math.pi) * sigij) - math.erf(r/sigij)/(rsq))
             str += "%i %.3f %f %f\n"%(i+1, r, e, f)
         return(str)
 
     def special_commands(self):
-        st = ["%-15s %s"%("pair_modify", "tail yes"), 
-              "%-15s %s"%("special_bonds", "lj 0 0 1 coul 1 1 1 #!!! Note: Gaussian charges have to be used!"), 
+        st = ["%-15s %s"%("pair_modify", "tail yes"),
+              "%-15s %s"%("special_bonds", "lj 0 0 1 coul 1 1 1 #!!! Note: Gaussian charges have to be used!"),
               "%-15s %.1f"%("dielectric", 1.0)]
         return st
 
@@ -1682,7 +1688,7 @@ class FMOFCu(ForceField):
         FMOFCu_metals = ["Cu"]
         for node, atom in self.graph.nodes_iter(data=True):
             flag_coordination=False
-            if atom['force_field_type'] is None:                                
+            if atom['force_field_type'] is None:
                 type_assigned=False
                 neighbours = [self.graph.node[i] for i in self.graph.neighbors(node)]
                 neighbour_elements = [a['element'] for a in neighbours]
@@ -1706,7 +1712,7 @@ class FMOFCu(ForceField):
 
                             if (flag_coordination):
                                 atom['force_field_type']="180"
-                                atom['charge']=FMOFCu_atoms[atom['force_field_type']][6]    
+                                atom['charge']=FMOFCu_atoms[atom['force_field_type']][6]
                             else:
                                 atom['force_field_type']="170"
                                 atom['charge']=FMOFCu_atoms[atom['force_field_type']][6]
@@ -1714,7 +1720,7 @@ class FMOFCu(ForceField):
                         else:
                             print("Oxygen number : %i could not be recognized!"%atom.index)
                             sys.exit()
-        
+
                     elif (atom['element'] == "H"):
                         if ("O" in neighbour_elements):
                             atom['force_field_type']="24"
@@ -1723,14 +1729,14 @@ class FMOFCu(ForceField):
                             atom['force_field_type']="915"
                             atom['charge']=FMOFCu_atoms[atom['force_field_type']][6]
                         else:
-                            print("Hydrogen number : %i could not be recognized!"%atom.index)            
+                            print("Hydrogen number : %i could not be recognized!"%atom.index)
 
                     elif (atom['element'] == "F"):
                         if (set(neighbour_elements) <= set(["C"])):
                             atom['force_field_type']="911"
                             atom['charge']=FMOFCu_atoms[atom['force_field_type']][6]
                         else:
-                            print("Flourine number : %i could not be recognized!"%atom.index)            
+                            print("Flourine number : %i could not be recognized!"%atom.index)
 
                     elif( atom['element']=="C"):
                         if ("O" in neighbour_elements):
@@ -1759,7 +1765,7 @@ class FMOFCu(ForceField):
                                 atom['charge']=FMOFCu_atoms[atom['force_field_type']][6]
                             elif (type_assigned==False):
                                 print("Carbon number : %i could not be recognized! erorr1 %s "%(atom.index, atom.hybridization))
-                        
+
                         else:
                             print("Carbon number : %i could not be recognized! error2"%atom.index)
 
@@ -1769,14 +1775,14 @@ class FMOFCu(ForceField):
                         atom['charge']=FMOFCu_atoms[atom['force_field_type']][6]
                 else:
                         print('Error!! Cannot detect atom types. Atom type does not exist in FMOFCu-FF!')
-                
+
                # atom.charge=0
             else:
                 print('FFtype is already assigned!')
 
-        """ """  """  """ """  
+        """ """  """  """ """
         Assigning force field type of bonds
-        """ """  """  """ """          
+        """ """  """  """ """
         for a, b, bond in self.graph.edges_iter2(data=True):
             a_atom = self.graph.node[a]
             b_atom = self.graph.node[b]
@@ -1791,9 +1797,9 @@ class FMOFCu(ForceField):
                 print ("%s bond does not exist in FF!"%(bond1_fflabel))
                 exit()
 
-        """ """  """  """ """  
+        """ """  """  """ """
         Assigning force field type of angles
-        """ """  """  """ """          
+        """ """  """  """ """
         missing_labels=[]
         for b , data in self.graph.nodes_iter(data=True):
             # compute and store angle terms
@@ -1802,7 +1808,7 @@ class FMOFCu(ForceField):
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
                     a_atom = self.graph.node[a]
-                    b_atom = data 
+                    b_atom = data
                     c_atom = self.graph.node[c]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
@@ -1831,9 +1837,9 @@ class FMOFCu(ForceField):
         for ff_label in set(missing_labels):
             print ("%s angle does not exist in FF!"%(ff_label))
 
-        """ """  """  """ """  
-        Assigning force field type of dihedrals 
-        """ """  """  """ """          
+        """ """  """  """ """
+        Assigning force field type of dihedrals
+        """ """  """  """ """
         missing_labels=[]
         for b, c, data in self.graph.edges_iter2(data=True):
             try:
@@ -1842,7 +1848,7 @@ class FMOFCu(ForceField):
                 for (a, d), val in dihed_data.items():
                     a_atom = self.graph.node[a]
                     b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c] 
+                    c_atom = self.graph.node[c]
                     d_atom = self.graph.node[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
@@ -1852,9 +1858,9 @@ class FMOFCu(ForceField):
                     dihedral2_fflabel=atom_d_fflabel+"_"+atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_a_fflabel
 
                     if dihedral1_fflabel in FMOFCu_dihedrals:
-                        val['force_field_type']=dihedral1_fflabel     
+                        val['force_field_type']=dihedral1_fflabel
                     elif dihedral2_fflabel in FMOFCu_dihedrals:
-                        val['force_field_type']=dihedral2_fflabel     
+                        val['force_field_type']=dihedral2_fflabel
                     else:
                         missing_dihedral.append((a,d))
                         missing_labels.append(dihedral1_fflabel)
@@ -1865,9 +1871,9 @@ class FMOFCu(ForceField):
         for ff_label in set(missing_labels):
             print ("%s dihedral does not exist in FF!"%(ff_label))
 
-        """ """  """  """ """  
-        Assigning force field type of impropers 
-        """ """  """  """ """          
+        """ """  """  """ """
+        Assigning force field type of impropers
+        """ """  """  """ """
         missing_labels=[]
         for b, data in self.graph.nodes_iter(data=True):
             try:
@@ -1876,7 +1882,7 @@ class FMOFCu(ForceField):
                 for (a, c, d), val in imp_data.items():
                     a_atom = self.graph.node[a]
                     b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c] 
+                    c_atom = self.graph.node[c]
                     d_atom = self.graph.node[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
@@ -1895,7 +1901,7 @@ class FMOFCu(ForceField):
 
         for ff_label in set(missing_labels):
             print ("%s improper does not exist in FF!"%(ff_label))
-        
+
     def bond_term(self, edge):
         """class2 bond"""
         """
@@ -1903,8 +1909,8 @@ class FMOFCu(ForceField):
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """
         n1, n2, data = edge
-        Ks =  FMOFCu_bonds[data['force_field_type']][0] 
-        l0 =  FMOFCu_bonds[data['force_field_type']][1] 
+        Ks =  FMOFCu_bonds[data['force_field_type']][0]
+        l0 =  FMOFCu_bonds[data['force_field_type']][1]
         K2= 71.94*Ks   # mdyne to kcal *(1/2)
         K3= -2.55*K2
         K4= 3.793125*K2
@@ -1919,18 +1925,18 @@ class FMOFCu(ForceField):
         """class2 angle"""
         """
         Be careful that the 5and6 order terms are vanished here since they are not implemented in LAMMPS!!
-        Etheta = 0.021914*Ktheta*(theta-theta0)^2[1-0.014(theta-theta0)+5.6(10^-5)*(theta-theta0)^2-7.0*(10^-7)*(theta-theta0)^3+9.0*(10^-10)*(theta-theta0)^4]        
+        Etheta = 0.021914*Ktheta*(theta-theta0)^2[1-0.014(theta-theta0)+5.6(10^-5)*(theta-theta0)^2-7.0*(10^-7)*(theta-theta0)^3+9.0*(10^-10)*(theta-theta0)^4]
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
         """
         a, b, c, data = angle
 
         if (data['force_field_type']=="170_185_170"):   ### in the case of square planar coordination of Cu-paddle-wheel, fourier angle must be used
             data['potential'] = AnglePotential.CosinePeriodic()
-            data['potential'].C = 100 #  Need to be parameterized!  
+            data['potential'].C = 100 #  Need to be parameterized!
             data['potential'].B = 1
             data['potential'].n = 4
             return 1
-        
+
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
         c_data = self.graph.node[c]
@@ -1971,23 +1977,23 @@ class FMOFCu(ForceField):
             bond2_label = atom_c_fflabel+"_"+atom_b_fflabel
             r2 = FMOFCu_bonds[bond2_label][1]
         ### Unit conversion ###
-        bbM = bbM *71.94 # (TODO) maybe is wrong! 
-        baN1 = 2.51118 * baN1 / (DEG2RAD) 
-        baN2 = 2.51118 * baN2/ (DEG2RAD) 
+        bbM = bbM *71.94 # (TODO) maybe is wrong!
+        baN1 = 2.51118 * baN1 / (DEG2RAD)
+        baN2 = 2.51118 * baN2/ (DEG2RAD)
         K2 = 0.021914*Ktheta/(DEG2RAD**2)
         K3 = -0.014*K2/(DEG2RAD**1)
         K4 = 5.6e-5*K2/(DEG2RAD**2)
 
 
         data['potential'] = AnglePotential.Class2()
-        data['potential'].theta0 = theta0 
+        data['potential'].theta0 = theta0
         data['potential'].K2 = K2
-        data['potential'].K3 = K3 
-        data['potential'].K4 = K4 
-        data['potential'].ba.N1 = baN1 
-        data['potential'].ba.N2 = baN2 
-        data['potential'].ba.r1 = r1 
-        data['potential'].ba.r2 = r2 
+        data['potential'].K3 = K3
+        data['potential'].K4 = K4
+        data['potential'].ba.N1 = baN1
+        data['potential'].ba.N2 = baN2
+        data['potential'].ba.r1 = r1
+        data['potential'].ba.r2 = r2
         return 1
 
     def dihedral_term(self, dihedral):
@@ -1995,32 +2001,32 @@ class FMOFCu(ForceField):
         """
         Ew = (V1/2)(1 + cos w) + (V2/2)(1 - cos 2*w)+(V3/2)(1 + cos 3*w)+(V4/2)(1 + cos 4*w)
         (Allinger et. al. J.Am.Chem.Soc., Vol. 111, No. 23, 1989)
-        """        
+        """
         a,b,c,d, data = dihedral
 
-        kt1 = 0.5 * FMOFCu_dihedrals[data['force_field_type']][0]        
-        kt2 = 0.5 * FMOFCu_dihedrals[data['force_field_type']][3]        
-        kt3 = 0.5 * FMOFCu_dihedrals[data['force_field_type']][6]        
-        kt4 = 0.5 * FMOFCu_dihedrals[data['force_field_type']][9]        
-        n1 = FMOFCu_dihedrals[data['force_field_type']][2]        
-        n2 = FMOFCu_dihedrals[data['force_field_type']][5]        
-        n3 = FMOFCu_dihedrals[data['force_field_type']][8]        
-        n4 = FMOFCu_dihedrals[data['force_field_type']][11]        
-        d1 = -1.0 * FMOFCu_dihedrals[data['force_field_type']][1]        
-        d2 = -1.0 * FMOFCu_dihedrals[data['force_field_type']][4]        
-        d3 = -1.0 * FMOFCu_dihedrals[data['force_field_type']][7]         
-        d4 = -1.0 * FMOFCu_dihedrals[data['force_field_type']][10]         
+        kt1 = 0.5 * FMOFCu_dihedrals[data['force_field_type']][0]
+        kt2 = 0.5 * FMOFCu_dihedrals[data['force_field_type']][3]
+        kt3 = 0.5 * FMOFCu_dihedrals[data['force_field_type']][6]
+        kt4 = 0.5 * FMOFCu_dihedrals[data['force_field_type']][9]
+        n1 = FMOFCu_dihedrals[data['force_field_type']][2]
+        n2 = FMOFCu_dihedrals[data['force_field_type']][5]
+        n3 = FMOFCu_dihedrals[data['force_field_type']][8]
+        n4 = FMOFCu_dihedrals[data['force_field_type']][11]
+        d1 = -1.0 * FMOFCu_dihedrals[data['force_field_type']][1]
+        d2 = -1.0 * FMOFCu_dihedrals[data['force_field_type']][4]
+        d3 = -1.0 * FMOFCu_dihedrals[data['force_field_type']][7]
+        d4 = -1.0 * FMOFCu_dihedrals[data['force_field_type']][10]
 
         ki = [kt1,kt2,kt3,kt4]
         ni = [n1,n2,n3,n4]
         di = [d1,d2,d3,d4]
-        
+
         data['potential'] = DihedralPotential.Fourier()
         data['potential'].Ki = ki
         data['potential'].ni = ni
         data['potential'].di = di
         return 1
-        
+
 
     def improper_term(self, improper):
         """class2 diherdral"""
@@ -2038,9 +2044,9 @@ class FMOFCu(ForceField):
         """
         Angle-Angle term
         """
-        M1 = FMOFCu_opbends[data['force_field_type']][2]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
-        M2 = FMOFCu_opbends[data['force_field_type']][3]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
-        M3 = FMOFCu_opbends[data['force_field_type']][4]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction 
+        M1 = FMOFCu_opbends[data['force_field_type']][2]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction
+        M2 = FMOFCu_opbends[data['force_field_type']][3]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction
+        M3 = FMOFCu_opbends[data['force_field_type']][4]/(DEG2RAD**2)*0.02191418*(-1)/3.  # Three times counting one angle-angle interaction
         ang1_ff_label = atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
         ang2_ff_label = atom_a_fflabel+"_"+atom_b_fflabel+"_"+atom_d_fflabel
         ang3_ff_label = atom_c_fflabel+"_"+atom_b_fflabel+"_"+atom_d_fflabel
@@ -2059,13 +2065,13 @@ class FMOFCu(ForceField):
         else:
             ang3_ff_label = atom_d_fflabel+"_"+atom_b_fflabel+"_"+atom_c_fflabel
             Theta3 =  FMOFCu_angles[ang3_ff_label][1]
-                
+
         data['potential'] =  ImproperPotential.Class2() #does not work now!
-        data['potential'].K = Kopb 
+        data['potential'].K = Kopb
         data['potential'].chi0 = c0
-        data['potential'].aa.M1 = M1 
-        data['potential'].aa.M2 = M2 
-        data['potential'].aa.M3 = M3 
+        data['potential'].aa.M1 = M1
+        data['potential'].aa.M2 = M2
+        data['potential'].aa.M3 = M3
         data['potential'].aa.theta1 = Theta1
         data['potential'].aa.theta2 = Theta2
         data['potential'].aa.theta3 = Theta3
@@ -2080,13 +2086,13 @@ class FMOFCu(ForceField):
 
         data['pair_potential']=PairPotential.BuckCoulLong()
         data['pair_potential'].cutoff= cutoff
-        data['pair_potential'].eps = eps 
+        data['pair_potential'].eps = eps
         data['pair_potential'].sig = sig
 
 
     def special_commands(self):
-        st = ["%-15s %s"%("pair_modify", "tail yes"), 
-              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1"), 
+        st = ["%-15s %s"%("pair_modify", "tail yes"),
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1"),
               "%-15s %.2f"%("dielectric", 1.50)]
         return st
 
@@ -2100,7 +2106,7 @@ class UFF(ForceField):
 
     The ammendments mentioned that document are included here
     """
-    
+
     def __init__(self,  **kwargs):
         self.pair_in_data = True
         self.keep_metal_geometry = False
@@ -2109,13 +2115,13 @@ class UFF(ForceField):
         for key, value in kwargs.items():
             setattr(self, key, value)
         if (self.graph is not None):
-            self.detect_ff_terms() 
+            self.detect_ff_terms()
             self.compute_force_field_terms()
 
     def pair_terms(self, node, data, cutoff):
         """Add L-J term to atom"""
         data['pair_potential'] = PairPotential.LjCutCoulLong()
-        data['pair_potential'].eps = UFF_DATA[data['force_field_type']][3] 
+        data['pair_potential'].eps = UFF_DATA[data['force_field_type']][3]
         data['pair_potential'].sig = UFF_DATA[data['force_field_type']][2]*(2**(-1./6.))
         data['pair_potential'].cutoff = cutoff
 
@@ -2160,15 +2166,15 @@ class UFF(ForceField):
 
         in Lammps, the angle syle called 'fourier/simple' can be used
         to describe this functional form.
-        
+
         general non-linear case:
         three-term Fourier expansion
         E_0 = K_{IJK} * [C_0 + C_1*cos(theta) + C_2*cos(2*theta)]
-        
+
         in Lammps, the angle style called 'fourier' can be used to
         describe this functional form.
 
-        Both 'fourier/simple' and 'fourier' are available from the 
+        Both 'fourier/simple' and 'fourier' are available from the
         USER_MISC package in Lammps, so be sure to compile Lammps with
         this package.
 
@@ -2185,7 +2191,7 @@ class UFF(ForceField):
         bc_bond = self.graph[b][c]
 
         auff, buff, cuff = a_data['force_field_type'], b_data['force_field_type'], c_data['force_field_type']
-        
+
         theta0 = UFF_DATA[buff][1]
         # just check if the central node is a metal, then apply a rigid angle term.
         # NB: Functional form may change dynamics, but at this point we will not
@@ -2209,7 +2215,7 @@ class UFF(ForceField):
 
         za = UFF_DATA[auff][5]
         zc = UFF_DATA[cuff][5]
-        
+
         r_ab = ab_bond['potential'].R0
         r_bc = bc_bond['potential'].R0
         r_ac = math.sqrt(r_ab*r_ab + r_bc*r_bc - 2.*r_ab*r_bc*cosT0)
@@ -2227,7 +2233,7 @@ class UFF(ForceField):
             # the description of the actual parameters for 'n' are not obvious
             # for the tetrahedral special case from the UFF paper or the write up in TOWHEE.
             # The values were found in the TOWHEE source code (eg. Bi3+3).
-            if angle_type == 'tetrahedral': 
+            if angle_type == 'tetrahedral':
                 kappa = ka/4.
                 c0 = 1.
                 B  = -1
@@ -2250,7 +2256,7 @@ class UFF(ForceField):
             #data['potential'].K = kappa
             data['potential'].C = kappa*(c1**2)
             #data['potential'].c = c0
-            data['potential'].B = B 
+            data['potential'].B = B
             data['potential'].n = c1
         # general-nonlinear
         else:
@@ -2309,7 +2315,7 @@ class UFF(ForceField):
         d_data = self.graph.node[d]
 
         torsiontype = self.graph[b][c]['order']
-        
+
         coord_bc = (self.graph.degree(b), self.graph.degree(c))
         bc = (b_data['force_field_type'], c_data['force_field_type'])
         M = mul(*coord_bc)
@@ -2317,11 +2323,11 @@ class UFF(ForceField):
         n = 0
         mixed_case = ((b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic') and
                       c_data['hybridization'] == 'sp3') or \
-                (b_data['hybridization'] == 'sp3' and 
-                (c_data['hybridization'] == 'sp2' or c_data['hybridization'] == 'aromatic')) 
+                (b_data['hybridization'] == 'sp3' and
+                (c_data['hybridization'] == 'sp2' or c_data['hybridization'] == 'aromatic'))
         all_sp2 = ((b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic') and
                    c_data['hybridization'] == 'sp2' or c_data['hybridization'] == 'aromatic')
-        all_sp3 = (b_data['hybridization'] == 'sp3' and 
+        all_sp3 = (b_data['hybridization'] == 'sp3' and
                    c_data['hybridization'] == 'sp3')
 
         phi0 = 0
@@ -2332,7 +2338,7 @@ class UFF(ForceField):
             n = 3
             vi = UFF_DATA[b_data['force_field_type']][6]
             vj = UFF_DATA[c_data['force_field_type']][6]
-            
+
             if b_data['atomic_number'] == 8:
                 vi = 2.
                 n = 2
@@ -2353,28 +2359,28 @@ class UFF(ForceField):
 
             V = (vi*vj)**0.5
 
-        elif all_sp2: 
+        elif all_sp2:
             ui = UFF_DATA[b_data['force_field_type']][7]
             uj = UFF_DATA[c_data['force_field_type']][7]
             phi0 = 180.0
             n = 2
             V = 5.0 * (ui*uj)**0.5 * (1. + 4.18*math.log(torsiontype))
 
-        elif mixed_case: 
+        elif mixed_case:
             phi0 = 180.0
             n = 3
-            V = 2.  
-            
+            V = 2.
+
             if c_data['hybridization'] == 'sp3':
                 if c_data['atomic_number'] in (8, 16, 34, 52):
                     n = 2
                     phi0 = 90.
-            elif b_data['hybridization'] == 'sp3': 
+            elif b_data['hybridization'] == 'sp3':
                 if b_data['atomic_number'] in (8, 16, 34, 52):
                     n = 2
                     phi0 = 90.0
             # special case group 6 elements
-            if n==2: 
+            if n==2:
                 ui = UFF_DATA[b_data['force_field_type']][7]
                 uj = UFF_DATA[c_data['force_field_type']][7]
                 V = 5.0 * (ui*uj)**0.5 * (1. + 4.18*math.log(torsiontype))
@@ -2384,15 +2390,15 @@ class UFF(ForceField):
 
         if abs(math.sin(nphi0*DEG2RAD)) > 1.0e-3:
             print("WARNING!!! nphi0 = %r" % nphi0)
-        
-        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS or 
+
+        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS or
             c_data['atomic_number'] in METALS):
             # must use different potential with minimum at the computed dihedral
             # angle.
             #nphi0 = n*self.graph.compute_dihedral_between(a, b, c, d)
             #data['potential'] = DihedralPotential.Charmm()
             #data['potential'].K = 0.5
-            #data['potential'].d = 180 + nphi0 
+            #data['potential'].d = 180 + nphi0
             #data['potential'].n = n
             # NO torsional terms in UFF for non-main group elements
             return None
@@ -2423,7 +2429,7 @@ class UFF(ForceField):
             c0 = 1.0
             c1 = -1.0
             c2 = 0.0
-            koop = 6.0 
+            koop = 6.0
         elif b_data['force_field_type'] in ('P_3+3', 'As3+3', 'Sb3+3', 'Bi3+3'):
             if b_data['force_field_type'] == 'P_3+3':
                 phi = 84.4339 * DEG2RAD
@@ -2436,24 +2442,24 @@ class UFF(ForceField):
             c1 = -4.0 * math.cos(phi)
             c2 = 1.0
             c0 = -1.0*c1*math.cos(phi) + c2*math.cos(2.0*phi)
-            koop = 22.0 
+            koop = 22.0
         elif b_data['force_field_type'] in ('C_2', 'C_R'):
             c0 = 1.0
             c1 = -1.0
             c2 = 0.0
-            koop = 6.0 
+            koop = 6.0
             if 'O_2' in (a_ff, c_ff, d_ff):
                 # check to make sure an aldehyde (i.e. not carboxylate bonded to metal)
                 if a_ff == "O_2" and len(self.graph.neighbors(a)) == 1:
-                    koop = 50.0 
+                    koop = 50.0
                 elif c_ff == "O_2" and len(self.graph.neighbors(c)) == 1:
-                    koop = 50.0 
+                    koop = 50.0
                 elif d_ff == "O_2" and len(self.graph.neighbors(d)) == 1:
-                    koop = 50.0 
+                    koop = 50.0
         else:
             return None
-        
-        koop /= 3. 
+
+        koop /= 3.
 
         data['potential'] = ImproperPotential.Fourier()
         data['potential'].K = koop
@@ -2461,12 +2467,12 @@ class UFF(ForceField):
         data['potential'].C1 = c1
         data['potential'].C2 = c2
         return 1
-    
+
     def special_commands(self):
-        st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"), 
-              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"), 
+        st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"),
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"),
               "%-15s %.1f"%('dielectric', 1.0)
-              ] 
+              ]
         return st
 
     def detect_ff_terms(self):
@@ -2532,7 +2538,7 @@ class UFF(ForceField):
                     if data['element'] == j[:2].strip("_"):
                         data['force_field_type'] = j
                         neigh = len(self.graph.neighbors(node))
-                        print("WARNING: Atom %i element "%data['index'] + 
+                        print("WARNING: Atom %i element "%data['index'] +
                                 "%s has %i neighbors, "%(data['element'], neigh)+
                                 "but was assigned %s as a force field type!"%(j))
                         assigned = True
@@ -2555,23 +2561,23 @@ class Dreiding(ForceField):
 
         if (graph is not None):
             self.graph = graph
-            self.detect_ff_terms() 
+            self.detect_ff_terms()
             self.compute_force_field_terms()
 
     def bond_term(self, edge):
         """The DREIDING Force Field contains two possible bond terms, harmonic and Morse.
         The authors recommend using harmonic as a default, and Morse potentials for more
-        'refined' calculations. 
+        'refined' calculations.
         Here we will assume a harmonic term by default, then the user can chose to switch
         to Morse if they so choose. (change type argument to 'morse')
-        
+
         E = 0.5 * K * (R - Req)^2
-        
+
 
         E = D * [exp{-(alpha*R - Req)} - 1]^2
 
 
-        
+
         """
         n1, n2, data = edge
 
@@ -2579,23 +2585,23 @@ class Dreiding(ForceField):
         fflabel1, fflabel2 = n1_data['force_field_type'], n2_data['force_field_type']
         R1 = DREIDING_DATA[fflabel1][0]
         R2 = DREIDING_DATA[fflabel2][0]
-        order = data['order'] 
+        order = data['order']
         K = order*700.
         D = order*70.
         Re = R1 + R2 - 0.01
-        
+
         if (self.keep_metal_geometry) and (n1_data['atomic_number'] in METALS
             or n2_data['atomic_number'] in METALS):
 
             if self.bondtype.lower() == "harmonic":
                 data['potential'] = BondPotential.Harmonic()
                 data['potential'].K = K/2.
-                data['potential'].R0 = data['length'] 
+                data['potential'].R0 = data['length']
 
             elif self.bondtype.lower() == "morse":
                 alpha = order * np.sqrt(K/2./D)
                 data['potential'] = BondPotential.Morse()
-                data['potential'].D = D 
+                data['potential'].D = D
                 data['potential'].alpha = alpha
                 data['potential'].R = data['length']
             return 1
@@ -2636,10 +2642,10 @@ class Dreiding(ForceField):
         """
         a, b, c, data = angle
         K = 100.0
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
+        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
         btype = b_data['force_field_type']
         theta0 = DREIDING_DATA[btype][1]
-        
+
         if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS):
             theta0 = self.graph.compute_angle_between(a, b, c)
             data['potential'] = AnglePotential.CosineSquared()
@@ -2651,7 +2657,7 @@ class Dreiding(ForceField):
         if (theta0 == 180.):
             data['potential'] = AnglePotential.Cosine()
             data['potential'].K = K / 2.
-            # Dreiding suggests setting K = 100.0, but the resulting maxima in the cosine function 
+            # Dreiding suggests setting K = 100.0, but the resulting maxima in the cosine function
             # wind up as 200.0 due to the functional form. I have divided by two in case this is an
             # error in the intended Dreiding force field.
             #data['potential'].K = K
@@ -2664,9 +2670,9 @@ class Dreiding(ForceField):
             #     may be some unphysical effects of this parameterization
             data['potential'] = AnglePotential.CosinePeriodic()
             n = 4 # makes four minima in the angle range 0 - 360
-            data['potential'].C = K #/n**2 
+            data['potential'].C = K #/n**2
             data['potential'].B = 1.
-            data['potential'].n = n 
+            data['potential'].n = n
 
         else:
             #data['potential'] = AnglePotential.Harmonic()
@@ -2692,7 +2698,7 @@ class Dreiding(ForceField):
         shift must be added to 'd' to ensure that the potential behaves
         the same as the DREIDING article intended.
         """
-        
+
         monovalent = ["Na", "F_", "Cl", "Br", "I_", "K"]
         a,b,c,d, data = dihedral
         a_data = self.graph.node[a]
@@ -2703,11 +2709,11 @@ class Dreiding(ForceField):
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
 
-        order = self.graph[b][c]['order'] 
-        a_hyb = a_data['hybridization'] 
-        b_hyb = b_data['hybridization'] 
-        c_hyb = c_data['hybridization'] 
-        d_hyb = d_data['hybridization'] 
+        order = self.graph[b][c]['order']
+        a_hyb = a_data['hybridization']
+        b_hyb = b_data['hybridization']
+        c_hyb = c_data['hybridization']
+        d_hyb = d_data['hybridization']
 
         # special cases associated with oxygen column, listed here
         oxygen_sp3 = ["O_3", "S_3", "Se3", "Te3"]
@@ -2738,7 +2744,7 @@ class Dreiding(ForceField):
             n = 3
             phi0 = 180.0
             # h) special case..
-            if((btype in oxygen_sp3) and (ctype in oxygen_sp3)): 
+            if((btype in oxygen_sp3) and (ctype in oxygen_sp3)):
                 V = 2.0
                 n = 2
                 phi0 = 90.0
@@ -2749,7 +2755,7 @@ class Dreiding(ForceField):
             V = 1.0
             n = 6
             phi0 = 0.0
-            # i) special case.. 
+            # i) special case..
             if(((btype in oxygen_sp3)and(ctype in non_oxygen_sp2)) or
                     (ctype in oxygen_sp3)and(btype in non_oxygen_sp2)):
                 V = 2.0
@@ -2782,7 +2788,7 @@ class Dreiding(ForceField):
             n = 2
             phi0 = 180.0
             # f) just check if neighbours are aromatic, then apply the exception
-            # NB: this may fail for phenyl esters if the oxygen atoms are not 
+            # NB: this may fail for phenyl esters if the oxygen atoms are not
             # labelled as "R" (i.e. will fail if they are O_2 or O_3)
             if(b_hyb == "aromatic" and c_hyb == "aromatic"):
                 b_arom = True
@@ -2831,8 +2837,8 @@ class Dreiding(ForceField):
                /                        /
               /                        /
         c----b     , DREIDING =  K----I
-              \                        \ 
-               \                        \ 
+              \                        \
+               \                        \
                 d                        L
 
         for all non-planar configurations, DREIDING uses
@@ -2846,14 +2852,14 @@ class Dreiding(ForceField):
 
         """
         a, b, c, d, data = improper
-        
+
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
         c_data = self.graph.node[c]
         d_data = self.graph.node[d]
 
         btype = b_data['force_field_type']
-        # special case: ignore N column 
+        # special case: ignore N column
         sp3_N = ["N_3", "P_3", "As3", "Sb3"]
         K = 40.0
         if b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic':
@@ -2866,7 +2872,7 @@ class Dreiding(ForceField):
         data['potential'].K = K
         data['potential'].omega0 = omega0
         return 1
-    
+
     def pair_terms(self, node, data, cutoff, nbpot='LJ', hbpot='morse'):
         """ DREIDING can adopt the exponential-6 or
         Ex6 = A*exp{-C*R} - B*R^{-6}
@@ -2884,11 +2890,11 @@ class Dreiding(ForceField):
         if nbpot == "LJ":
             data['pair_potential'] = PairPotential.LjCutCoulLong()
             #data['pair_potential'] = PairPotential.LjCharmmCoulLong()
-            data['pair_potential'].eps = eps 
-            data['pair_potential'].sig = sig 
-            #data['pair_potential'].eps14 = eps 
-            #data['pair_potential'].sig14 = sig 
-            
+            data['pair_potential'].eps = eps
+            data['pair_potential'].sig = sig
+            #data['pair_potential'].eps14 = eps
+            #data['pair_potential'].sig14 = sig
+
         else:
             S = DREIDING_DATA[data['force_field_type']][5]
 
@@ -2897,10 +2903,10 @@ class Dreiding(ForceField):
             C = eps*(S/(S - 6.)*R**6)
 
             data['pair_potential'] = PairPotential.BuckLongCoulLong()
-            data['pair_potential'].A = A 
-            data['pair_potential'].C = C 
-            data['pair_potential'].rho = rho 
-        
+            data['pair_potential'].A = A
+            data['pair_potential'].C = C
+            data['pair_potential'].rho = rho
+
         data['pair_potential'].cutoff = cutoff
         if data['h_bond_donor']:
             for n in self.graph.neighbors(node):
@@ -2915,9 +2921,9 @@ class Dreiding(ForceField):
 
         the morse potential is apparently better, so it
         will be default here
-       
+
         DREIDING III h-bonding terms
-        specified in 10.1021/ja8100227. 
+        specified in 10.1021/ja8100227.
 
         Table S3 of the SI of 10.1021/ja8100227 is poorly documented,
         I have parameterized, to the best of my ability, what was intended
@@ -2971,7 +2977,7 @@ class Dreiding(ForceField):
                         R0 = 3.405
                     elif(ff2 == "N_3"):
                         if((jneigh.count("H") > 0)):
-                            D0 = 0.93  
+                            D0 = 0.93
                             R0 = 3.47
                         else:
                             D0 = 0.1870
@@ -2979,15 +2985,15 @@ class Dreiding(ForceField):
                 # primary amine
                 elif((ineigh.count("H") == 2) and (len(ineigh) == 3)):
                     if(ff2 == "Cl_"):
-                        D0 = 10.00 
+                        D0 = 10.00
                         R0 = 2.9795
                     elif(ff2 == "O_3"):
                         D0 = 2.21
                         R0 = 3.12
                     elif(ff2 == "O_2" or ff2 == "O_R"): # Added the O_R if statement
                         #D0 = 8.38
-                        #R0 = 2.77 
-                        R0 = 3.00 
+                        #R0 = 2.77
+                        R0 = 3.00
                     elif(ff2 == "N_3"):
                         if((jneigh.count("H") > 0)):
                             D0 = 8.45
@@ -3002,21 +3008,21 @@ class Dreiding(ForceField):
                         R0 = 3.275
                     elif(ff2 == "O_3"):
                         D0 = 1.22
-                        R0 = 3.2 
+                        R0 = 3.2
                     elif(ff2 == "O_2"):
                         D0 = 8.56
                         R0 = 2.635
                     elif(ff2 == "N_3"):
                         if((jneigh.count("H") > 0)):
                             D0 = 10.14
-                            R0 = 2.6 
+                            R0 = 2.6
                         else:
                             D0 = 0.8
-                            R0 = 3.22 
+                            R0 = 3.22
             elif(ff1 == "N_R"):
                 if(ff2 == "Cl_"):
-                    D0 = 5.6   
-                    R0 = 3.265 
+                    D0 = 5.6
+                    R0 = 3.265
                 elif(ff2 == "O_3"):
                     D0 = 1.38
                     R0 = 3.17
@@ -3024,27 +3030,27 @@ class Dreiding(ForceField):
                     R0 = 2.72 # fix for adenine w-c
                 elif(ff2 == "O_2"):
                     D0 = 3.88
-                    R0 = 2.9  
+                    R0 = 2.9
                 elif(ff2 == "N_3"):
                     if((jneigh.count("H") > 0)):
                         D0 = 2.44
                         R0 = 3.15
                     else:
                         D0 = 0.43
-                        R0 = 3.4  
+                        R0 = 3.4
             elif(ff1 == "O_3"):
                 if(ff2 == "O_2"):
                     D0 = 1.33
-                    R0 = 3.15 
+                    R0 = 3.15
                 elif(ff2 == "N_3"):
                     if((jneigh.count("H") > 0)):
                         D0 = 1.97
                         R0 = 3.12
                     else:
                         D0 = 1.25
-                        R0 = 3.15 
+                        R0 = 3.15
             potential.htype = graph.node[hnode]['ff_type_index']
-            potential.D0 = D0 
+            potential.D0 = D0
             potential.alpha = 10.0/ 2. / R0
             potential.R0 = R0
             potential.n = 2
@@ -3057,11 +3063,11 @@ class Dreiding(ForceField):
         return hbond_pair
 
     def special_commands(self):
-        if self.pair_in_data: 
+        if self.pair_in_data:
             st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic")]
         else:
             st = ["%-15s %s"%("pair_modify", "tail yes")]
-        st += ["%-15s %.1f"%('dielectric', 1.0), 
+        st += ["%-15s %.1f"%('dielectric', 1.0),
                "%-15s %s"%("special_bonds", "dreiding") # equivalent to 'special_bonds lj 0.0 0.0 1.0'
                ]
         return st
@@ -3114,22 +3120,22 @@ class Dreiding(ForceField):
 class UFF4MOF(ForceField):
     """Parameterize the periodic material with the UFF4MOF parameters.
     """
-    
+
     def __init__(self, **kwargs):
         self.pair_in_data = True
         self.keep_metal_geometry = False
-        self.graph = None 
+        self.graph = None
         # override existing arguments with kwargs
         for key, value in kwargs.items():
             setattr(self, key, value)
         if (self.graph is not None):
-            self.detect_ff_terms() 
+            self.detect_ff_terms()
             self.compute_force_field_terms()
 
     def pair_terms(self, node, data, cutoff):
         """Add L-J term to atom"""
         data['pair_potential'] = PairPotential.LjCutCoulLong()
-        data['pair_potential'].eps = UFF4MOF_DATA[data['force_field_type']][3] 
+        data['pair_potential'].eps = UFF4MOF_DATA[data['force_field_type']][3]
         data['pair_potential'].sig = UFF4MOF_DATA[data['force_field_type']][2]*(2**(-1./6.))
         data['pair_potential'].cutoff = cutoff
         return 1
@@ -3175,15 +3181,15 @@ class UFF4MOF(ForceField):
 
         in Lammps, the angle syle called 'fourier/simple' can be used
         to describe this functional form.
-        
+
         general non-linear case:
         three-term Fourier expansion
         E_0 = K_{IJK} * [C_0 + C_1*cos(theta) + C_2*cos(2*theta)]
-        
+
         in Lammps, the angle style called 'fourier' can be used to
         describe this functional form.
 
-        Both 'fourier/simple' and 'fourier' are available from the 
+        Both 'fourier/simple' and 'fourier' are available from the
         USER_MISC package in Lammps, so be sure to compile Lammps with
         this package.
 
@@ -3193,7 +3199,7 @@ class UFF4MOF(ForceField):
         sf = ['linear', 'trigonal-planar', 'square-planar', 'octahedral']
         a, b, c, data = angle
         angle_type = self.uff_angle_type(b)
-        
+
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
         c_data = self.graph.node[c]
@@ -3201,7 +3207,7 @@ class UFF4MOF(ForceField):
         bc_bond = self.graph[b][c]
 
         auff, buff, cuff = a_data['force_field_type'], b_data['force_field_type'], c_data['force_field_type']
-        
+
         theta0 = UFF4MOF_DATA[buff][1]
         # just check if the central node is a metal, then apply a rigid angle term.
         # NB: Functional form may change dynamics, but at this point we will not
@@ -3219,7 +3225,7 @@ class UFF4MOF(ForceField):
 
         za = UFF4MOF_DATA[auff][5]
         zc = UFF4MOF_DATA[cuff][5]
-        
+
         r_ab = ab_bond['potential'].R0
         r_bc = bc_bond['potential'].R0
         r_ac = math.sqrt(r_ab*r_ab + r_bc*r_bc - 2.*r_ab*r_bc*cosT0)
@@ -3241,7 +3247,7 @@ class UFF4MOF(ForceField):
             # the description of the actual parameters for 'n' are not obvious
             # for the tetrahedral special case from the UFF paper or the write up in TOWHEE.
             # The values were found in the TOWHEE source code (eg. Bi3+3).
-            if angle_type == 'tetrahedral': 
+            if angle_type == 'tetrahedral':
                 kappa = ka/4.
                 c0 = -1.
                 B = -1
@@ -3265,7 +3271,7 @@ class UFF4MOF(ForceField):
             # this is done for you in the source code of LAMMPS k[i] = c_one/(n_one*n_one);
             data['potential'].C = kappa*(c1**2)
             #data['potential'].c = c0
-            data['potential'].B = B 
+            data['potential'].B = B
             data['potential'].n = c1
             return 1
         # general-nonlinear
@@ -3323,7 +3329,7 @@ class UFF4MOF(ForceField):
         d_data = self.graph.node[d]
 
         torsiontype = self.graph[b][c]['order']
-        
+
         coord_bc = (self.graph.degree(b), self.graph.degree(c))
         bc = (b_data['force_field_type'], c_data['force_field_type'])
         M = mul(*coord_bc)
@@ -3331,11 +3337,11 @@ class UFF4MOF(ForceField):
         n = 0
         mixed_case = ((b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic') and
                       c_data['hybridization'] == 'sp3') or \
-                (b_data['hybridization'] == 'sp3' and 
-                (c_data['hybridization'] == 'sp2' or c_data['hybridization'] == 'aromatic')) 
+                (b_data['hybridization'] == 'sp3' and
+                (c_data['hybridization'] == 'sp2' or c_data['hybridization'] == 'aromatic'))
         all_sp2 = ((b_data['hybridization'] == 'sp2' or b_data['hybridization'] == 'aromatic') and
                    c_data['hybridization'] == 'sp2' or c_data['hybridization'] == 'aromatic')
-        all_sp3 = (b_data['hybridization'] == 'sp3' and 
+        all_sp3 = (b_data['hybridization'] == 'sp3' and
                    c_data['hybridization'] == 'sp3')
 
         phi0 = 0
@@ -3346,7 +3352,7 @@ class UFF4MOF(ForceField):
             n = 3
             vi = UFF4MOF_DATA[b_data['force_field_type']][6]
             vj = UFF4MOF_DATA[c_data['force_field_type']][6]
-            
+
             if b_data['atomic_number'] == 8:
                 vi = 2.
                 n = 2
@@ -3367,28 +3373,28 @@ class UFF4MOF(ForceField):
 
             V = (vi*vj)**0.5
 
-        elif all_sp2: 
+        elif all_sp2:
             ui = UFF4MOF_DATA[b_data['force_field_type']][7]
             uj = UFF4MOF_DATA[c_data['force_field_type']][7]
             phi0 = 180.0
             n = 2
             V = 5.0 * (ui*uj)**0.5 * (1. + 4.18*math.log(torsiontype))
 
-        elif mixed_case: 
+        elif mixed_case:
             phi0 = 180.0
             n = 3
-            V = 2.  
-            
+            V = 2.
+
             if c_data['hybridization'] == 'sp3':
                 if c_data['atomic_number'] in (8, 16, 34, 52):
                     n = 2
                     phi0 = 90.
-            elif b_data['hybridization'] == 'sp3': 
+            elif b_data['hybridization'] == 'sp3':
                 if b_data['atomic_number'] in (8, 16, 34, 52):
                     n = 2
                     phi0 = 90.0
             # special case group 6 elements
-            if n==2: 
+            if n==2:
                 ui = UFF4MOF_DATA[b_data['force_field_type']][7]
                 uj = UFF4MOF_DATA[c_data['force_field_type']][7]
                 V = 5.0 * (ui*uj)**0.5 * (1. + 4.18*math.log(torsiontype))
@@ -3398,15 +3404,15 @@ class UFF4MOF(ForceField):
 
         if abs(math.sin(nphi0*DEG2RAD)) > 1.0e-3:
             print("WARNING!!! nphi0 = %r" % nphi0)
-        
-        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS or 
+
+        if (self.keep_metal_geometry) and (b_data['atomic_number'] in METALS or
             c_data['atomic_number'] in METALS):
             # must use different potential with minimum at the computed dihedral
             # angle.
             nphi0 = n*self.graph.compute_dihedral_between(a, b, c, d)
             data['potential'] = DihedralPotential.Charmm()
             data['potential'].K = 0.5
-            data['potential'].d = 180 + nphi0 
+            data['potential'].d = 180 + nphi0
             data['potential'].n = n
             return 1
         if V==0.:
@@ -3435,7 +3441,7 @@ class UFF4MOF(ForceField):
             c0 = 1.0
             c1 = -1.0
             c2 = 0.0
-            koop = 6.0 
+            koop = 6.0
         elif b_data['force_field_type'] in ('P_3+3', 'As3+3', 'Sb3+3', 'Bi3+3'):
             if b_data['force_field_type'] == 'P_3+3':
                 phi = 84.4339 * DEG2RAD
@@ -3448,24 +3454,24 @@ class UFF4MOF(ForceField):
             c1 = -4.0 * math.cos(phi)
             c2 = 1.0
             c0 = -1.0*c1*math.cos(phi) + c2*math.cos(2.0*phi)
-            koop = 22.0 
+            koop = 22.0
         elif b_data['force_field_type'] in ('C_2', 'C_R'):
             c0 = 1.0
             c1 = -1.0
             c2 = 0.0
-            koop = 6.0 
+            koop = 6.0
             if 'O_2' in (a_ff, c_ff, d_ff):
                 # check to make sure an aldehyde (i.e. not carboxylate bonded to metal)
                 if a_ff == "O_2" and len(self.graph.neighbors(a)) == 1:
-                    koop = 50.0 
+                    koop = 50.0
                 elif c_ff == "O_2" and len(self.graph.neighbors(c)) == 1:
-                    koop = 50.0 
+                    koop = 50.0
                 elif d_ff == "O_2" and len(self.graph.neighbors(d)) == 1:
-                    koop = 50.0 
+                    koop = 50.0
         else:
             return None
-        
-        koop /= 3. 
+
+        koop /= 3.
 
         data['potential'] = ImproperPotential.Fourier()
         data['potential'].K = koop
@@ -3473,12 +3479,12 @@ class UFF4MOF(ForceField):
         data['potential'].C1 = c1
         data['potential'].C2 = c2
         return 1
-    
+
     def special_commands(self):
         st = ["%-15s %s %s"%("pair_modify", "tail yes", "mix arithmetic"),
               "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"),
               "%-15s %.1f"%('dielectric', 1.0)
-              ] 
+              ]
         return st
 
     def detect_ff_terms(self):
@@ -3511,12 +3517,12 @@ class UFF4MOF(ForceField):
                         data['force_field_type'] = "C_R"
                         for n in self.graph.neighbors(node):
                             if self.graph.node[n]['element'] == "O":
-                                self.graph[node][n]['order'] = 1.5 
+                                self.graph[node][n]['order'] = 1.5
                             elif self.graph.node[n]['element'] == "C":
                                 self.graph[node][n]['order'] = 1
                     elif data['special_flag'] == "O_c_Zn4O":
                         data['force_field_type'] = 'O_2'
-                    
+
                     # Copper Paddlewheel TODO(pboyd): generalize these cases...
                     elif data['special_flag'] == "O1_Cu_pdw" or data['special_flag'] == "O2_Cu_pdw":
                         data['force_field_type'] = 'O_2'
@@ -3531,7 +3537,7 @@ class UFF4MOF(ForceField):
                         data['force_field_type'] = 'C_R'
                         for n in self.graph.neighbors(node):
                             if self.graph.node[n]['element'] == "O":
-                                self.graph[node][n]['order'] = 1.5 
+                                self.graph[node][n]['order'] = 1.5
                             elif self.graph.node[n]['element'] == "C":
                                 self.graph[node][n]['order'] = 1
 
@@ -3549,10 +3555,10 @@ class UFF4MOF(ForceField):
                         data['force_field_type'] = 'C_R'
                         for n in self.graph.neighbors(node):
                             if self.graph.node[n]['element'] == "O":
-                                self.graph[node][n]['order'] = 1.5 
+                                self.graph[node][n]['order'] = 1.5
                             elif self.graph.node[n]['element'] == "C":
                                 self.graph[node][n]['order'] = 1
-                    
+
                     # Al Pillar TODO(pboyd): generalize these cases...
                     elif data['special_flag'] == "O_c_Al_pillar":
                         data['force_field_type'] = 'O_2'
@@ -3566,7 +3572,7 @@ class UFF4MOF(ForceField):
                         data['force_field_type'] = 'C_R'
                         for n in self.graph.neighbors(node):
                             if self.graph.node[n]['element'] == "O":
-                                self.graph[node][n]['order'] = 1.5 
+                                self.graph[node][n]['order'] = 1.5
                             elif self.graph.node[n]['element'] == "C":
                                 self.graph[node][n]['order'] = 1
 
@@ -3581,7 +3587,7 @@ class UFF4MOF(ForceField):
                         data['force_field_type'] = 'C_R'
                         for n in self.graph.neighbors(node):
                             if self.graph.node[n]['element'] == "O":
-                                self.graph[node][n]['order'] = 1.5 
+                                self.graph[node][n]['order'] = 1.5
                             elif self.graph.node[n]['element'] == "C":
                                 self.graph[node][n]['order'] = 1
 
@@ -3646,22 +3652,22 @@ class UFF4MOF(ForceField):
                         fftype += "6f3"
                     elif(self.graph.degree(node) == 8):
                         fftype += "8f4"
-                    try: 
-                        UFF4MOF_DATA[fftype] 
-                        data['force_field_type'] = fftype 
-                    # couldn't find the force field type! 
-                    except KeyError: 
+                    try:
+                        UFF4MOF_DATA[fftype]
+                        data['force_field_type'] = fftype
+                    # couldn't find the force field type!
+                    except KeyError:
                         try:
                             fftype = fftype.replace("f", "+")
                             UFF4MOF_DATA[fftype]
                         except KeyError:
                             pass
-                    for n in self.graph.neighbors(node): 
-                        if self.graph.node[n]['element'] in metals: 
-                            self.graph[node][n]['order'] = 0.25 
-                        elif self.graph.node[n]['element'] == "O": 
-                            self.graph[node][n]['order'] = 0.5  
-                        # else: bond order stays = 1 
+                    for n in self.graph.neighbors(node):
+                        if self.graph.node[n]['element'] in metals:
+                            self.graph[node][n]['order'] = 0.25
+                        elif self.graph.node[n]['element'] == "O":
+                            self.graph[node][n]['order'] = 0.5
+                        # else: bond order stays = 1
 
                 # WARNING, the following else statement will do unknown things to the system.
                 if data['force_field_type'] is None:
@@ -3687,25 +3693,25 @@ class Dubbeldam(ForceField):
 
         if (graph is not None):
             self.graph = graph
-            self.detect_ff_terms() 
+            self.detect_ff_terms()
             self.compute_force_field_terms()
 
     def bond_term(self, edge):
         """
         Harmonic term
-        
+
         E = 0.5 * K * (R - Req)^2
-        
+
         """
         n1, n2, data = edge
-        type1 = self.graph.node[n1]['force_field_type'] 
+        type1 = self.graph.node[n1]['force_field_type']
         type2 = self.graph.node[n2]['force_field_type']
         string = "_".join([type1, type2])
         if type1 == "Zn" or type2 == "Zn":
             #data['potential'] = BondPotential.Harmonic()
-            #data['potential'].K = 0.0 
+            #data['potential'].K = 0.0
             #data['potential'].R0 = 2.4
-            return None 
+            return None
 
         if string not in Dub_bonds.keys():
             string = "_".join([type2, type1])
@@ -3724,13 +3730,13 @@ class Dubbeldam(ForceField):
         """
         a, b, c, data = angle
         K = 100.0
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
+        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
-        
+
         string = "_".join([atype, btype, ctype])
-        
+
         if atype == "Zn" or btype == "Zn" or ctype == "Zn":
             return None
 
@@ -3756,7 +3762,7 @@ class Dubbeldam(ForceField):
 
         E = K * [ 1 + d*cos(n*theta - d) ]
         """
-        
+
         a,b,c,d, data = dihedral
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
@@ -3778,8 +3784,8 @@ class Dubbeldam(ForceField):
             sys.exit()
         w = 0.0
         data['potential'] = DihedralPotential.Charmm()
-        data['potential'].K = Dub_dihedrals[string][0]*kBtokcal 
-        data['potential'].n = Dub_dihedrals[string][2] 
+        data['potential'].K = Dub_dihedrals[string][0]*kBtokcal
+        data['potential'].n = Dub_dihedrals[string][2]
         data['potential'].d = Dub_dihedrals[string][1]
         data['potential'].w = w
         return 1
@@ -3800,21 +3806,21 @@ class Dubbeldam(ForceField):
 
         """
         a, b, c, d, data = improper
-        
+
         a_data = self.graph.node[a]
         b_data = self.graph.node[b]
         c_data = self.graph.node[c]
         d_data = self.graph.node[d]
-        
+
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
         dtype = d_data['force_field_type']
-        
+
         if atype == "Zn" or btype == "Zn" or ctype == "Zn" or dtype == "Zn":
 
             return None
-        
+
         string = "_".join([atype, btype, ctype, dtype])
         if string not in Dub_impropers.keys():
             string = "_".join([atype, btype, dtype, ctype])
@@ -3830,41 +3836,41 @@ class Dubbeldam(ForceField):
             print("ERROR: Could not find the improper torsion parameters for the atom types %s"%string)
             sys.exit()
         data['potential'] = ImproperPotential.Cvff()
-        
+
         # I have 3 impropers, he only has 1. Divide by 3 to get average?
-        data['potential'].K = Dub_impropers[string][0]*kBtokcal / len(self.graph.neighbors(b)) 
-        data['potential'].d = -1 
+        data['potential'].K = Dub_impropers[string][0]*kBtokcal / len(self.graph.neighbors(b))
+        data['potential'].d = -1
         data['potential'].n = Dub_impropers[string][2]
         return 1
-    
+
     def pair_terms(self, node, data, cutoff):
-        """ 
+        """
 
         """
         data['pair_potential'] = PairPotential.LjCutCoulLong()
-        data['pair_potential'].eps = Dub_atoms[data['force_field_type']][0]*kBtokcal 
+        data['pair_potential'].eps = Dub_atoms[data['force_field_type']][0]*kBtokcal
         data['pair_potential'].sig = Dub_atoms[data['force_field_type']][1]
         data['pair_potential'].cutoff = cutoff
         data['charge'] = Dub_atoms[data['force_field_type']][2]
 
     def special_commands(self):
         st = ["%-15s %s"%("pair_modify", "tail yes"),
-              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"), 
-              "%-15s %.1f"%('dielectric', 1.0)] 
+              "%-15s %s"%("special_bonds", "lj/coul 0.0 0.0 1.0"),
+              "%-15s %.1f"%('dielectric', 1.0)]
         return st
 
     def detect_ff_terms(self):
         """ Instead of the painful experience of coding a huge set of 'if' statements over
-        extended bonding neighbours to identify IRMOF-1, 10 and 16, all of the force field types 
+        extended bonding neighbours to identify IRMOF-1, 10 and 16, all of the force field types
         will be detected from maximum cliques.
-        
+
         This means that failing to find the SBUs will result in a bad parameterization.
 
         """
         for node, data in self.graph.nodes_iter(data=True):
             special = 'special_flag' in data
             if not special:
-                print("ERROR: Some atoms were not detected as part of an SBU." + 
+                print("ERROR: Some atoms were not detected as part of an SBU." +
                         " This is a requirement for successful parameterization of the "+
                         "Dubbeldam forcefield for the IRMOFs.")
                 sys.exit()
@@ -3873,13 +3879,13 @@ class Dubbeldam(ForceField):
 
             elif data['special_flag'] == "Zn4O":
                 data['force_field_type'] = "Zn"
-            
+
             elif data['special_flag'] == "C_Zn4O":
                 data['force_field_type'] = "Ca"
 
             elif data['special_flag'] == "O_c_Zn4O":
                 data['force_field_type'] = "Ob"
-            
+
             else:
                 # NB this works only because the special flags for the organic
                 # SBUs are set to be the force field types assigned by Dubeldam!
@@ -3902,18 +3908,18 @@ class SPC_E(ForceField):
 
         if (graph is not None):
             self.graph = graph
-            self.detect_ff_terms() 
+            self.detect_ff_terms()
             self.compute_force_field_terms()
 
     def bond_term(self, edge):
         """Harmonic term
-        
+
         E = 0.5 * K * (R - Req)^2
-        
+
         just a placeholder in LAMMPS.
         The bond is rigid and fixed by SHAKE in LAMMPS
         therefore an unambiguous extra flag must be
-        added here to ensure the potential is not 
+        added here to ensure the potential is not
         grouped with identical (however unlikely) potentials
         which are not rigid.
 
@@ -3921,7 +3927,7 @@ class SPC_E(ForceField):
         n1, n2, data = edge
 
         data['potential'] = BondPotential.Harmonic()
-        data['potential'].K = 350.0 
+        data['potential'].K = 350.0
         data['potential'].R0 = 1.0
         data['potential'].special_flag = "shake"
         return 1
@@ -3930,26 +3936,26 @@ class SPC_E(ForceField):
         """Harmonic angle term.
 
         E = 0.5 * K * (theta - theta0)^2
-        
+
         just a placeholder in LAMMPS.
         The angle is rigid and fixed by SHAKE in LAMMPS
         therefore an unambiguous extra flag must be
-        added here to ensure the potential is not 
+        added here to ensure the potential is not
         grouped with identical (however unlikely) potentials
         which are not rigid.
 
         """
         a, b, c, data = angle
         K = 100.0
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
+        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
-       
+
         assert (b_data['element'] == "O")
 
         data['potential'] = AnglePotential.Harmonic()
-        data['potential'].K = K/2. 
+        data['potential'].K = K/2.
         data['potential'].theta0 = 109.47
         # extra flag?
         data['potential'].special_flag = "shake"
@@ -3968,14 +3974,14 @@ class SPC_E(ForceField):
 
         """
         return None
-    
+
     def pair_terms(self, node, data, cutoff):
-        """ 
+        """
         Lennard - Jones potential for OW and HW.
-        
+
         cutoff should be set to 9 angstroms, but this may
         be unrealistic.
-        Also, no long range treatment of coulombic 
+        Also, no long range treatment of coulombic
         term! Otherwise
         this isn't technically the SPC/E model but
         Ewald should be used for periodic materials.
@@ -3989,11 +3995,11 @@ class SPC_E(ForceField):
     def special_commands(self):
         st = [
               "%-15s %s"%("pair_modify", "tail yes")
-             ] 
+             ]
         return st
 
     def detect_ff_terms(self):
-        """Water consists of O and H, not too difficult. 
+        """Water consists of O and H, not too difficult.
 
         """
         for node, data in self.graph.nodes_iter(data=True):
@@ -4005,16 +4011,16 @@ class SPC_E(ForceField):
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
                 sys.exit()
-            data['force_field_type'] = fftype 
+            data['force_field_type'] = fftype
             data['mass'] = SPC_E_atoms[fftype][0]
-            data['charge'] = SPC_E_atoms[fftype][3] 
+            data['charge'] = SPC_E_atoms[fftype][3]
 
 class TIP3P(ForceField):
     def __init__(self, graph=None, **kwargs):
         self.pair_in_data = True
         # override existing arguments with kwargs
         # TIP3P can have flexible OH bonds and angles,
-        # set this to 'True' to enable a flexible 
+        # set this to 'True' to enable a flexible
         # model.
         self.flexible = False
         for key, value in kwargs.items():
@@ -4022,18 +4028,18 @@ class TIP3P(ForceField):
 
         if (graph is not None):
             self.graph = graph
-            self.detect_ff_terms() 
+            self.detect_ff_terms()
             self.compute_force_field_terms()
 
     def bond_term(self, edge):
         """Harmonic term
-        
+
         E = 0.5 * K * (R - Req)^2
-        
+
         just a placeholder in LAMMPS.
         The bond is rigid and fixed by SHAKE in LAMMPS
         therefore an unambiguous extra flag must be
-        added here to ensure the potential is not 
+        added here to ensure the potential is not
         grouped with identical (however unlikely) potentials
         which are not rigid.
 
@@ -4041,7 +4047,7 @@ class TIP3P(ForceField):
         n1, n2, data = edge
 
         data['potential'] = BondPotential.Harmonic()
-        data['potential'].K = 450.0 
+        data['potential'].K = 450.0
         data['potential'].R0 = 0.9572
         if not self.flexible:
             data['potential'].special_flag = "shake"
@@ -4051,25 +4057,25 @@ class TIP3P(ForceField):
         """Harmonic angle term.
 
         E = 0.5 * K * (theta - theta0)^2
-        
+
         just a placeholder in LAMMPS.
         The angle is rigid and fixed by SHAKE in LAMMPS
         therefore an unambiguous extra flag must be
-        added here to ensure the potential is not 
+        added here to ensure the potential is not
         grouped with identical (however unlikely) potentials
         which are not rigid.
 
         """
         a, b, c, data = angle
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
+        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
-       
+
         assert (b_data['element'] == "O")
 
         data['potential'] = AnglePotential.Harmonic()
-        data['potential'].K = 55.0 
+        data['potential'].K = 55.0
         data['potential'].theta0 = 104.52
         if not self.flexible:
             data['potential'].special_flag = "shake"
@@ -4088,11 +4094,11 @@ class TIP3P(ForceField):
 
         """
         return None
-    
+
     def pair_terms(self, node, data, cutoff):
-        """ 
+        """
         Lennard - Jones potential for OW and HW.
-        
+
         """
         data['pair_potential'] = PairPotential.LjCutCoulLong()
         data['pair_potential'].eps = TIP3P_atoms[data['force_field_type']][2]
@@ -4102,11 +4108,11 @@ class TIP3P(ForceField):
     def special_commands(self):
         st = [
               "%-15s %s"%("pair_modify", "tail yes")
-             ] 
+             ]
         return st
 
     def detect_ff_terms(self):
-        """Water consists of O and H, not too difficult. 
+        """Water consists of O and H, not too difficult.
 
         """
         for node, data in self.graph.nodes_iter(data=True):
@@ -4114,13 +4120,13 @@ class TIP3P(ForceField):
                 fftype = "OW"
             elif data['element'] == "H":
                 fftype = "HW"
-            else: 
+            else:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
                 sys.exit()
-            data['force_field_type'] = fftype 
-            data['mass'] = TIP3P_atoms[fftype][0] 
-            data['charge'] = TIP3P_atoms[fftype][3] 
+            data['force_field_type'] = fftype
+            data['mass'] = TIP3P_atoms[fftype][0]
+            data['charge'] = TIP3P_atoms[fftype][3]
 
 class TIP4P(ForceField, TIP4P_Water):
     def __init__(self, graph=None, **kwargs):
@@ -4133,18 +4139,18 @@ class TIP4P(ForceField, TIP4P_Water):
             self.graph = graph
             if not self.lammps_implicit:
                 self.graph.rigid = True
-            self.detect_ff_terms() 
+            self.detect_ff_terms()
             self.compute_force_field_terms()
 
     def bond_term(self, edge):
         """Harmonic term
-        
+
         E = 0.5 * K * (R - Req)^2
-        
+
         just a placeholder in LAMMPS.
         The bond is rigid and fixed by SHAKE in LAMMPS
         therefore an unambiguous extra flag must be
-        added here to ensure the potential is not 
+        added here to ensure the potential is not
         grouped with identical (however unlikely) potentials
         which are not rigid.
 
@@ -4155,14 +4161,14 @@ class TIP4P(ForceField, TIP4P_Water):
 
         data['potential'] = BondPotential.Harmonic()
         if not self.lammps_implicit:
-            data['potential'].K = 4500000.0 
+            data['potential'].K = 4500000.0
             data['potential'].special_flag = "rigid"
         else:
-            data['potential'].K = 450.0 
+            data['potential'].K = 450.0
             data['potential'].special_flag = "shake"
-        if set([n1fftype, n2fftype]) == set(["HW", "OW"]): 
+        if set([n1fftype, n2fftype]) == set(["HW", "OW"]):
             data['potential'].R0 = self.ROH
-        elif set([n1fftype, n2fftype]) == set(["X", "OW"]): 
+        elif set([n1fftype, n2fftype]) == set(["X", "OW"]):
             data['potential'].R0 = self.Rdum
         return 1
 
@@ -4170,32 +4176,32 @@ class TIP4P(ForceField, TIP4P_Water):
         """Harmonic angle term.
 
         E = 0.5 * K * (theta - theta0)^2
-        
+
         just a placeholder in LAMMPS.
         The angle is rigid and fixed by SHAKE in LAMMPS
         therefore an unambiguous extra flag must be
-        added here to ensure the potential is not 
+        added here to ensure the potential is not
         grouped with identical (however unlikely) potentials
         which are not rigid.
 
         """
         a, b, c, data = angle
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
+        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
-        
+
         assert (b_data['element'] == "O")
 
         data['potential'] = AnglePotential.Harmonic()
         if not self.lammps_implicit:
-            data['potential'].K = 550000.0 
+            data['potential'].K = 550000.0
             data['potential'].special_flag = "rigid"
         else:
             data['potential'].K = 55.0
             data['potential'].special_flag = "shake"
 
-        if atype == "HW" and ctype == "HW": 
+        if atype == "HW" and ctype == "HW":
             data['potential'].theta0 = self.HOH
         elif (set([atype,ctype]) == set(["X", "HW"])) and (not self.lammps_implicit):
             data['potential'].theta0 = self.graph.compute_angle_between(a,b,c)
@@ -4215,9 +4221,9 @@ class TIP4P(ForceField, TIP4P_Water):
 
         """
         return None
-    
+
     def pair_terms(self, node, data, cutoff):
-        """ 
+        """
         Lennard - Jones potential for OW and HW.
 
         """
@@ -4235,11 +4241,11 @@ class TIP4P(ForceField, TIP4P_Water):
     def special_commands(self):
         st = [
               "%-15s %s"%("pair_modify", "tail yes")
-             ] 
+             ]
         return st
 
     def detect_ff_terms(self):
-        """Water consists of O and H, not too difficult. 
+        """Water consists of O and H, not too difficult.
 
         """
         for node, data in self.graph.nodes_iter(data=True):
@@ -4249,35 +4255,35 @@ class TIP4P(ForceField, TIP4P_Water):
                 fftype = "HW"
             elif data['element'] == "X":
                 fftype = "X"
-            else: 
+            else:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
                 sys.exit()
-            data['force_field_type'] = fftype 
-            data['mass'] = TIP4P_atoms[fftype][0] 
-            data['charge'] = TIP4P_atoms[fftype][3] 
+            data['force_field_type'] = fftype
+            data['mass'] = TIP4P_atoms[fftype][0]
+            data['charge'] = TIP4P_atoms[fftype][3]
 
 class TIP5P(ForceField):
     def __init__(self, graph=None, **kwargs):
         self.pair_in_data = True
         for key, value in kwargs.items():
             setattr(self, key, value)
-        
+
         if (graph is not None):
             self.graph = graph
             self.graph.rigid = True
-            self.detect_ff_terms() 
+            self.detect_ff_terms()
             self.compute_force_field_terms()
 
     def bond_term(self, edge):
         """Harmonic term
-        
+
         E = 0.5 * K * (R - Req)^2
-        
+
         just a placeholder in LAMMPS.
         The bond is rigid and fixed by SHAKE in LAMMPS
         therefore an unambiguous extra flag must be
-        added here to ensure the potential is not 
+        added here to ensure the potential is not
         grouped with identical (however unlikely) potentials
         which are not rigid.
 
@@ -4301,21 +4307,21 @@ class TIP5P(ForceField):
         """Harmonic angle term.
 
         E = 0.5 * K * (theta - theta0)^2
-        
+
         just a placeholder in LAMMPS.
         The angle is rigid and fixed by SHAKE in LAMMPS
         therefore an unambiguous extra flag must be
-        added here to ensure the potential is not 
+        added here to ensure the potential is not
         grouped with identical (however unlikely) potentials
         which are not rigid.
 
         """
         a, b, c, data = angle
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
+        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
-       
+
         assert (b_data['element'] == "O")
         data['potential'] = AnglePotential.Harmonic()
         if atype == "X" and ctype == "X":
@@ -4344,9 +4350,9 @@ class TIP5P(ForceField):
 
         """
         return None
-    
+
     def pair_terms(self, node, data, cutoff):
-        """ 
+        """
         Lennard - Jones potential for OW and HW.
 
         """
@@ -4358,11 +4364,11 @@ class TIP5P(ForceField):
     def special_commands(self):
         st = [
               "%-15s %s"%("pair_modify", "tail yes")
-             ] 
+             ]
         return st
 
     def detect_ff_terms(self):
-        """Water consists of O and H, not too difficult. 
+        """Water consists of O and H, not too difficult.
 
         """
         for node, data in self.graph.nodes_iter(data=True):
@@ -4372,12 +4378,12 @@ class TIP5P(ForceField):
                 fftype = "HW"
             elif data['element'] == "X":
                 fftype = "X"
-            else: 
+            else:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
                 sys.exit()
-            data['force_field_type'] = fftype 
-            data['mass'] = TIP5P_atoms[fftype][0] 
+            data['force_field_type'] = fftype
+            data['mass'] = TIP5P_atoms[fftype][0]
             data['charge'] = TIP5P_atoms[fftype][3]
 
 class EPM2_CO2(ForceField):
@@ -4386,7 +4392,7 @@ class EPM2_CO2(ForceField):
         self.pair_in_data = True
         for key, value in kwargs.items():
             setattr(self, key, value)
-        
+
         if (graph is not None):
             self.graph = graph
             self.graph.rigid = True
@@ -4395,13 +4401,13 @@ class EPM2_CO2(ForceField):
 
     def bond_term(self, edge):
         """Harmonic term
-        
+
         E = 0.5 * K * (R - Req)^2
-        
+
         just a placeholder in LAMMPS.
-        The bond is rigid 
+        The bond is rigid
         therefore an unambiguous extra flag must be
-        added here to ensure the potential is not 
+        added here to ensure the potential is not
         grouped with identical (however unlikely) potentials
         which are not rigid.
 
@@ -4411,7 +4417,7 @@ class EPM2_CO2(ForceField):
         n1data = self.graph.node[n1]
         n2data = self.graph.node[n2]
         data['potential'] = BondPotential.Harmonic()
-        data['potential'].R0 = 1.149 
+        data['potential'].R0 = 1.149
         data['potential'].K = 450000.0 # strong bond potential to ensure that the structure
                                        # will not deviate far from its intended form
                                        # during a minimization
@@ -4427,17 +4433,17 @@ class EPM2_CO2(ForceField):
 
         """
         a, b, c, data = angle
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c] 
+        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
-       
+
         assert (b_data['element'] == "C")
         assert (a_data['element'] == "O")
         assert (c_data['element'] == "O")
         data['potential'] = AnglePotential.Harmonic()
-        data['potential'].theta0 = EPM2_angles["_".join([atype,btype,ctype])][1]  
-        data['potential'].K = EPM2_angles["_".join([atype,btype,ctype])][0]/2. 
+        data['potential'].theta0 = EPM2_angles["_".join([atype,btype,ctype])][1]
+        data['potential'].K = EPM2_angles["_".join([atype,btype,ctype])][0]/2.
         data['potential'].special_flag = "rigid"
         return 1
 
@@ -4454,9 +4460,9 @@ class EPM2_CO2(ForceField):
 
         """
         return None
-    
+
     def pair_terms(self, node, data, cutoff):
-        """ 
+        """
         Lennard - Jones potential for Cx and Ox.
 
         """
@@ -4468,11 +4474,11 @@ class EPM2_CO2(ForceField):
     def special_commands(self):
         st = [
               "%-15s %s"%("pair_modify", "tail yes")
-             ] 
+             ]
         return st
 
     def detect_ff_terms(self):
-        """CO2 consists of C and O, not too difficult. 
+        """CO2 consists of C and O, not too difficult.
 
         """
         for node, data in self.graph.nodes_iter(data=True):
@@ -4480,10 +4486,10 @@ class EPM2_CO2(ForceField):
                 fftype = "Ox"
             elif data['element'] == "C":
                 fftype = "Cx"
-            else: 
+            else:
                 print("ERROR: could not find the proper force field type for atom %i"%(data['index'])+
                         " with element: '%s'"%(data['element']))
                 sys.exit()
-            data['force_field_type'] = fftype 
-            data['mass'] = EPM2_atoms[fftype][0] 
+            data['force_field_type'] = fftype
+            data['mass'] = EPM2_atoms[fftype][0]
             data['charge'] = EPM2_atoms[fftype][3]

@@ -1,3 +1,6 @@
+"""
+Parameters for Universal Force Field.
+"""
 UFF_DATA = {
     # Atom, r1, theta0, x1, D1, zeta, Z1, Vi, Uj, Xi, Hard, Radius
     "Du": (0.01, 180, 0.4, 5000, 12, 10, 0, 0, 9.66, 14.92, 0.7),

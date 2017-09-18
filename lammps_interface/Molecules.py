@@ -1,8 +1,12 @@
+"""
+Molecule class.
+"""
 import numpy as np
-from water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms
-from gas_models import EPM2_atoms
-from structure_data import MolecularGraph
+from .water_models import SPC_E_atoms, TIP3P_atoms, TIP4P_atoms, TIP5P_atoms
+from .gas_models import EPM2_atoms
+from .structure_data import MolecularGraph
 import networkx as nx
+
 
 class Molecule(MolecularGraph):
     #TODO(pboyd):add bonding calculations for the atoms in each molecular template.
@@ -38,18 +42,18 @@ class Molecule(MolecularGraph):
         axis = axis / np.linalg.norm(axis)
         a = np.cos(angle / 2.)
         b, c, d = -axis*np.sin(angle / 2.)
-    
+
         R = np.array([[a*a + b*b - c*c - d*d, 2*(b*c - a*d), 2*(b*d + a*c)],
                   [2*(b*c + a*d), a*a + c*c - b*b - d*d, 2*(c*d - a*b)],
                   [2*(b*d - a*c), 2*(c*d + a*b), a*a + d*d - b*b - c*c]])
-    
+
         return R
-    
+
     def compute_all_angles(self):
         self.compute_angles()
         self.compute_dihedrals()
         self.compute_improper_dihedrals()
-    
+
     def str(self, atom_types={}, bond_types={}, angle_types={}, dihedral_types={}, improper_types={}):
         """ Create a molecule template string for writing to a file.
         Ideal for using fix gcmc or fix deposit in LAMMPS.
@@ -77,15 +81,15 @@ class Molecule(MolecularGraph):
 
         line += "\nCharges\n\n"
         for node, data in self.nodes_iter(data=True):
-            line += "%6i %12.5f\n"%(node, data['charge']) 
-        
+            line += "%6i %12.5f\n"%(node, data['charge'])
+
         #TODO(pboyd): add bonding, angles, dihedrals, impropers, etc.
         if self.number_of_edges():
             line += "\nBonds\n\n"
             count = 0
             for n1, n2, data in self.edges_iter2(data=True):
                 count += 1
-                line += "%6i %6i %6i %6i # %s %s\n"%(count, data['ff_type_index'], n1, n2, 
+                line += "%6i %6i %6i %6i # %s %s\n"%(count, data['ff_type_index'], n1, n2,
                                                      self.node[n1]['force_field_type'],
                                                      self.node[n2]['force_field_type'])
 
@@ -95,52 +99,52 @@ class Molecule(MolecularGraph):
             for b, data in self.nodes_iter(data=True):
                 try:
                     ang_data = data['angles']
-                    for (a, c), val in ang_data.items(): 
+                    for (a, c), val in ang_data.items():
                         count += 1
-                        line += "%6i %6i %6i %6i %6i # %s %s(c) %s\n"%(count, 
-                                                    val['ff_type_index'], a, b, c, 
+                        line += "%6i %6i %6i %6i %6i # %s %s(c) %s\n"%(count,
+                                                    val['ff_type_index'], a, b, c,
                                                     self.node[a]['force_field_type'],
                                                     self.node[b]['force_field_type'],
                                                     self.node[c]['force_field_type'])
                 except KeyError:
                     pass
-        
+
         if self.count_dihedrals():
             line += "\nDihedrals\n\n"
             count = 0
             for b, c, data in self.edges_iter2(data=True):
                 try:
                     dihed_data = data['dihedrals']
-                    for (a, d), val in dihed_data.items(): 
+                    for (a, d), val in dihed_data.items():
                         count += 1
-                        line += "%6i %6i %6i %6i %6i %6i # %s %s(c) %s(c) %s\n"%(count, 
-                                            val['ff_type_index'], a, b, c, d, 
+                        line += "%6i %6i %6i %6i %6i %6i # %s %s(c) %s(c) %s\n"%(count,
+                                            val['ff_type_index'], a, b, c, d,
                                             self.node[a]['force_field_type'],
                                             self.node[b]['force_field_type'],
                                             self.node[c]['force_field_type'],
                                             self.node[d]['force_field_type'])
                 except KeyError:
                     pass
-        
+
         if self.count_impropers():
             line += "\nImpropers\n\n"
             count = 0
             for b, data in self.nodes_iter(data=True):
                 try:
                     imp_data = data['impropers']
-                    for (a, c, d), val in imp_data.items(): 
+                    for (a, c, d), val in imp_data.items():
                         count += 1
-                        line += "%6i %6i %6i %6i %6i %6i # %s %s (c) %s %s\n"%(count, 
-                                                    val['ff_type_index'], a, b, c, d, 
+                        line += "%6i %6i %6i %6i %6i %6i # %s %s (c) %s %s\n"%(count,
+                                                    val['ff_type_index'], a, b, c, d,
                                                     self.node[a]['force_field_type'],
                                                     self.node[b]['force_field_type'],
-                                                    self.node[c]['force_field_type'], 
+                                                    self.node[c]['force_field_type'],
                                                     self.node[d]['force_field_type'])
                 except KeyError:
                     pass
 
         return line
-    
+
     @property
     def _type_(self):
         return self.__class__.__name__
@@ -150,7 +154,7 @@ class CO2(Molecule):
     to all CO2 models.
 
     """
-    
+
     @property
     def O_coord(self):
         """Define the oxygen coordinates assuming carbon is centered at '0'.
@@ -161,9 +165,9 @@ class CO2(Molecule):
         try:
             return self._O_coord
         except AttributeError:
-            self._O_coord = self.RCO*np.array([[-1., 0., 0.],[1., 0., 0.]]) 
+            self._O_coord = self.RCO*np.array([[-1., 0., 0.],[1., 0., 0.]])
             #if angle == 0.:
-            #    return self._O_coord 
+            #    return self._O_coord
             #else:
             # generate a random axis for rotation.
             axis = np.random.rand(3)
@@ -172,7 +176,7 @@ class CO2(Molecule):
             R = self.rotation_matrix(axis, np.radians(angle))
             self._O_coord = np.dot(self._O_coord, R.T)
             return self._O_coord
-    
+
     def approximate_positions(self, C_pos=None, O_pos1=None, O_pos2=None):
         """Input a set of approximate positions for the carbon
         and oxygens of CO2, and determine the lowest RMSD
@@ -202,9 +206,9 @@ class Water(Molecule):
     """
     @property
     def H_coord(self):
-        """Define the hydrogen coords based on 
+        """Define the hydrogen coords based on
         HOH angle for the specific force field.
-        Default axis for distributing the 
+        Default axis for distributing the
         hydrogen atoms is the x-axis.
 
         """
@@ -226,18 +230,18 @@ class Water(Molecule):
             length = np.linalg.norm(np.dot(axis, mat))
             self._H_coord = self.ROH/length*np.array([np.dot(axis, mat), np.dot(axis, mat2)])
             return self._H_coord
-    
+
     def compute_midpoint_vector(self, centre_vec, side1_vec, side2_vec):
         """ Define a vector oriented away from the centre_vec which
-        is half-way between side1_vec and side2_vec.  Ideal for 
+        is half-way between side1_vec and side2_vec.  Ideal for
         TIP4P to define the dummy atom.
 
         """
 
-        v = .5* (side1_vec - side2_vec) + (side2_vec - centre_vec) 
+        v = .5* (side1_vec - side2_vec) + (side2_vec - centre_vec)
         v /= np.linalg.norm(v)
         return v
-    
+
     def compute_orthogonal_vector(self, centre_vec, side1_vec, side2_vec):
         """ Define a vector oriented orthogonal to two others,
         centred by the 'centre_vec'.
@@ -257,7 +261,7 @@ class Water(Molecule):
         v = np.cross(v1, v2)
         v /= np.linalg.norm(v)
         return v
-    
+
     def approximate_positions(self, O_pos=None, H_pos1=None, H_pos2=None):
         """Input a set of approximate positions for the oxygen
         and hydrogens of water, and determine the lowest RMSD
@@ -300,7 +304,7 @@ class TIP4P_Water(Water):
 
         LAMMPS has some builtin features for this molecule which
         are not taken advantage of here.
-        
+
         I haven't bothered constructing a robust way to implement this
         special case, where there is no need to explicilty describe
         the dummy atom. This is handeled internally by LAMMPS.
@@ -331,7 +335,7 @@ class TIP4P_Water(Water):
                      "cartesian_coordinates":coord
                      })
             self.add_node(idx+1, **data)
-   
+
     @property
     def dummy(self):
         try:
@@ -351,7 +355,7 @@ class TIP5P_Water(Water):
     HOH = 104.52
     Rdum = 0.70
     DOD = 109.47
-    
+
     def __init__(self, **kwargs):
         """ Class that provides a template molecule for TIP5P Water.
 
@@ -393,7 +397,7 @@ class TIP5P_Water(Water):
                      "cartesian_coordinates":coord
                      })
             self.add_node(idx+1, **data)
-    
+
     @property
     def dummy(self):
         """ Given that the H_coords are determined from an angle with the x-axis
@@ -432,7 +436,7 @@ class EPM2_CO2(CO2):
         MolecularGraph.__init__(self)
         self.rigid = True
         self.C_coord = np.array([0., 0., 0.])
-        
+
         for idx, ff_type in enumerate(["Cx", "Ox", "Ox"]):
             element = ff_type[0]
             if idx == 0:
@@ -461,9 +465,9 @@ class EPM2_CO2(CO2):
         kw.update({'order': 2})
         kw.update({'symflag': flag})
         kw.update({'potential': None})
-        
+
         self.sorted_edge_dict.update({(1,2): (1, 2), (2, 1):(1, 2)})
         self.sorted_edge_dict.update({(1,3): (1, 3), (3, 1):(1, 3)})
-        self.add_edge(1, 2, key=self.number_of_edges()+1, **kw) 
+        self.add_edge(1, 2, key=self.number_of_edges()+1, **kw)
         self.add_edge(1, 3, key=self.number_of_edges()+1, **kw)
         self.compute_all_angles()

@@ -1,13 +1,15 @@
 #! /usr/bin/env python
-
+"""
+RASPA file format and default parameters.
+"""
 GENERIC_PSEUDO_ATOMS_HEADER = [
     ['# of pseudo atoms'],
     ['29'],
-    ['#type ', 'print ', 'as ', 'chem ' , 'oxidation ', 'mass ', 'charge ', 'polarization ', 'B-factor radii ', 'connectivity ', 'anisotropic ', 'anisotropic-type ', 'tinker-type ']
+    ['#type ', 'print ', 'as ', 'chem ', 'oxidation ', 'mass ', 'charge ', 'polarization ', 'B-factor radii ', 'connectivity ', 'anisotropic ', 'anisotropic-type ', 'tinker-type ']
 ]
 
 GENERIC_PSEUDO_ATOMS = [
-    ['He     '    ,'yes'     ,'He'    ,'He'    ,'0'           ,'4.002602'   ,' 0.0   '   ,'0.0'          ,'1.0'      ,'1.0  '  ,'0'            ,'0'           ,'relative'           ,'0'], 
+    ['He     '    ,'yes'     ,'He'    ,'He'    ,'0'           ,'4.002602'   ,' 0.0   '   ,'0.0'          ,'1.0'      ,'1.0  '  ,'0'            ,'0'           ,'relative'           ,'0'],
     ['CH4_sp3'    ,'yes'     ,'C '    ,'C '    ,'0'           ,'16.04246'   ,' 0.0   '   ,'0.0'          ,'1.0'      ,'1.00 '  ,'0'            ,'0'           ,'relative'           ,'0'],
     ['CH3_sp3'    ,'yes'     ,'C '    ,'C '    ,'0'           ,'15.03452'   ,' 0.0   '   ,'0.0'          ,'1.0'      ,'1.00 '  ,'0'            ,'0'           ,'relative'           ,'0'],
     ['CH2_sp3'    ,'yes'     ,'C '    ,'C '    ,'0'           ,'14.02658'   ,' 0.0   '   ,'0.0'          ,'1.0'      ,'1.00 '  ,'0'            ,'0'           ,'relative'           ,'0'],
@@ -39,7 +41,7 @@ GENERIC_PSEUDO_ATOMS = [
 ]
 
 GENERIC_FF_MIXING_HEADER = [
-    ['# general rule for shifted vs truncated                                                                                    '], 
+    ['# general rule for shifted vs truncated                                                                                    '],
     ['shifted                                                                                                                    '],
     ['# general rule tailcorrections                                                                                             '],
     ['no                                                                                                                         '],
@@ -49,7 +51,7 @@ GENERIC_FF_MIXING_HEADER = [
 ]
 
 GENERIC_FF_MIXING = [
-    ['He      '      , 'lennard-jones'    ,'10.9  '    ,'2.64  '], 
+    ['He      '      , 'lennard-jones'    ,'10.9  '    ,'2.64  '],
     ['CH4_sp3 '      , 'lennard-jones'    ,'158.5 '    ,'3.72  '],
     ['CH3_sp3 '      , 'lennard-jones'    ,'108.0 '    ,'3.76  '],
     ['CH2_sp3 '      , 'lennard-jones'    ,'56.0  '    ,'3.96  '],
@@ -78,5 +80,3 @@ GENERIC_FF_MIXING_FOOTER = [
     ['# general mixing rule for Lennard-Jones '],
     ['Lorentz-Berthelot                       '],
 ]
-
-

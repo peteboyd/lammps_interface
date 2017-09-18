@@ -1,11 +1,15 @@
 #!/usr/bin/env python
+"""
+Lammps potentital types.
+"""
+
 
 class BondPotential(object):
     """
     Class to hold bond styles that are implemented in lammps
     Purpose is to store info that the user wants to use to overwrite standard UFF output of lammps_interface
     """
-    
+
     class Class2(object):
         """Potential defined as
 
@@ -47,7 +51,7 @@ class BondPotential(object):
     class FeneExpand(object):
         """Potential defined as
 
-        E = -0.5*K*R0^2 * ln[1-(r-delta/R0)^2] + 
+        E = -0.5*K*R0^2 * ln[1-(r-delta/R0)^2] +
                4*eps*[(sig/r-delta)^12 - (sig/r-delta)^6] + eps
 
         Input parameters: K, R0, eps, sig, delta
@@ -62,14 +66,14 @@ class BondPotential(object):
 
         def __str__(self):
             return ""
-        
+
     class Harmonic(object):
         """Potential defined as
 
         E = K*(r - R0)^2
 
         Input parameters: K, R0
-        
+
         special_flag is used to distinguish
         any extra inputs required for LAMMPS
         to run properly.
@@ -116,7 +120,7 @@ class BondPotential(object):
     class NonLinear(object):
         """Potential defined as
 
-        E = eps*(r-R0)^2 / [lamb^2 - (r-R0)^2] 
+        E = eps*(r-R0)^2 / [lamb^2 - (r-R0)^2]
 
         Input parameters: eps, R0, lamb
         """
@@ -132,7 +136,7 @@ class BondPotential(object):
     class Quartic(object):
         """Potential defined as
 
-        E = K*(r-Rc)^2 * (r - Rc - B1) * (r - Rc - B2) + U0 + 
+        E = K*(r-Rc)^2 * (r - Rc - B1) * (r - Rc - B2) + U0 +
                   4*eps*[(sig/r)^12 - (sig/r)^6] + eps
 
         Input parameters: K, B1, B2, Rc, U0
@@ -156,9 +160,9 @@ class BondPotential(object):
     class HarmonicShift(object):
         """Potential defined as
 
-        E = Umin/(R0 - Rc)^2 * [(r-R0)^2 - (Rc - R0)^2] 
+        E = Umin/(R0 - Rc)^2 * [(r-R0)^2 - (Rc - R0)^2]
 
-        Input parameters: Umin, R0, Rc 
+        Input parameters: Umin, R0, Rc
         """
         def __init__(self):
             self.name = "harmonic/shift" # harmonic/shift/omp exists
@@ -172,9 +176,9 @@ class BondPotential(object):
     class HarmonicShiftCut(object):
         """Potential defined as
 
-        E = Umin/(R0 - Rc)^2 * [(r-R0)^2 - (Rc - R0)^2] 
+        E = Umin/(R0 - Rc)^2 * [(r-R0)^2 - (Rc - R0)^2]
 
-        Input parameters: Umin, R0, Rc 
+        Input parameters: Umin, R0, Rc
         """
         def __init__(self):
             self.name = "harmonic/shift/cut" # harmonic/shift/cut/omp exists
@@ -185,11 +189,11 @@ class BondPotential(object):
         def __str__(self):
             return ""
 
-class AnglePotential(object): 
+class AnglePotential(object):
     """
     Class to hold angle styles that are implemented in lammps
     """
-    
+
     class Charmm(object):
         """Potential defined as
 
@@ -210,7 +214,7 @@ class AnglePotential(object):
     class Class2(object):
         """Potential defined as
 
-        E = Ea + Ebb + Eba 
+        E = Ea + Ebb + Eba
         Ea = K2*(theta - theta0)^2 + K3*(theta - theta0)^3 + K4*(theta - theta0)^4
         Ebb = M*(r_ij - r1)*(r_jk - r2)
         Eba = N1*(r_ij - r1)*(theta - theta0) + N2*(rjk - r2)*(theta - theta0)
@@ -221,10 +225,10 @@ class AnglePotential(object):
         BondAngle: ba, N1(energy/distance^2), N2(energy/distance^2),r1(distance), r2(distance)
         """
          # Ebb and Eba are in BondBond and BondAngle classes respectively
-    
+
         class BondBond(object):
             """Potential defined as
-            ----> Ebb = M*(r_ij - r1)*(r_jk - r2) <---- 
+            ----> Ebb = M*(r_ij - r1)*(r_jk - r2) <----
             """
             def __init__(self):
                 self.name = "class2"
@@ -240,12 +244,12 @@ class AnglePotential(object):
                                                    self.r2)
                 return "%s %15.6f %15.6f %15.6f"%(self.name,
                                                   self.M,
-                                                  self.r1, 
+                                                  self.r1,
                                                   self.r2)
 
         class BondAngle(object):
             """Potential defined as
-            ----> Eba = N1*(r_ij - r1)*(theta - theta0) + N2*(r_jk - r2)*(theta - theta0) <---- 
+            ----> Eba = N1*(r_ij - r1)*(theta - theta0) + N2*(r_jk - r2)*(theta - theta0) <----
             """
             def __init__(self):
                 self.name = "class2"
@@ -261,14 +265,14 @@ class AnglePotential(object):
                                                           self.N2,
                                                           self.r1,
                                                           self.r2)
-                return "%s %15.6f %15.6f %15.6f %15.6f"%(self.name, 
-                                                         self.N1, 
+                return "%s %15.6f %15.6f %15.6f %15.6f"%(self.name,
+                                                         self.N1,
                                                          self.N2,
-                                                         self.r1, 
+                                                         self.r1,
                                                          self.r2)
-        
+
         def __init__(self):
-            self.name = "class2"  
+            self.name = "class2"
             self.theta0 = 0.
             self.K2 = 0.
             self.K3 = 0.
@@ -279,25 +283,25 @@ class AnglePotential(object):
 
         def __str__(self):
             if self.reduced:
-                return "%15.6f %15.6f %15.6f %15.6f"%(self.theta0, 
-                                                      self.K2, 
-                                                      self.K3, 
+                return "%15.6f %15.6f %15.6f %15.6f"%(self.theta0,
+                                                      self.K2,
+                                                      self.K3,
                                                       self.K4)
             return "%28s %15.6f %15.6f %15.6f %15.6f"%(self.name,
-                                                       self.theta0, 
-                                                       self.K2, 
-                                                       self.K3, 
+                                                       self.theta0,
+                                                       self.K2,
+                                                       self.K3,
                                                        self.K4)
 
     class Cosine(object):
         """Potential defined as
 
-        E = K*[1 - cos(theta)] 
+        E = K*[1 - cos(theta)]
 
         Input parameters: K
         """
         def __init__(self):
-            self.name = "cosine" # cosine/omp exists 
+            self.name = "cosine" # cosine/omp exists
             self.K = 0.
             self.reduced = False
 
@@ -310,12 +314,12 @@ class AnglePotential(object):
     class CosineDelta(object):
         """Potential defined as
 
-        E = K*[1 - cos(theta-theta0)] 
+        E = K*[1 - cos(theta-theta0)]
 
         Input parameters: K, theta0
         """
         def __init__(self):
-            self.name = "cosine/delta" # cosine/delta/omp exists 
+            self.name = "cosine/delta" # cosine/delta/omp exists
             self.K = 0.
             self.theta0 = 0.
 
@@ -325,12 +329,12 @@ class AnglePotential(object):
     class CosinePeriodic(object):
         """Potential defined as
 
-        E = C*[1 - B*(-1)^n*cos(n*theta)] 
+        E = C*[1 - B*(-1)^n*cos(n*theta)]
 
         Input parameters: C, B, n
         """
         def __init__(self):
-            self.name = "cosine/periodic" # cosine/periodic/omp exists 
+            self.name = "cosine/periodic" # cosine/periodic/omp exists
             self.C = 0.
             self.B = 0
             self.n = 0
@@ -354,7 +358,7 @@ class AnglePotential(object):
         Input parameters: K, theta0
         """
         def __init__(self):
-            self.name = "cosine/squared" # cosine/squared/omp exists 
+            self.name = "cosine/squared" # cosine/squared/omp exists
             self.K = 0.
             self.theta0 = 0.
             self.reduced = False
@@ -381,7 +385,7 @@ class AnglePotential(object):
         a shake angle.
         """
         def __init__(self):
-            self.name = "harmonic" # harmonic/kk and harmonic/omp exist 
+            self.name = "harmonic" # harmonic/kk and harmonic/omp exist
             self.K = 0.
             self.theta0 = 0.
             self.reduced = False
@@ -407,13 +411,13 @@ class AnglePotential(object):
         Input parameters: Umin, theta0
         """
         def __init__(self):
-            self.name = "cosine/shift" # cosine/shift/omp exists 
+            self.name = "cosine/shift" # cosine/shift/omp exists
             self.Umin = 0.
             self.theta0 = 0.
 
         def __str__(self):
             return ""
-    
+
     class CosineShiftExp(object):
         """Potential defined as
 
@@ -424,7 +428,7 @@ class AnglePotential(object):
         Input parameters: Umin, theta0, a
         """
         def __init__(self):
-            self.name = "cosine/shift/exp" # cosine/shift/exp/omp exists 
+            self.name = "cosine/shift/exp" # cosine/shift/exp/omp exists
             self.Umin = 0.
             self.theta0 = 0.
             self.a = 0.
@@ -435,18 +439,18 @@ class AnglePotential(object):
     class Dipole(object):
         """Potential defined as
 
-        E = K*(cos(gamma) - cos(gamma0))^2 
+        E = K*(cos(gamma) - cos(gamma0))^2
 
         Input parameters: K, gamma0
         """
         def __init__(self):
-            self.name = "dipole" # dipole/omp exists 
+            self.name = "dipole" # dipole/omp exists
             self.K = 0.
             self.gamma0 = 0.
 
         def __str__(self):
             return ""
-    
+
     class Fourier(object):
         """Potential defined as
 
@@ -455,7 +459,7 @@ class AnglePotential(object):
         Input parameters: K, C0, C1, C2
         """
         def __init__(self):
-            self.name = "fourier" # fourier/omp exists 
+            self.name = "fourier" # fourier/omp exists
             self.K = 0.
             self.C0 = 0.
             self.C1 = 0.
@@ -479,7 +483,7 @@ class AnglePotential(object):
         Input parameters: K, c, n
         """
         def __init__(self):
-            self.name = "fourier/simple" # fourier/simple/omp exists 
+            self.name = "fourier/simple" # fourier/simple/omp exists
             self.K = 0.
             self.c = 0.
             self.n = 0.
@@ -501,7 +505,7 @@ class AnglePotential(object):
         Input parameters: theta0, K2, K3, K4
         """
         def __init__(self):
-            self.name = "quartic" # quartic/omp exists 
+            self.name = "quartic" # quartic/omp exists
             self.theta0 = 0.
             self.K2 = 0.
             self.K3 = 0.
@@ -509,16 +513,16 @@ class AnglePotential(object):
 
         def __str__(self):
             return ""
-    
+
     class Sdk(object):
         """Potential defined as
 
-        E = K*(theta - theta0)^2 
+        E = K*(theta - theta0)^2
 
-        Input parameters: K, theta0 
+        Input parameters: K, theta0
         """
         def __init__(self):
-            self.name = "sdk" 
+            self.name = "sdk"
             self.K = 0.
             self.theta0 = 0.
 
@@ -526,20 +530,20 @@ class AnglePotential(object):
             return ""
 
 
-class DihedralPotential(object): 
+class DihedralPotential(object):
     """
     Class to hold dihedral styles that are implemented in lammps
     """
-                
+
     class Charmm(object):
         """Potential defined as
 
         E = K*[1 + cos(n*phi - d)]
 
-        Input parameters: K, n, d, w (weighting for 1 - 4 non-bonded interactions) 
+        Input parameters: K, n, d, w (weighting for 1 - 4 non-bonded interactions)
         """
         def __init__(self):
-            self.name = "charmm" # charm/kk and charmm/omp exist 
+            self.name = "charmm" # charm/kk and charmm/omp exist
             self.K = 0.
             self.n = 0
             self.d = 0
@@ -548,7 +552,7 @@ class DihedralPotential(object):
         def __str__(self):
             if self.reduced:
                 return "%15.6f %15i %15i %15.6f"%(self.K, self.n, self.d, self.w)
-            return "%28s %15.6f %15i %15i %15.6f"%(self.name, self.K, self.n, self.d, self.w) 
+            return "%28s %15.6f %15i %15i %15.6f"%(self.name, self.K, self.n, self.d, self.w)
 
     class Class2(object):
         """
@@ -558,7 +562,7 @@ class DihedralPotential(object):
         Embt  = (r_jk - r2)*[A1*cos(phi) + A2*cos(2phi) + A3*cos(3phi)]
         Eebt  = (r_ij - r1)*[B1*cos(phi) + B2*cos(2phi) + B3*cos(3phi)] + (r_kl - r3)*[C1*cos(phi) + C2*cos(2phi) + C3*cos(3phi)]
         Eat   = (theta_ijk - theta1)*[D1*cos(phi) + D2*cos(2*phi) + D3*cos(3*phi)] + (theta_jkl - theta2)*[E1*cos(phi) + E2*cos(2*phi) + E3*cos(3phi)]
-        Eaa   = M*(theta_ijk - theta1)*(theta_jkl - theta2)*cos(phi) 
+        Eaa   = M*(theta_ijk - theta1)*(theta_jkl - theta2)*cos(phi)
         Ebb13 = N*(r_ij-r1)*(r_kl-r3)
         """
 
@@ -597,24 +601,24 @@ class DihedralPotential(object):
 
             def __str__(self):
                 if self.reduced:
-                    return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.B1, 
-                                                                                      self.B2, 
-                                                                                      self.B3, 
-                                                                                      self.C1, 
-                                                                                      self.C2, 
-                                                                                      self.C3, 
-                                                                                      self.r1, 
+                    return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.B1,
+                                                                                      self.B2,
+                                                                                      self.B3,
+                                                                                      self.C1,
+                                                                                      self.C2,
+                                                                                      self.C3,
+                                                                                      self.r1,
                                                                                       self.r3)
-                return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name, 
-                                                                                     self.B1, 
-                                                                                     self.B2, 
+                return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name,
+                                                                                     self.B1,
+                                                                                     self.B2,
                                                                                      self.B3,
-                                                                                     self.C1, 
-                                                                                     self.C2, 
-                                                                                     self.C3, 
-                                                                                     self.r1, 
+                                                                                     self.C1,
+                                                                                     self.C2,
+                                                                                     self.C3,
+                                                                                     self.r1,
                                                                                      self.r3)
-                
+
         class AngleTorsion(object):
             """
             Eat   = (theta_ijk - theta1)*[D1*cos(phi) + D2*cos(2*phi) + D3*cos(3*phi)] + (theta_jkl - theta2)*[E1*cos(phi) + E2*cos(2*phi) + E3*cos(3phi)]
@@ -633,28 +637,28 @@ class DihedralPotential(object):
 
             def __str__(self):
                 if self.reduced:
-                    return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.D1, 
-                                                                                      self.D2, 
-                                                                                      self.D3, 
-                                                                                      self.E1, 
-                                                                                      self.E2, 
-                                                                                      self.E3, 
-                                                                                      self.theta1, 
+                    return "%15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.D1,
+                                                                                      self.D2,
+                                                                                      self.D3,
+                                                                                      self.E1,
+                                                                                      self.E2,
+                                                                                      self.E3,
+                                                                                      self.theta1,
                                                                                       self.theta2)
-                return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name, 
-                                                                                     self.D1, 
-                                                                                     self.D2, 
+                return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name,
+                                                                                     self.D1,
+                                                                                     self.D2,
                                                                                      self.D3,
-                                                                                     self.E1, 
-                                                                                     self.E2, 
-                                                                                     self.E3, 
-                                                                                     self.theta1, 
+                                                                                     self.E1,
+                                                                                     self.E2,
+                                                                                     self.E3,
+                                                                                     self.theta1,
                                                                                      self.theta2)
 
 
         class AngleAngleTorsion(object):
             """
-            Eaa   = M*(theta_ijk - theta1)*(theta_jkl - theta2)*cos(phi) 
+            Eaa   = M*(theta_ijk - theta1)*(theta_jkl - theta2)*cos(phi)
             """
             def __init__(self):
                 self.name = "aat"
@@ -665,18 +669,18 @@ class DihedralPotential(object):
 
             def __str__(self):
                 if self.reduced:
-                    return "%15.6f %15.6f %15.6f"%(self.M, 
-                                                   self.theta1, 
-                                                   self.theta2) 
-                return "%s %15.6f %15.6f %15.6f"%(self.name, 
-                                                  self.M,       
-                                                  self.theta1,  
-                                                  self.theta2) 
-                                                                                     
-                                                                                     
-                                                                                     
-                                                                                     
-                                                                                     
+                    return "%15.6f %15.6f %15.6f"%(self.M,
+                                                   self.theta1,
+                                                   self.theta2)
+                return "%s %15.6f %15.6f %15.6f"%(self.name,
+                                                  self.M,
+                                                  self.theta1,
+                                                  self.theta2)
+
+
+
+
+
 
 
         class BondBond13(object):
@@ -692,12 +696,12 @@ class DihedralPotential(object):
 
             def __str__(self):
                 if self.reduced:
-                    return "%15.6f %15.6f %15.6f"%(self.N, 
-                                                   self.r1, 
-                                                   self.r3) 
-                return "%s %15.6f %15.6f %15.6f"%(self.name, 
-                                                  self.N, 
-                                                  self.r1, 
+                    return "%15.6f %15.6f %15.6f"%(self.N,
+                                                   self.r1,
+                                                   self.r3)
+                return "%s %15.6f %15.6f %15.6f"%(self.name,
+                                                  self.N,
+                                                  self.r1,
                                                   self.r3)
 
         def __init__(self):
@@ -723,7 +727,7 @@ class DihedralPotential(object):
                                                                     self.phi2,
                                                                     self.K3,
                                                                     self.phi3)
-                
+
             return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name,
                                                                    self.K1,
                                                                    self.phi1,
@@ -740,7 +744,7 @@ class DihedralPotential(object):
         Input parameters: K, d, n
         """
         def __init__(self):
-            self.name = "harmonic" # harmonic/omp exists 
+            self.name = "harmonic" # harmonic/omp exists
             self.K = 0.
             self.d = 0
             self.n = 0
@@ -754,12 +758,12 @@ class DihedralPotential(object):
     class Helix(object):
         """Potential defined as
 
-        E = A*[1 - cos(theta)] + B*[1 + cos(3*theta)] + C*[1 + cos(theta + pi/4)] 
+        E = A*[1 - cos(theta)] + B*[1 + cos(3*theta)] + C*[1 + cos(theta + pi/4)]
 
-        Input parameters: A, B, C 
+        Input parameters: A, B, C
         """
         def __init__(self):
-            self.name = "helix" # helix/omp exists 
+            self.name = "helix" # helix/omp exists
             self.A = 0.
             self.B = 0.
             self.C = 0.
@@ -775,7 +779,7 @@ class DihedralPotential(object):
         Input parameters: A1, A2, A3, A4, A5
         """
         def __init__(self):
-            self.name = "multi/harmonic" # multi/harmonic/omp exists 
+            self.name = "multi/harmonic" # multi/harmonic/omp exists
             self.A1 = 0.
             self.A2 = 0.
             self.A3 = 0.
@@ -784,11 +788,11 @@ class DihedralPotential(object):
 
         def __str__(self):
             return ""
-    
+
     class Opls(object):
         """Potential defined as
 
-        E = 0.5*K1*[1 + cos(theta)] + 0.5*K2*[1 - cos(2*theta)] + 
+        E = 0.5*K1*[1 + cos(theta)] + 0.5*K2*[1 - cos(2*theta)] +
             0.5*K3*[1 + cos(3*theta)] + 0.5*K4*[1 - cos(4*theta)]
 
         Input parameters: K1, K2, K3, K4
@@ -806,14 +810,14 @@ class DihedralPotential(object):
     class CosineShiftExp(object):
         """Potential defined as
 
-        E = -Umin*[e^{-a*U(theta,theta0)} - 1] / (e^a -1) 
+        E = -Umin*[e^{-a*U(theta,theta0)} - 1] / (e^a -1)
 
         where U(theta, theta0) = -0.5*(1 + cos(theta-theta0))
 
-        Input parameters: Umin, theta0, a 
+        Input parameters: Umin, theta0, a
         """
         def __init__(self):
-            self.name = "cosine/shift/exp" # cosine/shift/exp/omp exists 
+            self.name = "cosine/shift/exp" # cosine/shift/exp/omp exists
             self.Umin = 0.
             self.theta0 = 0.
             self.a = 0.
@@ -824,11 +828,11 @@ class DihedralPotential(object):
     class Fourier(object):
         """Potential defined as
 
-        E = sum_i=1,m { Ki*[1.0 + cos(ni*theta - di)] } 
+        E = sum_i=1,m { Ki*[1.0 + cos(ni*theta - di)] }
 
-        Input parameters: m, Ki, ni, di 
+        Input parameters: m, Ki, ni, di
 
-        NB m is an integer dictating how many terms to sum, there should be 3*m + 1 
+        NB m is an integer dictating how many terms to sum, there should be 3*m + 1
         total parameters.
 
         """
@@ -856,7 +860,7 @@ class DihedralPotential(object):
 
         Input parameters: n, Ai
 
-        NB n is an integer dictating how many terms to sum, there should be n + 1 
+        NB n is an integer dictating how many terms to sum, there should be n + 1
         total parameters.
 
         """
@@ -871,9 +875,9 @@ class DihedralPotential(object):
     class Quadratic(object):
         """Potential defined as
 
-        E = K*(theta - theta0)^2 
+        E = K*(theta - theta0)^2
 
-        Input parameters: K, phi0 
+        Input parameters: K, phi0
 
         """
         def __init__(self):
@@ -881,10 +885,10 @@ class DihedralPotential(object):
             self.K = 0.
             self.phi0 = 0.
             self.redueced = False
-            
+
         def __str__(self):
             return ""
-    
+
     class Table(object):
         """Potential read from file."""
         def __init__(self):
@@ -892,18 +896,18 @@ class DihedralPotential(object):
 
 
 
-class ImproperPotential(object): 
+class ImproperPotential(object):
     """
     Class to hold improper styles that are implemented in lammps
     """
-    
+
     class Class2(object):
         """Potential defined as
 
         E = Ei + Eaa
 
         Ei = K*[(chi_ijkl + chi_kjli + chi_ljik)/3 - chi0]^2
-        Eaa = M1*(theta_ijk - theta1)*(theta_kjl - theta3) + 
+        Eaa = M1*(theta_ijk - theta1)*(theta_kjl - theta3) +
               M2*(theta_ijk - theta1)*(theta_ijl - theta2) +
               M3*(theta_ijl - theta2)*(theta_kjl - theta3)
 
@@ -912,11 +916,11 @@ class ImproperPotential(object):
         """
         class AngleAngle(object):
             """Potential defined as
-            Eaa = M1*(theta_ijk - theta1)*(theta_kjl - theta3) + 
+            Eaa = M1*(theta_ijk - theta1)*(theta_kjl - theta3) +
                   M2*(theta_ijk - theta1)*(theta_ijl - theta2) +
-                  M3*(theta_ijl - theta2)*(theta_kjl - theta3)   
+                  M3*(theta_ijl - theta2)*(theta_kjl - theta3)
 
-            Input parameters: M1 M2 M3 theta1 theta2 theta3 
+            Input parameters: M1 M2 M3 theta1 theta2 theta3
             """
             def __init__(self):
                 self.name = "class2"
@@ -936,7 +940,7 @@ class ImproperPotential(object):
                                                                         self.theta1,
                                                                         self.theta2,
                                                                         self.theta3)
-                return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name, 
+                return "%s %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f"%(self.name,
                                                                        self.M1,
                                                                        self.M2,
                                                                        self.M3,
@@ -951,11 +955,11 @@ class ImproperPotential(object):
             self.aa = self.AngleAngle()
         def __str__(self):
             if self.reduced:
-                return "%15.6f %15.6f"%(self.K, 
-                                        self.chi0) 
-            return "%s %15.6f %15.6f"%(self.name, 
-                                       self.K, 
-                                       self.chi0) 
+                return "%15.6f %15.6f"%(self.K,
+                                        self.chi0)
+            return "%s %15.6f %15.6f"%(self.name,
+                                       self.K,
+                                       self.chi0)
 
     class Cvff(object):
         """Potential defined as
@@ -981,13 +985,13 @@ class ImproperPotential(object):
                                          self.K,
                                          self.d,
                                          self.n)
-    
+
     class Harmonic(object):
         """Potential defined as
 
-        E = K*(chi - chi0)^2 
+        E = K*(chi - chi0)^2
 
-        Input parameters: K, chi0 
+        Input parameters: K, chi0
 
         """
         def __init__(self):
@@ -1000,14 +1004,14 @@ class ImproperPotential(object):
             if self.reduced:
                 return "%15.6f %15.6f "%(self.K, self.chi0)
             return "%28s %15.6f %15.6f"%(self.name,self.K, self.chi0)
-    
+
     class Umbrella(object):
         """Potential defined as
 
         E = 0.5*K*[1 + cos(omega0)/sin(omega0)]^2 * [cos(omega) - cos(omega0)]   if omega0 .ne. 0 (deg)
         E = K*[1 - cos(omega)]  if omega0 = 0 (deg)
 
-        Input parameters: K, omega0 
+        Input parameters: K, omega0
 
         """
         def __init__(self):
@@ -1022,13 +1026,13 @@ class ImproperPotential(object):
             return "%28s %15.6f %15.6f"%(self.name,
                                          self.K,
                                          self.omega0)
-    
+
     class Cossq(object):
         """Potential defined as
 
-        E = 0.5*K*cos^2(chi - chi0) 
+        E = 0.5*K*cos^2(chi - chi0)
 
-        Input parameters: K, chi0 
+        Input parameters: K, chi0
 
         """
         def __init__(self):
@@ -1038,16 +1042,16 @@ class ImproperPotential(object):
 
         def __str__(self):
             return ""
-    
+
     class Fourier(object):
         """Potential defined as
 
-        E = K*[C0 + C1*cos(omega) + C2*cos(2*omega)] 
+        E = K*[C0 + C1*cos(omega) + C2*cos(2*omega)]
 
         Input parameters: K, C0, C1, C2, a
 
-        the parameter a allows all three angles to be taken into account in an 
-        improper dihedral. It is not clear in the lammps manual what to set this 
+        the parameter a allows all three angles to be taken into account in an
+        improper dihedral. It is not clear in the lammps manual what to set this
         to to turn it off/on, but the usual assumptions are 0/1.
         """
         def __init__(self):
@@ -1072,11 +1076,11 @@ class ImproperPotential(object):
                                                             self.C1,
                                                             self.C2,
                                                             self.a)
-    
+
     class Ring(object):
         """Potential defined as
 
-        E = 1/6*K*(delta_ijl + delta_ijk + delta_kjl)^6 
+        E = 1/6*K*(delta_ijl + delta_ijk + delta_kjl)^6
 
         where delta_ijl = cos(theta_ijl) - cos(theta0)
 
@@ -1092,7 +1096,7 @@ class ImproperPotential(object):
             return ""
 
 
-class PairPotential(object): 
+class PairPotential(object):
     """
     Class to hold Pair styles that are implemented in lammps
     NB: list here is HUGE, update as needed..
@@ -1108,7 +1112,7 @@ class PairPotential(object):
             self.name = "table"
             self.style = None
             self.N = 0
-            self.keyword = "" 
+            self.keyword = ""
             self.filename = ""
             self.entry = ""
             self.cutoff = 0.0
@@ -1128,10 +1132,10 @@ class PairPotential(object):
 
         and coulombic terms dealt with a kspace solver
         TIP4P water implicit charge points are included in
-        ewald sum. 
+        ewald sum.
         """
         def __init__(self):
-            self.name = "lj/cut/tip4p/long" 
+            self.name = "lj/cut/tip4p/long"
             self.eps = 0.
             self.sig = 0.
             self.reduced = False
@@ -1160,7 +1164,7 @@ class PairPotential(object):
         and coulombic terms dealt with a kspace solver
         """
         def __init__(self):
-            self.name = "lj/cut/coul/long" 
+            self.name = "lj/cut/coul/long"
             self.eps = 0.
             self.sig = 0.
             self.reduced = False
@@ -1183,7 +1187,7 @@ class PairPotential(object):
         and coulombic terms dealt with a kspace solver
         """
         def __init__(self):
-            self.name = "lj/charmm/coul/long" 
+            self.name = "lj/charmm/coul/long"
             self.eps = 0.
             self.eps14 = 0.
             self.sig = 0.
@@ -1309,4 +1313,3 @@ class PairPotential(object):
         def __repr__(self):
             return "%s %i %.3f %.3f %.3f"%(self.name, self.n, self.Rin,
                                            self.Rout, self.a_cut)
-

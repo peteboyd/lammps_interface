@@ -1,21 +1,25 @@
 #/usr/bin/env python
+"""
+Molecular graph and structure io methods.
+"""
 from datetime import date
 import numpy as np
 from scipy.spatial import distance
 import math
 import shlex
 import re
-from CIFIO import CIF
-from atomic import METALS, MASS, COVALENT_RADII
+from .CIFIO import CIF
+from .atomic import METALS, MASS, COVALENT_RADII
 from copy import copy
-from mof_sbus import InorganicCluster, OrganicCluster
+from .mof_sbus import InorganicCluster, OrganicCluster
 from copy import deepcopy
 import itertools
-import os, sys
-from generic_raspa import GENERIC_PSEUDO_ATOMS_HEADER, GENERIC_PSEUDO_ATOMS, \
-                          GENERIC_FF_MIXING_HEADER, GENERIC_FF_MIXING,\
-                          GENERIC_FF_MIXING_FOOTER
-from uff import UFF_DATA
+import os
+import sys
+from .generic_raspa import GENERIC_PSEUDO_ATOMS_HEADER, GENERIC_PSEUDO_ATOMS
+from .generic_raspa import GENERIC_FF_MIXING_HEADER, GENERIC_FF_MIXING
+from .generic_raspa import GENERIC_FF_MIXING_FOOTER
+from .uff import UFF_DATA
 import networkx as nx
 import operator
 
@@ -27,11 +31,14 @@ except ImportError:
     print("Warning: could not load networkx module, this is needed to produce the lammps data file.")
     sys.exit()
 from collections import OrderedDict
-from atomic import MASS, ATOMIC_NUMBER, COVALENT_RADII
-from atomic import organic, non_metals, noble_gases, metalloids, lanthanides, actinides, transition_metals
-from atomic import alkali, alkaline_earth, main_group, metals
-from ccdc import CCDC_BOND_ORDERS
-DEG2RAD=np.pi/180.
+from .atomic import MASS, ATOMIC_NUMBER, COVALENT_RADII
+from .atomic import organic, non_metals, noble_gases, metalloids, lanthanides, actinides, transition_metals
+from .atomic import alkali, alkaline_earth, main_group, metals
+from .ccdc import CCDC_BOND_ORDERS
+
+
+DEG2RAD = np.pi / 180.
+
 
 class MolecularGraph(nx.Graph):
     """Class to contain all information relating a structure file
@@ -44,7 +51,7 @@ class MolecularGraph(nx.Graph):
     - description {contains all information about electronic environment
                    to make a decision on the final force_field_type}
         -hybridization [sp3, sp2, sp, aromatic]
-    
+
     Important arguments for bond edges:
     - weight = 1
     - length
@@ -54,7 +61,7 @@ class MolecularGraph(nx.Graph):
     node_dict_factory = OrderedDict
     def __init__(self, **kwargs):
         nx.Graph.__init__(self, **kwargs)
-        # coordinates and distances will be kept in a matrix because 
+        # coordinates and distances will be kept in a matrix because
         # networkx edge and node lookup is slow.
         try:
             self.name = kwargs['name']
@@ -71,7 +78,7 @@ class MolecularGraph(nx.Graph):
         self.cell = None
         self.rigid = False
         #TODO(pboyd): networkx edges do not store the nodes in order!
-        # Have to keep a dictionary lookup to make sure the nodes 
+        # Have to keep a dictionary lookup to make sure the nodes
         # are referenced properly (particularly across periodic images)
         self.sorted_edge_dict = {}
         self.molecule_images = []
@@ -80,7 +87,7 @@ class MolecularGraph(nx.Graph):
     def edges_iter2(self, **kwargs):
         for n1, n2, d in self.edges_iter(**kwargs):
             yield (self.sorted_edge_dict[(n1, n2)][0], self.sorted_edge_dict[(n1,n2)][1], d)
-    
+
     def count_dihedrals(self):
         count = 0
         for n1, n2, data in self.edges_iter(data=True):
@@ -124,7 +131,7 @@ class MolecularGraph(nx.Graph):
         #old_nodes = list(self.nodes_iter(data=True))
         old_edges = list(self.edges_iter2(data=True))
         for node, data in old_nodes:
-            
+
             if 'angles' in data:
                 ang_data = list(data['angles'].items())
                 for (a,c), val in ang_data:
@@ -152,7 +159,7 @@ class MolecularGraph(nx.Graph):
                 # edge already removed from 'remove_node' above
                 pass
             self.add_edge(reorder_dic[b], reorder_dic[c], **data)
-        
+
         old_edge_dict = self.sorted_edge_dict.items()
         self.sorted_edge_dict = {}
         for (a,b), val in old_edge_dict:
@@ -178,9 +185,9 @@ class MolecularGraph(nx.Graph):
                         " column.")
                 sys.exit()
 
-        charge_keywords = ["_atom_type_partial_charge", 
-                           "_atom_type_parital_charge", 
-                           "_atom_type_charge", 
+        charge_keywords = ["_atom_type_partial_charge",
+                           "_atom_type_parital_charge",
+                           "_atom_type_charge",
                            "_atom_site_charge" # RASPA cif file
                            ]
         element = kwargs.pop(label)
@@ -202,8 +209,8 @@ class MolecularGraph(nx.Graph):
             try:
                 kwargs['charge'] = float(kwargs[key])
             except ValueError:
-                print("Warning %s could not be converted "%(kwargs[key]) + 
-                      "to a charge value for atom %s"%(element) + 
+                print("Warning %s could not be converted "%(kwargs[key]) +
+                      "to a charge value for atom %s"%(element) +
                       ", setting charge as 0.0 for this atom")
                 kwargs['charge'] = 0.0
         else:
@@ -225,17 +232,17 @@ class MolecularGraph(nx.Graph):
         # to identify Cu paddlewheels, etc.
         #kwargs.update({'special_flag':None})
         self.add_node(idx, **kwargs)
-   
+
     def compute_bonding(self, cell, scale_factor = 0.9):
         """Computes bonds between atoms based on covalent radii."""
-        # here assume bonds exist, populate data with lengths and 
+        # here assume bonds exist, populate data with lengths and
         # symflags if needed.
         if (self.number_of_edges() > 0):
             # bonding found in cif file
             sf = []
             for n1, n2, data in self.edges_iter2(data=True):
                 # get data['ciflabel'] for self.node[n1] and self.node[n2]
-                # update the sorted_edge_dict with the indices, not the 
+                # update the sorted_edge_dict with the indices, not the
                 # cif labels
                 n1data = self.node[n1]
                 n2data = self.node[n2]
@@ -274,7 +281,7 @@ class MolecularGraph(nx.Graph):
                     data['symflag'] = flag
             return
 
-        # Here we will determine bonding from all atom pairs using 
+        # Here we will determine bonding from all atom pairs using
         # covalent radii.
         for n1, n2 in itertools.combinations(self.nodes(), 2):
             node1, node2 = self.node[n1], self.node[n2]
@@ -286,7 +293,7 @@ class MolecularGraph(nx.Graph):
             dist = self.distance_matrix[i1,i2]
             tempsf = scale_factor
             # probably a better way to fix these kinds of issues..
-            if (set("F") < elements) and  (elements & metals): 
+            if (set("F") < elements) and  (elements & metals):
                 tempsf = 0.8
 
             if (set("O") < elements) and (elements & metals):
@@ -305,8 +312,8 @@ class MolecularGraph(nx.Graph):
 
                 flag = self.compute_bond_image_flag(n1, n2, cell)
                 self.sorted_edge_dict.update({(n1,n2): (n1, n2), (n2, n1):(n1, n2)})
-                self.add_edge(n1, n2, key=self.number_of_edges() + 1, 
-                              order=1.0, 
+                self.add_edge(n1, n2, key=self.number_of_edges() + 1,
+                              order=1.0,
                               weight=1,
                               length=dist,
                               symflag = flag,
@@ -325,9 +332,9 @@ class MolecularGraph(nx.Graph):
         coord1 = self.node[n1]['cartesian_coordinates']
         coord2 = self.node[n2]['cartesian_coordinates']
         fcoords = np.dot(cell._inverse, coord2) + supercells
-        
+
         coords = np.array([np.dot(j, cell.cell) for j in fcoords])
-        
+
         dists = distance.cdist([coord1], coords)
         dists = dists[0].tolist()
         image = dists.index(min(dists))
@@ -337,7 +344,7 @@ class MolecularGraph(nx.Graph):
                                   unit_repr))
         if(dist > 7):
             #print("BEFORE: ", self[n1][n2]['symflag'])
-            print("WARNING: bonded atoms %i and %i are %.3f Angstroms apart."%(n1,n2,dist) + 
+            print("WARNING: bonded atoms %i and %i are %.3f Angstroms apart."%(n1,n2,dist) +
                     " This probably has something to do with the redefinition of the unitcell "+
                     "to a supercell. Please contact the developers!")
         return sym
@@ -346,7 +353,7 @@ class MolecularGraph(nx.Graph):
         coordl = self.node[l]['cartesian_coordinates']
         coordm = self.node[m]['cartesian_coordinates']
         coordr = self.node[r]['cartesian_coordinates']
-       
+
         try:
             v1 = self.min_img(coordl - coordm)
             v2 = self.min_img(coordr - coordm)
@@ -366,7 +373,7 @@ class MolecularGraph(nx.Graph):
 
         angle = a / DEG2RAD
         return angle
-    
+
     def coplanar(self, node):
         """ Determine if this node, and it's neighbors are
         all co-planar.
@@ -390,16 +397,16 @@ class MolecularGraph(nx.Graph):
             if not np.allclose(np.dot(v,n), 0., atol=0.02):
                 return False
         return True
-    
+
     def compute_dihedral_between(self, a, b, c, d):
         coorda = self.node[a]['cartesian_coordinates']
         coordb = self.node[b]['cartesian_coordinates']
         coordc = self.node[c]['cartesian_coordinates']
         coordd = self.node[d]['cartesian_coordinates']
-        
+
         v1 = self.min_img(coorda - coordb)
         v2 = self.min_img(coordc - coordb)
-        v3 = self.min_img(coordb - coordc) 
+        v3 = self.min_img(coordb - coordc)
         v4 = self.min_img(coordd - coordc)
 
         n1 = np.cross(v1, v2)
@@ -418,7 +425,7 @@ class MolecularGraph(nx.Graph):
         """Add bond edges (weight factor = 1)"""
         #TODO(pboyd) should figure out if there are other cif keywords to identify
         # atom types
-        #TODO(pboyd) this is .cif specific and should be contained within the cif 
+        #TODO(pboyd) this is .cif specific and should be contained within the cif
         # file reading portion of the code. This is so that other file formats
         # can eventually be adopted if need be.
 
@@ -483,19 +490,19 @@ class MolecularGraph(nx.Graph):
                 sys.exit()
             self.distance_matrix[id1][id2] = dist
             self.distance_matrix[id2][id1] = dist
-    
+
     def min_img(self, coord):
         f = np.dot(self.cell.inverse, coord)
         f -= np.around(f)
         return np.dot(f, self.cell.cell)
-    
+
     def in_cell(self, coord):
         f = np.dot(self.cell.inverse, coord) % 1
         return np.dot(f, self.cell.cell)
-    
+
     def fractional(self, coord):
-        f = np.dot(self.cell.inverse, coord) 
-        return f 
+        f = np.dot(self.cell.inverse, coord)
+        return f
 
     def min_img_distance(self, coords1, coords2, cell):
         one = np.dot(cell.inverse, coords1) % 1
@@ -505,7 +512,7 @@ class MolecularGraph(nx.Graph):
         return np.linalg.norm(four)
 
     def compute_init_typing(self):
-        """Find possible rings in the structure and 
+        """Find possible rings in the structure and
         initialize the hybridization for each atom.
         More refined determinations of atom and bond types
         is computed below in compute_bond_typing
@@ -553,7 +560,7 @@ class MolecularGraph(nx.Graph):
             elif element == "O":
                 n_elems = set([self.node[k]['element'] for k in neighbours])
                 if len(neighbours) >= 2:
-                    # if O is bonded to a metal, assume sp2 - like ... 
+                    # if O is bonded to a metal, assume sp2 - like ...
                     # there's probably many cases where this fails,
                     # but carboxylate groups, bridging hydroxy groups
                     # make this true.
@@ -594,9 +601,9 @@ class MolecularGraph(nx.Graph):
         environment.
         Messy, loads of 'ifs'
         is there a better way to catch chemical features?
-        """ 
+        """
         #TODO(pboyd) return if bonds already 'typed' in the .cif file
-        double_check = [] 
+        double_check = []
         for n1, n2, data in self.edges_iter2(data=True):
             elements = [self.node[a]['element'] for a in (n1,n2)]
             hybridization = [self.node[a]['hybridization'] for a in (n1, n2)]
@@ -641,7 +648,7 @@ class MolecularGraph(nx.Graph):
                             if set(oxynelem) <= organic:
                                 car_data['hybridization'] = 'sp2'
                                 oxy_data['hybridization'] = 'sp2'
-                                data['order'] = 1 # this is the ether part of an ester... 
+                                data['order'] = 1 # this is the ether part of an ester...
                             #carboxylate?
                             else:
                                 car_data['hybridization'] = 'aromatic'
@@ -707,7 +714,7 @@ class MolecularGraph(nx.Graph):
                         nit_data['hybridization'] = 'aromatic'
                     # nitro
                     if set(nitnelem) == set(["O"]):
-                        data['order'] = 1. 
+                        data['order'] = 1.
                         nit_data['hybridization'] = 'aromatic'
                         for oatom in nitnn:
                             nobond = self[nit][oatom]['order'] = 1.5
@@ -741,7 +748,7 @@ class MolecularGraph(nx.Graph):
                     # first pass: assign all to 3.0 bond order
                     double_check += [n1, n2]
                     data['order'] = 3.0
-                    #covrad = cr1 + cr2 
+                    #covrad = cr1 + cr2
                     #if (data['length'] <= covrad*.95):
                     #    data['order'] = 3.0
         # second pass, check organic unsaturated bonds to make
@@ -775,7 +782,7 @@ class MolecularGraph(nx.Graph):
                     n2 = k[idx+1]
                     data1 = self.node[n1]
                     data2 = self.node[n2]
-                    
+
                     hyb1 = data1['hybridization']
                     hyb2 = data2['hybridization']
 
@@ -823,9 +830,9 @@ class MolecularGraph(nx.Graph):
                     bond['order'] = bond_orders[idx]
 
                 #print([self.node[r]['element'] for r in k])
-    
+
     def recurse_linear_chains(self, node, visited=[], excluded=[]):
-        """Messy recursion function to return all unique chains from a set of atoms between two 
+        """Messy recursion function to return all unique chains from a set of atoms between two
         metals (or terminal atoms in the case of molecules)"""
         if self.node[node]['element'] == 'H':
             yield
@@ -865,16 +872,16 @@ class MolecularGraph(nx.Graph):
         """angles are attached to specific nodes, this way
         if a node is cut out of a graph, the angle comes with it.
 
-               
+
                b-----a
               /
              /
             c
-               
+
         Must be updated with different adjacent nodes if a
-        supercell is requested, and the angle crosses a 
+        supercell is requested, and the angle crosses a
         periodic image.
-        
+
         """
         for b, data in self.nodes_iter(data=True):
             if self.degree(b) < 2:
@@ -882,13 +889,13 @@ class MolecularGraph(nx.Graph):
             angles = itertools.combinations(self.neighbors(b), 2)
             for (a, c) in angles:
                 data.setdefault('angles', {}).update({(a,c):{'potential':None}})
-    
+
     def compute_dihedrals(self):
         """Dihedrals are attached to specific edges in the graph.
            a
-            \ 
+            \
              b -- c
-                   \ 
+                   \
                     d
 
         the edge between b and c will contain all possible dihedral
@@ -902,17 +909,17 @@ class MolecularGraph(nx.Graph):
             for a in b_neighbours:
                 for d in c_neighbours:
                     data.setdefault('dihedrals',{}).update({(a, d):{'potential':None}})
-    
+
     def compute_improper_dihedrals(self):
         """Improper Dihedrals are attached to specific nodes in the graph.
            a
-            \ 
+            \
              b -- c
-             |     
-             d    
+             |
+             d
 
-        the node b will contain all possible improper dihedral 
-        angles between the neighbours of b 
+        the node b will contain all possible improper dihedral
+        angles between the neighbours of b
 
         """
         for b, data in self.nodes_iter(data=True):
@@ -931,7 +938,7 @@ class MolecularGraph(nx.Graph):
         self.compute_init_typing()
         self.compute_bond_typing()
         if (self.find_metal_sbus):
-            self.detect_clusters(num_neighbours, tol) # num neighbors determines how many nodes from the metal element to cut out for comparison 
+            self.detect_clusters(num_neighbours, tol) # num neighbors determines how many nodes from the metal element to cut out for comparison
         if (self.find_organic_sbus):
             self.detect_clusters(num_neighbours, tol,  type="Organic")
         self.compute_angles()
@@ -941,7 +948,7 @@ class MolecularGraph(nx.Graph):
     def sorted_node_list(self):
         return [n[1] for n in sorted([(data['index'], node) for node, data in self.nodes_iter(data=True)])]
 
-    def sorted_edge_list(self): 
+    def sorted_edge_list(self):
         return [e[1] for e in sorted([(data['index'], (n1, n2)) for n1, n2, data in self.edges_iter2(data=True)])]
 
     def show(self):
@@ -960,14 +967,14 @@ class MolecularGraph(nx.Graph):
         imgcell = ocell % maxcell
         if redefine is None:
             return cells.index(tuple([tuple([i]) for i in imgcell]))
-        
+
         olde_imgcell = imgcell
         newcell = cell + np.dot(cell, redefine)%maxcell
         newocell = (newcell + translation) #% maxcell
         rd2 = redefine - np.identity(3)*maxcell
         # check if the newcell translation spans a periodic boundary
         if (np.any(newocell >= maxcell, axis=0)) or (np.any(newocell < 0.)):
-            
+
             # get indices of where the newocell is spanning a pbc
             indexes = np.where(newocell - maxcell >= 0)[0].tolist() + np.where(newocell < 0)[0].tolist()
 
@@ -993,15 +1000,15 @@ class MolecularGraph(nx.Graph):
             newflaga[np.where(ocell >= maxcell)] = 6
             newflaga[np.where(ocell < np.zeros(3))] = 4
             newflag = "1_%i%i%i"%(tuple(newflaga))
-          
+
         else:
             newflag = '.'
         return newflag
-    
+
     def correspondence_graph(self, graph, tol, general_metal=False, node_subset=None):
         """Generate a correspondence graph between the nodes
         and the SBU.
-        tolerance is the distance tolerance for the edge generation 
+        tolerance is the distance tolerance for the edge generation
         in the correspondence graph.
 
         """
@@ -1009,7 +1016,7 @@ class MolecularGraph(nx.Graph):
             node_subset = self.nodes()
         graph_nodes = graph.nodes()
         cg = nx.Graph()
-        # add nodes to cg 
+        # add nodes to cg
         for (i, j) in itertools.product(node_subset, graph_nodes):
             # match element-wise
             elementi = self.node[i]['element']
@@ -1038,7 +1045,7 @@ class MolecularGraph(nx.Graph):
         maximum clique detection. This will assign specific atoms
         with a special flag for use when building their force field.
 
-        setting general_metal to True will allow for cluster recognition of 
+        setting general_metal to True will allow for cluster recognition of
         inorganic SBUs while ignoring the specific element type of the metal,
         so long as it is a metal, it will be paired with other metals.
         This may increase the time for SBU recognition.
@@ -1047,7 +1054,7 @@ class MolecularGraph(nx.Graph):
         print("Detecting %s clusters"%type)
 
         reference_nodes = []
-        
+
         if type=="Inorganic":
             types = InorganicCluster.keys()
             ref_sbus = InorganicCluster
@@ -1060,22 +1067,22 @@ class MolecularGraph(nx.Graph):
         for node, data in self.nodes_iter(data=True):
             if (type=='Inorganic') and (general_metal) and (data['atomic_number'] in METALS)\
                     and ('special' not in data.keys()): # special means that this atom has already been found in a previous clique detection
-                reference_nodes.append(node) 
-
-            elif (data['element'] in types) and ('special' not in data.keys()): 
                 reference_nodes.append(node)
-        
+
+            elif (data['element'] in types) and ('special' not in data.keys()):
+                reference_nodes.append(node)
+
         no_cluster = []
         #FIXME(pboyd): This routine doesn't work for finding 1-D rod SBUs.
         # At each step the atoms found that belong to an SBU are deleted
-        # to improve the search efficiency. In 1-D rod SBUs there are 
+        # to improve the search efficiency. In 1-D rod SBUs there are
         # repeating elements in the 'discretized' version used to discover
         # the rod in a MOF, so in some cases only a fragment of the rod
         # is found. This results in the wrong force field types being
         # assigned to these atoms (UFF4MOF).
         for node in reference_nodes:
         #while reference_nodes:
-            #node = reference_nodes.pop() 
+            #node = reference_nodes.pop()
             data = self.node[node]
             possible_clusters = {}
             toln = tol
@@ -1085,7 +1092,7 @@ class MolecularGraph(nx.Graph):
             else:
                 possible_clusters.update(ref_sbus[data['element']])
             try:
-                neighbour_nodes = [] 
+                neighbour_nodes = []
                 instanced_neighbours = self.neighbors(node)
                 if (data['element'] == "C"):
                     chk_neighbors = num_neighbors # organic clusters can be much bigger.
@@ -1142,7 +1149,7 @@ class MolecularGraph(nx.Graph):
 
     def redefine_lattice(self, redefinition, lattice):
         """Redefines the lattice based on the old lattice vectors. This was designed to convert
-        non-orthogonal cells to orthogonal boxes, but it could in principle be used to 
+        non-orthogonal cells to orthogonal boxes, but it could in principle be used to
         convert any cell to any other cell. (As long as the redefined lattice
         are integer multiples of the old vectors)
 
@@ -1155,7 +1162,7 @@ class MolecularGraph(nx.Graph):
             print("ERROR: The volume change is %i times greater than the unit cell. "%(vol_change) +
                     "I cannot process structures of this size!")
             sys.exit()
-        
+
         print("The redefined cell will be %i times larger than the original."%(int(vol_change)))
 
         # replicate supercell
@@ -1167,22 +1174,22 @@ class MolecularGraph(nx.Graph):
         # the node cartesian_coordinates must be shifted by the periodic boundaries.
         for node, data in self.nodes_iter(data=True):
             coord = data['cartesian_coordinates']
-            data['cartesian_coordinates'] = self.in_cell(coord) 
+            data['cartesian_coordinates'] = self.in_cell(coord)
 
         # the bonds which span a periodic boundary will change
         for n1, n2, data in self.edges_iter2(data=True):
             flag = self.compute_bond_image_flag(n1, n2, self.cell)
-            data['symflag'] = flag #'.' 
+            data['symflag'] = flag #'.'
 
         # not sure what this may break, but have to assume this new cell is the 'original'
         self.store_original_size()
 
     def build_supercell(self, sc, lattice, track_molecule=False, molecule_len=0, redefine=None):
-        """Construct a graph with nodes supporting the size of the 
+        """Construct a graph with nodes supporting the size of the
         supercell (sc)
-        Oh man.. so ugly.        
-        NB: this replaces and overwrites the original unit cell data 
-            with a supercell. There may be a better way to do this 
+        Oh man.. so ugly.
+        NB: this replaces and overwrites the original unit cell data
+            with a supercell. There may be a better way to do this
             if one needs to keep both the super- and unit cells.
         """
         # preserve indices across molecules.
@@ -1213,7 +1220,7 @@ class MolecularGraph(nx.Graph):
                 graph_image.sorted_edge_dict = self.sorted_edge_dict.copy()
                 # rename the edges with the offset associated with this supercell.
                 for k,v in list(graph_image.sorted_edge_dict.items()):
-                    newkey = (k[0] + offset, k[1] + offset) 
+                    newkey = (k[0] + offset, k[1] + offset)
                     newval = (v[0] + offset, v[1] + offset)
                     del graph_image.sorted_edge_dict[k]
                     graph_image.sorted_edge_dict.update({newkey:newval})
@@ -1244,7 +1251,7 @@ class MolecularGraph(nx.Graph):
                         bc_symflag = e_bc['symflag']
                         order_bc = graph_image.sorted_edge_dict[(node, cid)]
                         if order_bc != (node, cid) and e_bc['symflag'] != '.':
-                            bc_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_bc['symflag'][2:]]))) 
+                            bc_symflag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in e_bc['symflag'][2:]])))
                         os_a = self.img_offset(cells, newcell, maxcell, ba_symflag, redefine) * unitatomlen
                         os_c = self.img_offset(cells, newcell, maxcell, bc_symflag, redefine) * unitatomlen
                         data['angles'].pop((a,c))
@@ -1271,7 +1278,7 @@ class MolecularGraph(nx.Graph):
                         if order_bc != (node, cid) and e_bc['symflag'] != '.':
                             bc_symflag = "1_%i%i%i"%(tuple([10 - int(j) for j in e_bc['symflag'][2:]]))
                         if order_bd != (node, did) and e_bd['symflag'] != '.':
-                            bd_symflag = "1_%i%i%i"%(tuple([10 - int(j) for j in e_bd['symflag'][2:]])) 
+                            bd_symflag = "1_%i%i%i"%(tuple([10 - int(j) for j in e_bd['symflag'][2:]]))
 
                         os_a = self.img_offset(cells, newcell, maxcell, ba_symflag, redefine) * unitatomlen
                         os_c = self.img_offset(cells, newcell, maxcell, bc_symflag, redefine) * unitatomlen
@@ -1282,7 +1289,7 @@ class MolecularGraph(nx.Graph):
                 except KeyError:
                     # no impropers for n1
                     pass
-            
+
             # update nodes and edges to account for bonding to periodic images.
             #unique_translations = {}
             for n1, n2, data in graph_image.edges_iter2(data=True):
@@ -1307,7 +1314,7 @@ class MolecularGraph(nx.Graph):
                     #unique_translations.setdefault(translation,0)
                     #unique_translations[translation] += 1
                     # DEBUGGING
-                    os_id = self.img_offset(cells, newcell, maxcell, data['symflag'], redefine, n1) 
+                    os_id = self.img_offset(cells, newcell, maxcell, data['symflag'], redefine, n1)
                     offset_c = os_id * unitatomlen
                     img_n2 = offset_c + n2_orig
                     #if (n1 == 1712):
@@ -1315,8 +1322,8 @@ class MolecularGraph(nx.Graph):
                     #    print(newcell)
                     #    print(redefine)
                     # pain...
-                    opposite_flag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in data['symflag'][2:]]))) 
-                    rev_n1_img = self.img_offset(cells, newcell, maxcell, opposite_flag, redefine) * unitatomlen + n1_orig 
+                    opposite_flag = "1_%i%i%i"%(tuple(np.array([10,10,10]) - np.array([int(j) for j in data['symflag'][2:]])))
+                    rev_n1_img = self.img_offset(cells, newcell, maxcell, opposite_flag, redefine) * unitatomlen + n1_orig
                     # dihedral check
                     try:
                         for (a, d), val in list(data['dihedrals'].items()):
@@ -1358,7 +1365,7 @@ class MolecularGraph(nx.Graph):
                     try:
                         for (a, d), val in list(data['dihedrals'].items()):
                             # check to make sure edge between a, n1 is not crossing an image
-                            edge_n1_a = orig_copy[n1_orig][a] 
+                            edge_n1_a = orig_copy[n1_orig][a]
                             order_n1_a = graph_image.sorted_edge_dict[(n1, a+offset)]
                             n1a_symflag = edge_n1_a['symflag']
 
@@ -1408,27 +1415,27 @@ class MolecularGraph(nx.Graph):
     def unwrap_node_coordinates(self, cell):
         """Must be done before supercell generation.
         This is a recursive method iterating over all edges.
-        The design is totally unpythonic and 
+        The design is totally unpythonic and
         written in about 5 mins.. so be nice (PB)
-        
+
         """
         supercells = np.array(list(itertools.product((-1, 0, 1), repeat=3)))
         # just use the first node as the unwrapping point..
         # probably a better way to do this to keep most atoms in the unit cell,
         # but I don't think it matters too much.
         nodelist = self.nodes()
-        n1 = nodelist[0] 
+        n1 = nodelist[0]
         queue = []
         while (nodelist or queue):
             for n2, data in self[n1].items():
                 if n2 not in queue and n2 in nodelist:
                     queue.append(n2)
-                    coord1 = self.node[n1]['cartesian_coordinates'] 
+                    coord1 = self.node[n1]['cartesian_coordinates']
                     coord2 = self.node[n2]['cartesian_coordinates']
                     fcoords = np.dot(cell.inverse, coord2) + supercells
-                    
+
                     coords = np.array([np.dot(j, cell.cell) for j in fcoords])
-                    
+
                     dists = distance.cdist([coord1], coords)
                     dists = dists[0].tolist()
                     image = dists.index(min(dists))
@@ -1455,11 +1462,11 @@ class MolecularGraph(nx.Graph):
 
     def __or__(self, graph):
         if (len(graph.nodes()) == 1) and len(self.nodes()) == 1:
-            return list([0]) 
+            return list([0])
         cg = self.correspondence_graph(graph, 0.4)
         cliques = list(nx.find_cliques(cg))
         cliques.sort(key=len)
-        return cliques[-1] 
+        return cliques[-1]
 
 def del_parenth(string):
     return re.sub(r'\([^)]*\)', '' , string)
@@ -1479,14 +1486,14 @@ def from_CIF(cifname):
     cell = Cell()
     # add data to molecular graph (to be parsed later..)
     mg = MolecularGraph(name=clean(cifname))
-    cellparams = [float(del_parenth(i)) for i in [data['_cell_length_a'], 
-                                     data['_cell_length_b'], 
+    cellparams = [float(del_parenth(i)) for i in [data['_cell_length_a'],
+                                     data['_cell_length_b'],
                                      data['_cell_length_c'],
-                                     data['_cell_angle_alpha'], 
-                                     data['_cell_angle_beta'], 
+                                     data['_cell_angle_alpha'],
+                                     data['_cell_angle_beta'],
                                      data['_cell_angle_gamma']]]
     cell.set_params(cellparams)
-    
+
     #add atom nodes
     id = cifobj.block_order.index('atoms')
     atheads = cifobj._headings[id]
@@ -1555,7 +1562,7 @@ def write_CIF(graph, cell):
 
         coords = data['cartesian_coordinates']
         carts.append(coords)
-        fc = np.dot(cell.inverse, coords) 
+        fc = np.dot(cell.inverse, coords)
         c.add_data("atoms", _atom_site_fract_x=
                                 CIF.atom_site_fract_x(fc[0]))
         c.add_data("atoms", _atom_site_fract_y=
@@ -1572,12 +1579,12 @@ def write_CIF(graph, cell):
     tosort = [(data['order'], (n1, n2, data)) for n1, n2, data in graph.edges_iter2(data=True)]
     for ord, (n1, n2, data) in sorted(tosort, key=lambda tup: tup[0]):
         type = CCDC_BOND_ORDERS[data['order']]
-        dist = data['length'] 
+        dist = data['length']
         sym = data['symflag']
 
 
         label1 = "%s%i"%(graph.node[n1]['element'], n1)
-        label2 = "%s%i"%(graph.node[n2]['element'], n2) 
+        label2 = "%s%i"%(graph.node[n2]['element'], n2)
         c.add_data("bonds", _geom_bond_atom_site_label_1=
                                     CIF.geom_bond_atom_site_label_1(label1))
         c.add_data("bonds", _geom_bond_atom_site_label_2=
@@ -1588,7 +1595,7 @@ def write_CIF(graph, cell):
                                     CIF.geom_bond_site_symmetry_2(sym))
         c.add_data("bonds", _ccdc_geom_bond_type=
                                     CIF.ccdc_geom_bond_type(type))
-    
+
     print('Output cif file written to %s.cif'%c.name)
     file = open("%s.cif"%c.name, "w")
     file.writelines(str(c))
@@ -1630,7 +1637,7 @@ def write_RASPA_CIF(graph, cell,classifier=0):
     # atom block
     element_counter = {}
     carts = []
-    
+
     # slight modification to make sure atoms printed out in same order as in data and original cif
     for node, data in sorted(graph.nodes_iter(data=True)):
         label = "%s%i"%(data['element'], node)
@@ -1650,7 +1657,7 @@ def write_RASPA_CIF(graph, cell,classifier=0):
         #                        CIF.atom_site_description(data['force_field_type']))
         coords = data['cartesian_coordinates']
         carts.append(coords)
-        fc = np.dot(cell.inverse, coords) 
+        fc = np.dot(cell.inverse, coords)
         c.add_data("atoms", _atom_site_fract_x=
                                 CIF.atom_site_fract_x(fc[0]))
         c.add_data("atoms", _atom_site_fract_y=
@@ -1664,12 +1671,12 @@ def write_RASPA_CIF(graph, cell,classifier=0):
     #tosort = [(data['order'], (n1, n2, data)) for n1, n2, data in graph.edges_iter2(data=True)]
     #for ord, (n1, n2, data) in sorted(tosort, key=lambda tup: tup[0]):
     #    type = CCDC_BOND_ORDERS[data['order']]
-    #    dist = data['length'] 
+    #    dist = data['length']
     #    sym = data['symflag']
 
 
     #    label1 = "%s%i"%(graph.node[n1]['element'], n1)
-    #    label2 = "%s%i"%(graph.node[n2]['element'], n2) 
+    #    label2 = "%s%i"%(graph.node[n2]['element'], n2)
     #    c.add_data("bonds", _geom_bond_atom_site_label_1=
     #                                CIF.geom_bond_atom_site_label_1(label1))
     #    c.add_data("bonds", _geom_bond_atom_site_label_2=
@@ -1680,7 +1687,7 @@ def write_RASPA_CIF(graph, cell,classifier=0):
     #                                CIF.geom_bond_site_symmetry_2(sym))
     #    c.add_data("bonds", _ccdc_geom_bond_type=
     #                                CIF.ccdc_geom_bond_type(type))
-     
+
     print('Output cif file written to %s.cif'%c.name)
     file = open("%s.cif"%c.name, "w")
     file.writelines(str(c))
@@ -1696,7 +1703,7 @@ def write_RASPA_sim_files(lammps_sim,classifier=0):
 
 
     classifier = 0 -> UFF atom label is used for pseudo atoms
-    classifier = 1 -> cif label is used for pseudo atoms (useful for 
+    classifier = 1 -> cif label is used for pseudo atoms (useful for
                       interface/defect systems where symmetry of charge density
                       is very reduced)
 
@@ -1717,7 +1724,7 @@ def write_RASPA_sim_files(lammps_sim,classifier=0):
             if(int(data['image']) > max_image):
                 max_image = int(data['image'])
             #keys.append(lammps_sim.graph.node[n]['force_field_type'])
-    
+
     elif(classifier == 1):
         for node, data in sorted(lammps_sim.graph.nodes_iter(data=True)):
             data['node']=node
@@ -1729,7 +1736,7 @@ def write_RASPA_sim_files(lammps_sim,classifier=0):
                 max_image = int(data['image'])
             #keys.append(lammps_sim.graph.node[n]['force_field_type'])
 
-    print(max_image) 
+    print(max_image)
     for i in range(len(data_list)):
 
         #ind = 0
@@ -1814,7 +1821,7 @@ def write_RASPA_sim_files(lammps_sim,classifier=0):
     # Begin file writing
     f = open('pseudo_atoms.def','w')
 
-    # write header 
+    # write header
     num_psuedo_atoms =len(GENERIC_PSEUDO_ATOMS) + len(MOF_PSEUDO_ATOMS)
     GENERIC_PSEUDO_ATOMS_HEADER[1] = str(num_psuedo_atoms)
     for line in GENERIC_PSEUDO_ATOMS_HEADER:
@@ -1909,7 +1916,7 @@ class MDMC_config(object):
     """
 
     def __init__(self, lammps_sim):
-        
+
         try:
             f = open("MDMC.config","r")
         except:
@@ -1942,7 +1949,7 @@ class MDMC_config(object):
                 outlines += "\n"
 
         f.close()
-        
+
         f = open("MDMC.config", "w")
         f.write(outlines)
         f.close()
@@ -2017,7 +2024,7 @@ class Cell(object):
 
     def minimum_supercell(self, cutoff):
         """Calculate the smallest supercell with a half-cell width cutoff.
-        
+
         Increment from smallest cell vector to largest. So the supercell
         is not considering the 'unit cell' for each cell dimension.
 
