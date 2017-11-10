@@ -82,7 +82,20 @@ class MolecularGraph(nx.Graph):
         # are referenced properly (particularly across periodic images)
         self.sorted_edge_dict = {}
         self.molecule_images = []
+
+
+    def nodes_iter(self, data=True):
         #FIXME(pboyd): latest version of NetworkX has removed nodes_iter...
+        """Oh man, fixing to networkx 2.0
+
+        This probably breaks a lot of stuff in the code. THANKS NETWORKX!!!!!!!1
+	Extensive testing under way...
+
+        """
+        if (nx.version > 1.9):
+            return list(self.nodes())
+        else:
+            return self.nodes_iter(data=data)
 
     def edges_iter2(self, **kwargs):
         for n1, n2, d in self.edges_iter(**kwargs):
