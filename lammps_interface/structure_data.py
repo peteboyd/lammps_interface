@@ -92,7 +92,7 @@ class MolecularGraph(nx.Graph):
 	Extensive testing under way...
 
         """
-        if (nx.version > 1.9):
+        if (float('.'.join(nx.__version__.split('.')[:2])) > 1.9):
             return list(self.nodes())
         else:
             return self.nodes_iter(data=data)

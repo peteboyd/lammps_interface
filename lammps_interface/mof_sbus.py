@@ -8,7 +8,7 @@ from scipy.spatial import distance
 
 def add_distance_matrix(graph):
     carts = []
-    if(nx.__version__ >= 2.0):
+    if(float('.'.join(nx.__version__.split('.')[:2])) >= 2.0):
         for j, data in sorted(list(graph.nodes(data=True))):
             carts.append(data['cartesian_coordinates'])
     else:
