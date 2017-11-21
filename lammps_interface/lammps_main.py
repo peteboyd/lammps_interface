@@ -84,7 +84,7 @@ class LammpsSimulation(object):
                   "MolecularGraphs.  You should probably contact one of the developers.")
             sys.exit()
 
-        for node, data in g.nodes_iter(data=True):
+        for node, data in g.nodes_iter2(data=True):
             if self.separate_molecule_types and molecule_nodes and mainstructr:
                 molid = [j for j,mol in enumerate(molecule_nodes) if node in mol]
                 molid = molid[0]
@@ -146,7 +146,7 @@ class LammpsSimulation(object):
 
     def unique_angles(self, g):
         count = len(self.unique_angle_types)
-        for b, data in g.nodes_iter(data=True):
+        for b, data in g.nodes_iter2(data=True):
             # compute and store angle terms
             try:
                 ang_data = data['angles']
@@ -198,7 +198,7 @@ class LammpsSimulation(object):
     def unique_impropers(self, g):
         count = len(self.unique_improper_types)
 
-        for b, data in g.nodes_iter(data=True):
+        for b, data in g.nodes_iter2(data=True):
             try:
                 rem = []
                 imp_data = data['impropers']
@@ -228,7 +228,7 @@ class LammpsSimulation(object):
         pot_names = []
         nodes_list = sorted(self.unique_atom_types.keys())
         electro_neg_atoms = ["N", "O", "F"]
-        for n, data in self.graph.nodes_iter(data=True):
+        for n, data in self.graph.nodes_iter2(data=True):
             if data['h_bond_donor']:
                 pot_names.append('h_bonding')
             if data['tabulated_potential']:
@@ -1253,7 +1253,7 @@ class LammpsSimulation(object):
         # a separate command and not combined with the 'molecule' command
         if self.options.insert_molecule:
             moltypes = []
-            for mnode, mdata in self.template_molecule.nodes_iter(data=True):
+            for mnode, mdata in self.template_molecule.nodes_iter2(data=True):
                 moltypes.append(mdata['ff_type_index'])
 
             inp_str += "%-15s %s type   "%("group", self.options.insert_molecule)

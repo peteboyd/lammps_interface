@@ -76,7 +76,7 @@ class LammpsSimulation(object):
             molecule_nodes.append(nds)
         molecule_nodes.append(fwk_nodes)
 
-        for node, data in self.graph.nodes_iter(data=True):
+        for node, data in self.graph.nodes_iter2(data=True):
             # add factor for h_bond donors
             if self.separate_molecule_types:
                 molid = [j for j,mol in enumerate(molecule_nodes) if node in mol]
@@ -136,7 +136,7 @@ class LammpsSimulation(object):
     def unique_angles(self):
         ang_type = {}
         count = 0
-        for b, data in self.graph.nodes_iter(data=True):
+        for b, data in self.graph.nodes_iter2(data=True):
             # compute and store angle terms
             try:
                 ang_data = data['angles']
@@ -189,7 +189,7 @@ class LammpsSimulation(object):
         count = 0
         improper_type = {}
 
-        for b, data in self.graph.nodes_iter(data=True):
+        for b, data in self.graph.nodes_iter2(data=True):
             try:
                 rem = []
                 imp_data = data['impropers']
@@ -219,7 +219,7 @@ class LammpsSimulation(object):
         pot_names = []
         nodes_list = sorted(self.unique_atom_types.keys())
         electro_neg_atoms = ["N", "O", "F"]
-        for n, data in self.graph.nodes_iter(data=True):
+        for n, data in self.graph.nodes_iter2(data=True):
             if data['h_bond_donor']:
                 pot_names.append('h_bonding')
             if data['tabulated_potential']:
@@ -636,7 +636,7 @@ class LammpsSimulation(object):
 
     def count_angles(self):
         count = 0
-        for node, data in self.graph.nodes_iter(data=True):
+        for node, data in self.graph.nodes_iter2(data=True):
             try:
                 for angle in data['angles'].keys():
                     count += 1
@@ -646,7 +646,7 @@ class LammpsSimulation(object):
 
     def count_impropers(self):
         count = 0
-        for node, data in self.graph.nodes_iter(data=True):
+        for node, data in self.graph.nodes_iter2(data=True):
             try:
                 for angle in data['impropers'].keys():
                     count += 1
