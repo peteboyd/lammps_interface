@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import sys
 from lammps_interface.lammps_main import LammpsSimulation
 from lammps_interface.structure_data import from_CIF, write_CIF, write_RASPA_CIF, write_RASPA_sim_files, MDMC_config
 from lammps_interface.InputHandler import Options

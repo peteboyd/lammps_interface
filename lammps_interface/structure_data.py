@@ -1254,7 +1254,8 @@ class MolecularGraph(nx.Graph):
                 self.molecule_images.append(graph_image.nodes())
                 graph_image.molecule_id = orig_copy.molecule_id + mol_offset
             # update cartesian coordinates for each node in the image
-            for node, data in graph_image.nodes_iter2(data=True):
+            for node in graph_image.nodes():
+                data = graph_image.node[node] 
                 n_orig = data['image']
                 if track_molecule:
                     data['molid'] = graph_image.molecule_id
@@ -1314,7 +1315,9 @@ class MolecularGraph(nx.Graph):
 
             # update nodes and edges to account for bonding to periodic images.
             #unique_translations = {}
-            for n1, n2, data in graph_image.edges_iter2(data=True):
+            for v1, v2 in graph_image.edges():
+                data = graph_image.edges[(v1,v2)]
+                n1,n2 = graph_image.sorted_edge_dict[(v1,v2)]
                 # flag boundary crossings, and determine updated nodes.
                 # check symmetry flags if they need to be updated,
                 n1_data = graph_image.node[n1]
@@ -1417,13 +1420,16 @@ class MolecularGraph(nx.Graph):
             if (count > 0):
                 union_graphs.append(graph_image)
         for G in union_graphs:
-            for node, data in G.nodes_iter2(data=True):
+            for node in G.nodes():
+                data = G.node[node]
                 self.add_node(node, **data)
            #once nodes are added, add edges.
         for G in union_graphs:
             self.sorted_edge_dict.update(G.sorted_edge_dict)
-            for (n1, n2, data) in G.edges_iter2(data=True):
-                self.add_edge(n1, n2, **data)
+            for v1, v2 in G.edges():
+                d=G.edges[(v1,v2)]
+                n1,n2 = G.sorted_edge_dict[(v1,v2)]
+                self.add_edge(n1, n2, **d)
 
         for (n1, n2) in rem_edges:
             self.remove_edge(n1, n2)
