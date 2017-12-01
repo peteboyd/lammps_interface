@@ -102,7 +102,8 @@ class MolecularGraph(nx.Graph):
     def edges_iter2(self, data=True):
         for (n1,n2) in self.edges():
             v1,v2 = self.sorted_edge_dict[(n1,n2)]
-            d=self.edges[(n1,n2)]
+            #d=self.edges[(n1,n2)]
+            d=self[n1][n2]
             if(data):
                 yield (v1,v2,d)
             else:
@@ -1316,7 +1317,8 @@ class MolecularGraph(nx.Graph):
             # update nodes and edges to account for bonding to periodic images.
             #unique_translations = {}
             for v1, v2 in graph_image.edges():
-                data = graph_image.edges[(v1,v2)]
+                #data = graph_image.edges[(v1,v2)]
+                data = graph_image[v1][v2]
                 n1,n2 = graph_image.sorted_edge_dict[(v1,v2)]
                 # flag boundary crossings, and determine updated nodes.
                 # check symmetry flags if they need to be updated,
@@ -1427,7 +1429,8 @@ class MolecularGraph(nx.Graph):
         for G in union_graphs:
             self.sorted_edge_dict.update(G.sorted_edge_dict)
             for v1, v2 in G.edges():
-                d=G.edges[(v1,v2)]
+                #d=G.edges[(v1,v2)]
+                d=G[v1][v2]
                 n1,n2 = G.sorted_edge_dict[(v1,v2)]
                 self.add_edge(n1, n2, **d)
 
