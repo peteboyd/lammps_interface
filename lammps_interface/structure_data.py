@@ -99,13 +99,21 @@ class MolecularGraph(nx.Graph):
             else:
                 yield node
 
-    def edges_iter2(self, **kwargs):
-        for n1, n2, d in self.edges_iter(**kwargs):
-            yield (self.sorted_edge_dict[(n1, n2)][0], self.sorted_edge_dict[(n1,n2)][1], d)
+    def edges_iter2(self, data=True):
+        for (n1,n2) in self.edges:
+            v1,v2 = self.sorted_edge_dict[(n1,n2)]
+            data=self.edges[(n1,n2)]
+            if(data):
+                yield (v1,v2,data)
+            else:
+                yield (v1,v2)
+
+        #for n1, n2, d in self.edges_iter(**kwargs):
+        #    yield (self.sorted_edge_dict[(n1, n2)][0], self.sorted_edge_dict[(n1,n2)][1], d)
 
     def count_dihedrals(self):
         count = 0
-        for n1, n2, data in self.edges_iter(data=True):
+        for n1, n2, data in self.edges_iter2(data=True):
             try:
                 for dihed in data['dihedrals'].keys():
                     count += 1
@@ -551,30 +559,29 @@ class MolecularGraph(nx.Graph):
                 # should be a harmless edit but maybe need to test
                 if(len(cycle) <= 10):
                     cycles += cycle
-
         for label, data in self.nodes_iter2(data=True):
             # N O C S
             neighbours = self.neighbors(label)
             element = data['element']
             if element == "C":
-                if len(neighbours) >= 4:
+                if self.degree(label) >= 4:
                     self.node[label].update({'hybridization':'sp3'})
-                elif len(neighbours) == 3:
+                elif self.degree(label) == 3:
                     self.node[label].update({'hybridization':'sp2'})
-                elif len(neighbours) <= 2:
+                elif self.degree(label) <= 2:
                     self.node[label].update({'hybridization':'sp'})
             elif element == "N":
-                if len(neighbours) >= 3:
+                if self.degree(label) >= 3:
                     self.node[label].update({'hybridization':'sp3'})
-                elif len(neighbours) == 2:
+                elif self.degree(label) == 2:
                     self.node[label].update({'hybridization':'sp2'})
-                elif len(neighbours) == 1:
+                elif self.degree(label) == 1:
                     self.node[label].update({'hybridization':'sp'})
                 else:
                     self.node[label].update({'hybridization':'sp3'})
             elif element == "O":
                 n_elems = set([self.node[k]['element'] for k in neighbours])
-                if len(neighbours) >= 2:
+                if self.degree(label) >= 2:
                     # if O is bonded to a metal, assume sp2 - like ...
                     # there's probably many cases where this fails,
                     # but carboxylate groups, bridging hydroxy groups
@@ -583,15 +590,15 @@ class MolecularGraph(nx.Graph):
                         self.node[label].update({'hybridization': 'sp2'})
                     else:
                         self.node[label].update({'hybridization':'sp3'})
-                elif len(neighbours) == 1:
+                elif self.degree(label) == 1:
                     self.node[label].update({'hybridization':'sp2'})
                 else:
                     # If it has no neighbours, just give it SP3
                     self.node[label].update({'hybridization':'sp3'})
             elif element == "S":
-                if len(neighbours) >= 2:
+                if self.degree(label) >= 2:
                     self.node[label].update({'hybridization':'sp3'})
-                elif len(neighbours) == 1:
+                elif self.degree(label) == 1:
                     self.node[label].update({'hybridization':'sp2'})
                 else:
                     self.node[label].update({'hybridization':'sp3'})
