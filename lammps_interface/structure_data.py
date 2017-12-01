@@ -100,7 +100,7 @@ class MolecularGraph(nx.Graph):
                 yield node
 
     def edges_iter2(self, data=True):
-        for (n1,n2) in self.edges:
+        for (n1,n2) in self.edges():
             v1,v2 = self.sorted_edge_dict[(n1,n2)]
             d=self.edges[(n1,n2)]
             if(data):
