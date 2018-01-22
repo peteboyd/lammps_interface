@@ -1266,7 +1266,7 @@ class LammpsSimulation(object):
             inp_str += "\n"
 
 
-        framework_atoms = self.graph.nodes()
+        framework_atoms = list(self.graph.nodes())
         if(self.molecules)and(len(self.molecule_types.keys()) < 32):
             # lammps cannot handle more than 32 groups including 'all'
             total_count = 0

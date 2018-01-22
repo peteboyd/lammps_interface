@@ -1206,6 +1206,21 @@ class MolecularGraph(nx.Graph):
 
         # not sure what this may break, but have to assume this new cell is the 'original'
         self.store_original_size()
+    
+    def subgraph(self,nodelist):
+        """ Have to override subgraph from networkx. No idea why, but when Graph.subgraph is
+        called in nx v >= 2.0, it returns a Graph object, not a MolecularGraph.
+
+        """
+        gg = deepcopy(self)
+        delete_nodes = []
+        for g in gg.nodes():
+            if (not g in nodelist):
+                delete_nodes.append(g)
+
+        gg.remove_nodes_from(delete_nodes)
+        return gg
+
 
     def build_supercell(self, sc, lattice, track_molecule=False, molecule_len=0, redefine=None):
         """Construct a graph with nodes supporting the size of the
@@ -1454,7 +1469,7 @@ class MolecularGraph(nx.Graph):
         # just use the first node as the unwrapping point..
         # probably a better way to do this to keep most atoms in the unit cell,
         # but I don't think it matters too much.
-        nodelist = self.nodes()
+        nodelist = list(self.nodes())
         n1 = nodelist[0]
         queue = []
         while (nodelist or queue):
