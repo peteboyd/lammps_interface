@@ -731,7 +731,7 @@ class MolecularGraph(nx.Graph):
                     data['order'] = 1.5
                     nit_data['hybridization'] = 'aromatic'
                 # amide?
-                elif len(self.neighbors(car)) == 3 and len(nitnn) >=2:
+                elif self.degree(car) == 3 and len(nitnn) >=2:
                     if "O" in carnelem:
                         data['order'] = 1.5 # (amide)
                         nit_data['hybridization'] = 'aromatic'

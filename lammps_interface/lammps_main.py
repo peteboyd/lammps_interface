@@ -1802,7 +1802,7 @@ class LammpsSimulation(object):
                 self.molecules.append(j)
 
     def cut_molecule(self, nodes):
-        mgraph = self.graph.subgraph(nodes).copy()
+        mgraph = self.graph.subgraph(nodes)
         self.graph.remove_nodes_from(nodes)
         indices = np.array(list(nodes))
         indices -= 1
@@ -1810,7 +1810,7 @@ class LammpsSimulation(object):
         mgraph.sorted_edge_dict = self.graph.sorted_edge_dict.copy()
         mgraph.distance_matrix = self.graph.distance_matrix.copy()
         mgraph.original_size = self.graph.original_size
-        for n1, n2 in mgraph.edges_iter():
+        for n1, n2 in mgraph.edges():
             try:
                 val = self.graph.sorted_edge_dict.pop((n1, n2))
                 mgraph.sorted_edge_dict.update({(n1, n2):val})
