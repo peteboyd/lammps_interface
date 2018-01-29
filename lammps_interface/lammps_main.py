@@ -1807,7 +1807,8 @@ class LammpsSimulation(object):
         indices = np.array(list(nodes))
         indices -= 1
         mgraph.coordinates = self.graph.coordinates[indices,:].copy()
-        mgraph.sorted_edge_dict = self.graph.sorted_edge_dict.copy()
+        #mgraph.sorted_edge_dict = self.graph.sorted_edge_dict.copy()
+        mgraph.sorted_edge_dict = {}
         mgraph.distance_matrix = self.graph.distance_matrix.copy()
         mgraph.original_size = self.graph.original_size
         for n1, n2 in mgraph.edges():
