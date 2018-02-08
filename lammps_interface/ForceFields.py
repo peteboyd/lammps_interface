@@ -3307,6 +3307,8 @@ class UFF4MOF(ForceField):
             return 'trigonal-bipyrimidal'
         elif coord_type == "6":
             return 'octahedral'
+        elif coord_type == "8":
+            return 'cubic-antiprism'
         else:
             print("ERROR: Cannot find coordination type for %s"%name)
             sys.exit()
