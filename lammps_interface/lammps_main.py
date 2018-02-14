@@ -1176,8 +1176,8 @@ class LammpsSimulation(object):
                         idx += 1
                         string += "%8i %8i %8i %8i %8i %8i\n"%(idx,
                                                                improper['ff_type_index'],
-                                                               a,
                                                                node,
+                                                               a,
                                                                c,
                                                                d)
                 except KeyError:

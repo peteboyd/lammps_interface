@@ -2833,10 +2833,10 @@ class Dreiding(ForceField):
     def improper_term(self, improper):
         """
 
-                a                        J
+                b                        J
                /                        /
               /                        /
-        c----b     , DREIDING =  K----I
+        c----a     , DREIDING =  K----I
               \                        \
                \                        \
                 d                        L
