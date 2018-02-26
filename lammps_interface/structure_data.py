@@ -1624,7 +1624,11 @@ def write_CIF(graph, cell):
     # must re-sort them based on bond type (Mat Sudio)
     tosort = [(data['order'], (n1, n2, data)) for n1, n2, data in graph.edges_iter2(data=True)]
     for ord, (n1, n2, data) in sorted(tosort, key=lambda tup: tup[0]):
-        type = CCDC_BOND_ORDERS[data['order']]
+        try:
+            type = CCDC_BOND_ORDERS[data['order']]
+        except KeyError:
+            # just assume single bond if not in CCDC_BOND_ORDERS dic
+            type = "S" 
         dist = data['length']
         sym = data['symflag']
 
