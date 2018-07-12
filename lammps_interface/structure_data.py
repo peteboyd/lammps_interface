@@ -2080,9 +2080,20 @@ class Cell(object):
 
         """
 
-        diag = np.diag(self.cell)
-        #print(np.ceil(cutoff/diag*2.))
-        return tuple(int(i) for i in np.ceil(cutoff/diag*2.))
+        a_cross_b = np.cross(self.cell[0], self.cell[1])
+        b_cross_c = np.cross(self.cell[1], self.cell[2])
+        c_cross_a = np.cross(self.cell[2], self.cell[0])
+
+        #volume = np.dot(self.cell[0], b_cross_c)
+
+        widths = [np.dot(self.cell[0], b_cross_c) / np.linalg.norm(b_cross_c),
+                  np.dot(self.cell[1], c_cross_a) / np.linalg.norm(c_cross_a),
+                  np.dot(self.cell[2], a_cross_b) / np.linalg.norm(a_cross_b)]
+
+        return tuple(int(math.ceil(2*cutoff/x)) for x in widths)
+        #diag = np.diag(self.cell)
+        ##print(np.ceil(cutoff/diag*2.))
+        #return tuple(int(i) for i in np.ceil(cutoff/diag*2.))
 
     def orthogonal_transformation(self):
         """Compute the transformation from the original unit cell to a supercell which
