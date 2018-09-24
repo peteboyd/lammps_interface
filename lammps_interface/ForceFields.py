@@ -3105,6 +3105,8 @@ class Dreiding(ForceField):
                     data['force_field_type'] = data['element']
                     if data['element'] == "F":
                         data['force_field_type'] += "_"
+                    elif data['element'] == "I":
+                        data['force_field_type'] += "_"
                 else:
                     ffs = list(DREIDING_DATA.keys())
                     for j in ffs:
