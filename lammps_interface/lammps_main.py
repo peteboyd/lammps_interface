@@ -1840,6 +1840,10 @@ def main():
         print("CIF file requested. Exiting...")
         write_CIF(graph, cell)
         sys.exit()
+    if options.output_pdb:
+        print("PDB file requested. Exiting...")
+        write_PDB(graph, cell)
+        sys.exit()
 
     sim.write_lammps_files()
 
