@@ -224,3 +224,6 @@ class CIF(object):
     @staticmethod
     def general_label(x):
         return "%s     "%(x)
+def get_time():
+    t = date.today()
+    return t.strftime("%A %d %B %Y")

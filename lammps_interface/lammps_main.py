@@ -11,7 +11,7 @@ import networkx as nx
 from . import ForceFields
 import itertools
 import operator
-from .structure_data import from_CIF, write_CIF, clean
+from .structure_data import from_CIF, write_CIF, write_PDB, clean
 from .structure_data import write_RASPA_CIF, write_RASPA_sim_files, MDMC_config
 from .CIFIO import CIF
 from .ccdc import CCDC_BOND_ORDERS

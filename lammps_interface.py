@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 from lammps_interface.lammps_main import LammpsSimulation
-from lammps_interface.structure_data import from_CIF, write_CIF, write_RASPA_CIF, write_RASPA_sim_files, MDMC_config
+from lammps_interface.structure_data import from_CIF, write_CIF, write_PDB, write_RASPA_CIF, write_RASPA_sim_files, MDMC_config
 from lammps_interface.InputHandler import Options
 
 # command line parsing
@@ -17,6 +17,10 @@ sim.merge_graphs()
 if options.output_cif:
     print("CIF file requested. Exiting...")
     write_CIF(graph, cell)
+    sys.exit()
+if options.output_pdb:
+    print("PDB file requested. Exiting...")
+    write_PDB(graph, cell)
     sys.exit()
 sim.write_lammps_files()
 

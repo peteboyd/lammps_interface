@@ -8,7 +8,7 @@ from scipy.spatial import distance
 import math
 import shlex
 import re
-from .CIFIO import CIF
+from .CIFIO import CIF, get_time
 from .atomic import METALS, MASS, COVALENT_RADII
 from copy import copy
 from .mof_sbus import InorganicCluster, OrganicCluster
