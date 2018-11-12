@@ -57,8 +57,9 @@ class ForceField(object):
         self.compute_improper_terms()
 
     def compute_atomic_pair_terms(self):
+        charges = not np.allclose(0.0, [float(self.graph.node[i]['charge']) for i in list(self.graph.nodes)], atol=0.00001)
         for n, data in self.graph.nodes_iter2(data=True):
-            self.pair_terms(n, data, self.cutoff)
+            self.pair_terms(n, data, self.cutoff, charges=charges)
 
     def compute_bond_terms(self):
         del_edges = []
@@ -1139,7 +1140,7 @@ class BTW_FF(ForceField):
         data['potential'].aa.theta3 = Theta3
         return 1
 
-    def pair_terms( self, node , data, cutoff):
+    def pair_terms( self, node , data, cutoff, **kwargs):
         """
         Buckingham equation in MM3 type is used!
         """
@@ -1593,7 +1594,7 @@ class MOF_FF(ForceField):
         data['potential'].chi0 = c0
         return 1
 
-    def pair_terms(self, node, data, cutoff):
+    def pair_terms(self, node, data, cutoff, **kwargs):
         """
         Buckingham equation in MM3 type is used!
 
@@ -2077,7 +2078,7 @@ class FMOFCu(ForceField):
         data['potential'].aa.theta3 = Theta3
         return 1
 
-    def pair_terms( self, node , data, cutoff):
+    def pair_terms( self, node , data, cutoff, **kwargs):
         """
         Buckingham equation in MM3 type is used!
         """
@@ -2118,9 +2119,12 @@ class UFF(ForceField):
             self.detect_ff_terms()
             self.compute_force_field_terms()
 
-    def pair_terms(self, node, data, cutoff):
+    def pair_terms(self, node, data, cutoff, charges=True):
         """Add L-J term to atom"""
-        data['pair_potential'] = PairPotential.LjCutCoulLong()
+        if(charges):
+            data['pair_potential'] = PairPotential.LjCutCoulLong()
+        else:
+            data['pair_potential'] = PairPotential.LjCut()
         data['pair_potential'].eps = UFF_DATA[data['force_field_type']][3]
         data['pair_potential'].sig = UFF_DATA[data['force_field_type']][2]*(2**(-1./6.))
         data['pair_potential'].cutoff = cutoff
@@ -2875,7 +2879,7 @@ class Dreiding(ForceField):
         data['potential'].omega0 = omega0
         return 1
 
-    def pair_terms(self, node, data, cutoff, nbpot='LJ', hbpot='morse'):
+    def pair_terms(self, node, data, cutoff, nbpot='LJ', hbpot='morse', charges=True):
         """ DREIDING can adopt the exponential-6 or
         Ex6 = A*exp{-C*R} - B*R^{-6}
 
@@ -2890,7 +2894,10 @@ class Dreiding(ForceField):
         sig = R*(2**(-1./6.))
 
         if nbpot == "LJ":
-            data['pair_potential'] = PairPotential.LjCutCoulLong()
+            if(charges):
+                data['pair_potential'] = PairPotential.LjCutCoulLong()
+            else:
+                data['pair_potential'] = PairPotential.LjCut()
             #data['pair_potential'] = PairPotential.LjCharmmCoulLong()
             data['pair_potential'].eps = eps
             data['pair_potential'].sig = sig
@@ -3136,9 +3143,12 @@ class UFF4MOF(ForceField):
             self.detect_ff_terms()
             self.compute_force_field_terms()
 
-    def pair_terms(self, node, data, cutoff):
+    def pair_terms(self, node, data, cutoff, charges=True):
         """Add L-J term to atom"""
-        data['pair_potential'] = PairPotential.LjCutCoulLong()
+        if(charges):
+            data['pair_potential'] = PairPotential.LjCutCoulLong()
+        else:
+            data['pair_potential'] = PairPotential.LjCut()
         data['pair_potential'].eps = UFF4MOF_DATA[data['force_field_type']][3]
         data['pair_potential'].sig = UFF4MOF_DATA[data['force_field_type']][2]*(2**(-1./6.))
         data['pair_potential'].cutoff = cutoff
@@ -3851,7 +3861,7 @@ class Dubbeldam(ForceField):
         data['potential'].n = Dub_impropers[string][2]
         return 1
 
-    def pair_terms(self, node, data, cutoff):
+    def pair_terms(self, node, data, cutoff, **kwargs):
         """
 
         """
@@ -3983,7 +3993,7 @@ class SPC_E(ForceField):
         """
         return None
 
-    def pair_terms(self, node, data, cutoff):
+    def pair_terms(self, node, data, cutoff, **kwargs):
         """
         Lennard - Jones potential for OW and HW.
 
@@ -4103,7 +4113,7 @@ class TIP3P(ForceField):
         """
         return None
 
-    def pair_terms(self, node, data, cutoff):
+    def pair_terms(self, node, data, cutoff, **kwargs):
         """
         Lennard - Jones potential for OW and HW.
 
@@ -4230,7 +4240,7 @@ class TIP4P(ForceField, TIP4P_Water):
         """
         return None
 
-    def pair_terms(self, node, data, cutoff):
+    def pair_terms(self, node, data, cutoff, **kwargs):
         """
         Lennard - Jones potential for OW and HW.
 
@@ -4359,7 +4369,7 @@ class TIP5P(ForceField):
         """
         return None
 
-    def pair_terms(self, node, data, cutoff):
+    def pair_terms(self, node, data, cutoff, **kwargs):
         """
         Lennard - Jones potential for OW and HW.
 
@@ -4469,7 +4479,7 @@ class EPM2_CO2(ForceField):
         """
         return None
 
-    def pair_terms(self, node, data, cutoff):
+    def pair_terms(self, node, data, cutoff, **kwargs):
         """
         Lennard - Jones potential for Cx and Ox.
 

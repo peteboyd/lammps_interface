@@ -52,6 +52,7 @@ class LammpsSimulation(object):
         self.no_molecule_pair = True  # ensure that h-bonding will not occur between molecules of the same type
         self.fix_shake = {}
         self.fix_rigid = {}
+        self.kspace_style = False
 
     def set_MDMC_config(self, MDMC_config):
         self.MDMC_config = MDMC_config
@@ -302,7 +303,9 @@ class LammpsSimulation(object):
 
     def define_styles(self):
         # should be more robust, some of the styles require multiple parameters specified on these lines
-        self.kspace_style = "ewald %f"%(0.000001)
+        charges = not np.allclose(0.0, [float(self.graph.node[i]['charge']) for i in list(self.graph.nodes)], atol=0.00001)
+        if(charges):
+            self.kspace_style = "ewald %f"%(0.000001)
         bonds = set([j['potential'].name for n1, n2, j in list(self.unique_bond_types.values())])
         if len(list(bonds)) > 1:
             self.bond_style = "hybrid %s"%" ".join(list(bonds))
@@ -1594,7 +1597,7 @@ class LammpsSimulation(object):
             min_style=True
             thermo_style=False
 
-            inp_str += "\n%-15s %s\n"%("dump", "str all atom 1 initial_structure.dump")
+            inp_str += "\n%-15s %s\n"%("dump", "str all atom 1 %s.initial_structure.dump"%(self.name))
             inp_str += "%-15s\n"%("run 0")
             inp_str += "%-15s %-10s %s\n"%("variable", "rs", "equal step")
             inp_str += "%-15s %-10s %s\n"%("variable", "readstep", "equal ${rs}")
@@ -1625,7 +1628,7 @@ class LammpsSimulation(object):
                                               " file %s.output.csv screen no"%(self.name))
             inp_str += "%-15s %-10s %s\n"%("variable", "do", "loop ${N}")
             inp_str += "%-15s %s\n"%("label", "loop_bulk")
-            inp_str += "%-15s %s\n"%("read_dump", "initial_structure.dump ${readstep} x y z box yes format native")
+            inp_str += "%-15s %s\n"%("read_dump", "%s.initial_structure.dump ${readstep} x y z box yes format native"%(self.name))
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleVar", "equal 1.00-${totDev}+${do}*${sf}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleA", "equal ${scaleVar}*${a}")
             inp_str += "%-15s %-10s %s\n"%("variable", "scaleB", "equal ${scaleVar}*${b}")
@@ -1663,7 +1666,7 @@ class LammpsSimulation(object):
             temprange.append(298.0)
             temprange.insert(0,1.0) # add 1 and 298 K simulations.
 
-            inp_str += "\n%-15s %s\n"%("dump", "str all atom 1 initial_structure.dump")
+            inp_str += "\n%-15s %s\n"%("dump", "str all atom 1 %s.initial_structure.dump"%(self.name))
             inp_str += "%-15s\n"%("run 0")
             inp_str += "%-15s %-10s %s\n"%("variable", "rs", "equal step")
             inp_str += "%-15s %-10s %s\n"%("variable", "readstep", "equal ${rs}")
@@ -1683,7 +1686,7 @@ class LammpsSimulation(object):
             inp_str += "%-15s %s\n"%("label", "loop_thermal")
             #fix1 = self.fixcount()
 
-            inp_str += "%-15s %s\n"%("read_dump", "initial_structure.dump ${readstep} x y z box yes format native")
+            inp_str += "%-15s %s\n"%("read_dump", "%s.initial_structure.dump ${readstep} x y z box yes format native"%(self.name))
             inp_str += "%-15s %s\n"%("thermo_style", "custom step temp cella cellb cellc vol etotal")
 
             # the ave/time fix must be after read_dump, or the averages are reported as '0'
