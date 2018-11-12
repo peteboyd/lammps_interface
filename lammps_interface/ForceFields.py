@@ -2221,7 +2221,7 @@ class UFF(ForceField):
         r_ac = math.sqrt(r_ab*r_ab + r_bc*r_bc - 2.*r_ab*r_bc*cosT0)
 
         beta = 664.12/r_ab/r_bc
-        ka = beta*(za*zc /(r_ac**5.))
+        ka = beta*(za*zc /(r_ac**5.))*r_ab*r_bc
         ka *= (3.*r_ab*r_bc*(1. - cosT0*cosT0) - r_ac*r_ac*cosT0)
 
         if angle_type in sf or (angle_type == 'tetrahedral' and int(theta0) == 90):
@@ -3235,7 +3235,7 @@ class UFF4MOF(ForceField):
         r_ac = math.sqrt(r_ab*r_ab + r_bc*r_bc - 2.*r_ab*r_bc*cosT0)
 
         beta = 664.12/r_ab/r_bc
-        ka = beta*(za*zc /(r_ac**5.))
+        ka = beta*(za*zc /(r_ac**5.))*r_ab*r_bc
         ka *= (3.*r_ab*r_bc*(1. - cosT0*cosT0) - r_ac*r_ac*cosT0)
         #if ("special_flag" in b_data.keys()) and b_data["special_flag"] == "Cu_pdw":
         #    angle_type = "None"
