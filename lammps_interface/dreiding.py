@@ -41,6 +41,8 @@ DREIDING_DATA = {
     "Fe": (1.285, 90.0, 4.54, 0.055, 0.0, 12.0),
     "Zn": (1.330, 109.471, 4.54, 0.055, 0.0, 12.0),
     "Cu": (1.302, 90.0, 4.54, 0.055, 0.0, 12.0), # R1 taken from UFF, the rest are just a copy of DREIDING Zn
+    "Ni": (1.164, 90.0, 4.54, 0.055, 0.0, 12.0), # R1 taken from UFF, the rest are just a copy of DREIDING Zn
+    "Mg": (1.421, 90.0, 4.54, 0.055, 0.0, 12.0), # R1 taken from UFF, the rest are just a copy of DREIDING Zn
 # Implicit hydrogens
     "C_R1": (0.700, 120.0, 4.23, 0.1356, 0.0, 14.034),
     "C_34": (0.770, 109.471, 4.2370, 0.3016, 0.0, 12.0),
