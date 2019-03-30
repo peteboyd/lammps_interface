@@ -259,7 +259,6 @@ class MolecularGraph(nx.Graph):
 
     def compute_bonding(self, cell, scale_factor = 0.9):
         """Computes bonds between atoms based on covalent radii."""
-        print("bodning compute here")
         # here assume bonds exist, populate data with lengths and
         # symflags if needed.
         if (self.number_of_edges() > 0):
@@ -555,7 +554,7 @@ class MolecularGraph(nx.Graph):
                 try:
                     # cycle = list(nx.all_shortest_paths(self, node, n))
                     cycle = list(nx.all_simple_paths(self, source=node, target=n, cutoff=10))
-                    if not cycle==[]: # storing all path that have the length of the short path of the graph
+                    if not cycle==[]: # storing all path that have the length of the shortest path of the graph
                         cycle_shortest_path = min(map(len, cycle))
                         cycle = [cyc for cyc in cycle if len(cyc) == cycle_shortest_path]
                 except nx.exception.NetworkXNoPath:
@@ -564,7 +563,6 @@ class MolecularGraph(nx.Graph):
                 #FIXME MW edit to only store cycles < len(10)
                 # should be a harmless edit but maybe need to test
                 if(len(cycle) <= 10):
-                    print(cycle)
                     cycles += cycle
         for label, data in self.nodes_iter2(data=True):
             # N O C S
