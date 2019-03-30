@@ -325,6 +325,12 @@ class MolecularGraph(nx.Graph):
             # fix for water particle recognition.
             if(set(["O", "H"]) <= elements):
                 tempsf = 0.8
+            # fix for M-NDISA MOFs 
+            if(set(["O", "C"]) <= elements):
+                tempsf = 0.8
+            if (set("O") < elements) and (elements & metals):
+                tempsf = 0.82
+                                                            
             # very specific fix for Michelle's amine appended MOF
             if(set(["N","H"]) <= elements):
                 tempsf = 0.67
