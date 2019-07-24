@@ -28,3 +28,6 @@ var/
 # virtualenv
 venv/
 ENV/
+
+# vim
+*.swp

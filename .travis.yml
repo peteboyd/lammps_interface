@@ -20,7 +20,7 @@ before_script:
   - python -V
 
 script:
-  - python setup.py install
+  - pip install -e .
 
 notifications:
   email: false

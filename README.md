@@ -12,14 +12,8 @@ information file (.[cif]) and the Large-scale Atomic Molecular Massively
 Parallel Simulator ([Lammps]).
 
 ## Installation
-Clone the repository, enter the directory and install dependencies by:
 ```
-pip install -r requirements.txt
-```
-
-The Python module can be installed globally by:
-```
-python setup.py install
+pip install -e .
 ```
 
 ## Usage
@@ -46,7 +40,7 @@ The publication associated with this code is found here:
 
 Boyd, P. G., Moosavi, S. M., Witman, M. & Smit, B. Force-Field Prediction of Materials Properties in Metal-Organic Frameworks. J. Phys. Chem. Lett. 8, 357–363 (2017).
 
-dx.doi.org/10.1021/acs.jpclett.6b02532
+https://dx.doi.org/10.1021/acs.jpclett.6b02532
 
 [Lammps]: http://lammps.sandia.gov/
 [cif]: https://en.wikipedia.org/wiki/Crystallographic_Information_File
