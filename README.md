@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/kbsezginel/lammps_interface.svg?branch=master)](https://travis-ci.org/kbsezginel/lammps_interface)
+[![Build Status](https://travis-ci.org/peteboyd/lammps_interface.svg?branch=master)](https://travis-ci.org/peteboyd/lammps_interface)
 # LAMMPS Interface
 ## Authors
 
