@@ -21,7 +21,7 @@ before_script:
 
 script:
   - pip install -e .
-  - ./lammps_interface.py --help
+  - lammps-interface --help
 
 notifications:
   email: false

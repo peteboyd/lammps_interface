@@ -12,12 +12,13 @@ information file (.[cif]) and the Large-scale Atomic Molecular Massively
 Parallel Simulator ([Lammps]).
 
 ## Installation
+```
 pip install -r requirements.txt
-
+```
 The Python module can be installed globally by:
-
+```
 pip install -e .
-
+```
 Note: This adds `lammps-interface` to your `PATH`.
 
 ## Usage
