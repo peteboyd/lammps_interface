@@ -9,5 +9,6 @@ setup(
     description="Automatic generation of LAMMPS input files for molecular dynamics simulations of MOFs",
     install_requires=requirements,
     include_package_data=True,
-    packages=find_packages()
+    packages=find_packages(),
+    scripts=['lammps-interface'],
 )
