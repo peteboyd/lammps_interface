@@ -12,25 +12,28 @@ information file (.[cif]) and the Large-scale Atomic Molecular Massively
 Parallel Simulator ([Lammps]).
 
 ## Installation
+Simply install from [PyPI](https://pypi.org/project/lammps-interface/):
 ```
-pip install -r requirements.txt
+pip install lammps-interface
 ```
-The Python module can be installed globally by:
+
+For development purposes, clone the repository and install it from source:
 ```
 pip install -e .
 ```
-Note: This adds `lammps-interface` to your `PATH`.
+
+Note: In both cases, this adds `lammps-interface` to your `PATH`.
 
 ## Usage
 
 ### Command line interface
 To see the optional arguments type:
 ```
-./lammps-interface --help
+lammps-interface --help
 ```
 To create [Lammps] simulation files for a given cif file type:
 ```
-./lammps-interface cif_file.cif
+lammps-interface cif_file.cif
 ```
 This will create [Lammps] simulation files with UFF parameters.
 
