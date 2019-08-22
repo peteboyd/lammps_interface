@@ -20,7 +20,7 @@ before_script:
   - python -V
 
 script:
-  - pip install -e .
+  - pip install -e .[docs]
   - lammps-interface --help
   - cd docs; make html
 
