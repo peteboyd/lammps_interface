@@ -6,8 +6,9 @@ Build the documentation locally
 
 Build the documentation using::
 
+    pip install -e .[docs]  # install docs extra
     cd docs/
-    make html
+    make html  # build html documentation
     
 After building, find the documentation in ``docs/build/html/index.html``.
 

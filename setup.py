@@ -13,6 +13,9 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     install_requires=requirements,
+    extras_require={
+        'docs': [ 'sphinx>=2,<3', 'sphinx-rtd-theme>=0.4,<1' ]
+    },
     include_package_data=True,
     packages=find_packages(),
     scripts=['lammps-interface'],
