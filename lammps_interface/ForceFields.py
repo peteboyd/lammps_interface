@@ -2844,8 +2844,8 @@ class Dreiding(ForceField):
                  /                        /
                 /                        /
           c----a     , DREIDING =  K----I
-                \                        \
-                 \                        \
+                \                        \ 
+                 \                        \ 
                   d                        L
         
         For all non-planar configurations, DREIDING uses::
