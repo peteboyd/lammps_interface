@@ -41,25 +41,26 @@ DEG2RAD = np.pi / 180.
 
 
 class MolecularGraph(nx.Graph):
-    """Class to contain all information relating a structure file
-    to a fully described classical system.
+    """Contains all information relating a structure file to a fully described classical system.
+
     Important specific arguments for atomic nodes:
-    - mass
-    - force_field_type
-    - charge
-    - cartesian_coordinates
-    - description {contains all information about electronic environment
-                   to make a decision on the final force_field_type}
-        -hybridization [sp3, sp2, sp, aromatic]
+      - mass
+      - force_field_type
+      - charge
+      - cartesian_coordinates
+      - description {contains all information about electronic environment
+        to make a decision on the final force_field_type}
+      - hybridization [sp3, sp2, sp, aromatic]
 
     Important arguments for bond edges:
-    - weight = 1
-    - length
-    - image_flag
-    - force_field_type
+      - weight = 1
+      - length
+      - image_flag
+      - force_field_type
     """
     node_dict_factory = OrderedDict
     def __init__(self, **kwargs):
+        """MolecularGraph constructor."""
         nx.Graph.__init__(self, **kwargs)
         # coordinates and distances will be kept in a matrix because
         # networkx edge and node lookup is slow.

@@ -14,7 +14,7 @@ import sys
 import math
 import numpy as np
 import networkx as nx
-import ForceFields
+import .ForceFields
 import itertools
 import operator
 import matplotlib
