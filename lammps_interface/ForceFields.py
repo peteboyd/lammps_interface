@@ -2837,25 +2837,26 @@ class Dreiding(ForceField):
         return 1
 
     def improper_term(self, improper):
-        """
+        """Dreiding improper term.
+        ::
 
-                b                        J
-               /                        /
-              /                        /
-        c----a     , DREIDING =  K----I
-              \                        \
-               \                        \
-                d                        L
+                  b                        J
+                 /                        /
+                /                        /
+          c----a     , DREIDING =  K----I
+                \                        \ 
+                 \                        \ 
+                  d                        L
+        
+        For all non-planar configurations, DREIDING uses::
 
-        for all non-planar configurations, DREIDING uses
+            E = 0.5*C*(cos(phi) - cos(phi0))^2
 
-        E = 0.5*C*(cos(phi) - cos(phi0))^2
+        For systems with planar equilibrium geometries, phi0 = 0 ::
 
-        For systems with planar equilibrium geometries, phi0 = 0
-        E = K*[1 - cos(phi)]
+            E = K*[1 - cos(phi)].
 
         This is available in LAMMPS as the 'umbrella' improper potential.
-
         """
         a, b, c, d, data = improper
 
@@ -3440,11 +3441,9 @@ class UFF4MOF(ForceField):
         return 1
 
     def improper_term(self, improper):
-        """
-        The improper function can be described with a fourier function
+        """Improper term described by a Fourier function
 
         E = K*[C_0 + C_1*cos(w) + C_2*cos(2*w)]
-
         """
         a, b, c, d, data = improper
         b_data = self.graph.node[b]

@@ -12,10 +12,10 @@ class BondPotential(object):
 
     class Class2(object):
         """Potential defined as
-
-        E = K2*(r-R0)^2 + K3*(r-R0)^3 + K4*(r-R0)^4
-
-        Input parameters: R0, K2, K3, K4
+        
+            E = K2*(r-R0)^2 + K3*(r-R0)^3 + K4*(r-R0)^4
+        
+        Input parameters: R0, K2, K3, K4.
         """
         def __init__(self):
             self.name = "class2"

@@ -14,11 +14,11 @@ import sys
 import math
 import numpy as np
 import networkx as nx
-import ForceFields
 import itertools
 import operator
 import matplotlib
 import matplotlib.pyplot as plt
+from . import ForceFields
 from .structure_data import from_CIF, write_CIF, clean
 from .CIFIO import CIF
 from .ccdc import CCDC_BOND_ORDERS
