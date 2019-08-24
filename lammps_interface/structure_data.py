@@ -517,6 +517,11 @@ class MolecularGraph(nx.Graph):
             coords1, coords2 = self.node[n1]['cartesian_coordinates'], self.node[n2]['cartesian_coordinates']
             try:
                 dist = self.min_img_distance(coords1, coords2, cell)
+                # perform a distance check here and break with error.
+                if dist < 0.1:
+                    print("ERROR: distance between atom %i and %i are less than 0.1 Angstrom in the unit cell!"
+                    "Please check your input file for overlapping atoms."%(n1, n2))
+                    exit()
             except TypeError:
                 sys.exit()
             self.distance_matrix[id1][id2] = dist

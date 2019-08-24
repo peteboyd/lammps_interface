@@ -374,7 +374,6 @@ class LammpsSimulation(object):
                 self.graph.find_metal_sbus = True # true for BTW_FF and Dubbeldam
             if (self.options.force_field == "Dubbeldam"):
                 self.graph.find_organic_sbus = True
-
             self.graph.compute_topology_information(self.cell, self.options.tol, self.options.neighbour_size)
         except AttributeError:
             # no cell set yet
