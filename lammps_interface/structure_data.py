@@ -22,6 +22,7 @@ from .generic_raspa import GENERIC_FF_MIXING_FOOTER
 from .uff import UFF_DATA
 import networkx as nx
 import operator
+import time
 
 try:
     import networkx as nx
@@ -93,12 +94,14 @@ class MolecularGraph(nx.Graph):
 	Extensive testing under way...
 
         """
-        for node in self.nodes():
-            if(data):
+        if(data):
+            for node in self.nodes():
                 data = self.nodes[node]
                 yield (node, data)
-            else:
+        else:
+            for node in self.nodes():
                 yield node
+
 
     def edges_iter2(self, data=True):
         for (n1,n2) in self.edges():
@@ -510,20 +513,31 @@ class MolecularGraph(nx.Graph):
 
     def compute_min_img_distances(self, cell):
         self.distance_matrix = np.empty((self.number_of_nodes(), self.number_of_nodes()))
+        
+        tmp_one = np.empty((self.number_of_nodes(), 3))
+        #mp_one_cell = np.empty((self.number_of_nodes(), 3))
+        for n1 in self.nodes():
+            id1 = self.nodes[n1]['index'] - 1 
+            coords1 = self.nodes[n1]['cartesian_coordinates']
+            tmp_one[id1,:] = np.dot(cell.inverse, coords1) % 1
+            #mp_one_cell[id1,:] = np.dot(tmp_one[id1,:], cell.cell)
+
         for n1, n2 in itertools.combinations(self.nodes(), 2):
             id1, id2 = self.nodes[n1]['index']-1,\
                                 self.nodes[n2]['index']-1
             #coords1, coords2 = self.coordinates[id1], self.coordinates[id2]
             coords1, coords2 = self.nodes[n1]['cartesian_coordinates'], self.nodes[n2]['cartesian_coordinates']
-            try:
-                dist = self.min_img_distance(coords1, coords2, cell)
-                # perform a distance check here and break with error.
-                if dist < 0.1:
-                    print("ERROR: distance between atom %i and %i are less than 0.1 Angstrom in the unit cell!"
+            delta = tmp_one[id1,:] - tmp_one[id2,:]
+            three0 = np.around(delta)
+            four0 = np.dot(delta - three0, cell.cell)
+            dist = np.linalg.norm(four0)
+            
+            #    # perform a distance check here and break with error.
+            if dist < 0.1:
+                print("ERROR: distance between atom %i and %i are less than 0.1 Angstrom in the unit cell!"
                     "Please check your input file for overlapping atoms."%(n1, n2))
-                    exit()
-            except TypeError:
-                sys.exit()
+                exit()
+
             self.distance_matrix[id1][id2] = dist
             self.distance_matrix[id2][id1] = dist
 
@@ -557,18 +571,20 @@ class MolecularGraph(nx.Graph):
         #TODO(pboyd) return if atoms already 'typed' in the .cif file
         # compute and store cycles
         cycles = []
+        cycle_shortest_path_cutoff = 10
         for node, data in self.nodes_iter2(data=True):
             for n in self.neighbors(node):
                 # fastest way I could think of..
                 edge = self[node][n].copy()
                 self.remove_edge(node, n)
                 cycle = []
+
                 try:
                     # cycle = list(nx.all_shortest_paths(self, node, n))
-                    cycle = list(nx.all_simple_paths(self, source=node, target=n, cutoff=10))
-                    if not cycle==[]: # storing all path that have the length of the shortest path of the graph
-                        cycle_shortest_path = min(map(len, cycle))
-                        cycle = [cyc for cyc in cycle if len(cyc) == cycle_shortest_path]
+                    shortest_path = nx.shortest_path(self, source=node, target=n)
+                    cycle_shortest_path = len(shortest_path)
+                    if  cycle_shortest_path <= cycle_shortest_path_cutoff:
+                        cycle = list(nx.all_simple_paths(self, source=node, target=n, cutoff=cycle_shortest_path))
                 except nx.exception.NetworkXNoPath:
                     pass
                 self.add_edge(node, n, **edge)
@@ -634,6 +650,7 @@ class MolecularGraph(nx.Graph):
                     self.nodes[a]['hybridization'] = 'aromatic'
                     self.nodes[a]['cycle'] = True
                     self.nodes[a]['rings'].append(cycle)
+
 
     def compute_bond_typing(self):
         """ Compute bond types and atom types based on the local edge
@@ -971,18 +988,39 @@ class MolecularGraph(nx.Graph):
                 data.setdefault('impropers',{}).update({(a,c,d):{'potential':None}})
 
     def compute_topology_information(self, cell, tol, num_neighbours):
+        t0 = time.clock()
+        print("compute_topology_information()")
         self.compute_cartesian_coordinates(cell)
+        print("func: {}; Elps. {:.3f}s".format("cartesian_coordinates", time.clock() - t0))
+        
         self.compute_min_img_distances(cell)
+        print("func: {}; Elps. {:.3f}s".format("min_img_distances", time.clock() - t0))
+        
         self.compute_bonding(cell)
+        print("func: {}; Elps. {:.3f}s".format("compute_bonding", time.clock() - t0))
+        
         self.compute_init_typing()
+        print("func: {}; Elps. {:.3f}s".format("init_typing", time.clock() - t0))
+        
         self.compute_bond_typing()
+        print("func: {}; Elps. {:.3f}s".format("bond_typing", time.clock() - t0))
+
         if (self.find_metal_sbus):
             self.detect_clusters(num_neighbours, tol) # num neighbors determines how many nodes from the metal element to cut out for comparison
+            print("func: {}; Elps. {:.3f}s".format("detect_clusters", time.clock() - t0))
+        
         if (self.find_organic_sbus):
             self.detect_clusters(num_neighbours, tol,  type="Organic")
+            print("func: {}; Elps. {:.3f}s".format("detect_clusters", time.clock() - t0))
+        
         self.compute_angles()
+        print("func: {}; Elps. {:.3f}s".format("angles", time.clock() - t0))
+
         self.compute_dihedrals()
+        print("func: {}; Elps. {:.3f}s".format("dihedrals", time.clock() - t0))
+
         self.compute_improper_dihedrals()
+        print("func: {}; Elps. {:.3f}s".format("improper_dihedrals", time.clock() - t0))
 
     def sorted_node_list(self):
         return [n[1] for n in sorted([(data['index'], node) for node, data in self.nodes_iter2(data=True)])]
@@ -1266,8 +1304,11 @@ class MolecularGraph(nx.Graph):
 
             cartesian_offset = np.dot(newcell, lattice.cell)
             # Initial setup of new image in the supercell.
+            print("Prog. = {}/{}; cell = {}x{}x{}".format(count + 1, len(cells), cell[0][0], cell[1][0], cell[2][0]))
+
             if (count == 0):
                 graph_image = self
+                graph_image.node = graph_image._node
             else:
                 # rename nodes
                 graph_image = nx.relabel_nodes(deepcopy(orig_copy), {unit_node_ids[i-1]: offset+unit_node_ids[i-1] for i in range(1, totatomlen+1)})
@@ -1278,7 +1319,8 @@ class MolecularGraph(nx.Graph):
                     newval = (v[0] + offset, v[1] + offset)
                     del graph_image.sorted_edge_dict[k]
                     graph_image.sorted_edge_dict.update({newkey:newval})
-
+                graph_image.node = graph_image._node
+ 
             # keep track of original index value from the unit cell.
             for i in range(1, totatomlen+1):
                 graph_image.node[unit_node_ids[i-1]+offset]['image'] = unit_node_ids[i-1]
@@ -1562,7 +1604,6 @@ def from_CIF(cifname):
     for atom_data in zip(*[data[i] for i in atheads]):
         kwargs = {a:j.strip() for a, j in zip(atheads, atom_data)}
         mg.add_atomic_node(**kwargs)
-
     # add bond edges, if they exist
     try:
         id = cifobj.block_order.index('bonds')
@@ -1575,6 +1616,7 @@ def from_CIF(cifname):
         print("No bonds reported in cif file - computing bonding..")
     mg.store_original_size()
     mg.cell = cell
+    print("totatomlen =", len(mg._node))
     return cell, mg
 
 def write_CIF(graph, cell):
