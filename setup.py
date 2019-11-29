@@ -6,7 +6,7 @@ with open('requirements.txt') as f:
 setup(
     name="lammps-interface",
     author="Peter Boyd, Mohamad Moosavi, Matthew Witman",
-    version="0.1.1",
+    version="0.1.2",
     license="MIT",
     url="https://github.com/peteboyd/lammps_interface",
     description="Automatic generation of LAMMPS input files for molecular dynamics simulations of MOFs",

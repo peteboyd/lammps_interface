@@ -1,4 +1,6 @@
 [![Build Status](https://travis-ci.org/peteboyd/lammps_interface.svg?branch=master)](https://travis-ci.org/peteboyd/lammps_interface)
+[![Docs status](https://readthedocs.org/projects/lammps-interface/badge)](http://lammps-interface.readthedocs.io/)
+[![PyPI version](https://badge.fury.io/py/lammps-interface.svg)](https://badge.fury.io/py/lammps-interface)
 # LAMMPS Interface
 ## Authors
 
