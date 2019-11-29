@@ -303,7 +303,7 @@ class LammpsSimulation(object):
 
     def define_styles(self):
         # should be more robust, some of the styles require multiple parameters specified on these lines
-        charges = not np.allclose(0.0, [float(self.graph.node[i]['charge']) for i in list(self.graph.nodes)], atol=0.00001)
+        charges = not np.allclose(0.0, [float(self.graph.nodes[i]['charge']) for i in list(self.graph.nodes)], atol=0.00001)
         if(charges):
             self.kspace_style = "ewald %f"%(0.000001)
         bonds = set([j['potential'].name for n1, n2, j in list(self.unique_bond_types.values())])
@@ -491,7 +491,7 @@ class LammpsSimulation(object):
 
     def assign_molecule_ids(self, graph):
         for node in graph.nodes():
-            graph.node[node]['molid'] = graph.molecule_id
+            graph.nodes[node]['molid'] = graph.molecule_id
 
     def compute_simulation_size(self):
 
@@ -541,7 +541,7 @@ class LammpsSimulation(object):
         for mgraph in self.subgraphs:
             self.graph += mgraph
         for node in self.graph.nodes():
-            data=self.graph.node[node]
+            data=self.graph.nodes[node]
         if sorted(self.graph.nodes()) != [i+1 for i in range(len(self.graph.nodes()))]:
             print("Re-labelling atom indices.")
             reorder_dic = {i:j+1 for (i, j) in zip(sorted(self.graph.nodes()), range(len(self.graph.nodes())))}
@@ -626,7 +626,7 @@ class LammpsSimulation(object):
             string += "\nBond Coeffs\n\n"
             for key in sorted(self.unique_bond_types.keys()):
                 n1, n2, bond = self.unique_bond_types[key]
-                atom1, atom2 = self.graph.node[n1], self.graph.node[n2]
+                atom1, atom2 = self.graph.nodes[n1], self.graph.nodes[n2]
                 if bond['potential'] is None:
                     no_bond.append("%5i : %s %s"%(key,
                                                   atom1['force_field_type'],
@@ -643,9 +643,9 @@ class LammpsSimulation(object):
             string += "\nAngle Coeffs\n\n"
             for key in sorted(self.unique_angle_types.keys()):
                 a, b, c, angle = self.unique_angle_types[key]
-                atom_a, atom_b, atom_c = self.graph.node[a], \
-                                         self.graph.node[b], \
-                                         self.graph.node[c]
+                atom_a, atom_b, atom_c = self.graph.nodes[a], \
+                                         self.graph.nodes[b], \
+                                         self.graph.nodes[c]
 
                 if angle['potential'] is None:
                     no_angle.append("%5i : %s %s %s"%(key,
@@ -665,9 +665,9 @@ class LammpsSimulation(object):
             string += "\nBondBond Coeffs\n\n"
             for key in sorted(self.unique_angle_types.keys()):
                 a, b, c, angle = self.unique_angle_types[key]
-                atom_a, atom_b, atom_c = self.graph.node[a], \
-                                         self.graph.node[b], \
-                                         self.graph.node[c]
+                atom_a, atom_b, atom_c = self.graph.nodes[a], \
+                                         self.graph.nodes[b], \
+                                         self.graph.nodes[c]
                 if (angle['potential'].name!="class2"):
                     string += "%5i skip "%(key)
                     string += "# %s %s %s\n"%(atom_a['force_field_type'],
@@ -685,9 +685,9 @@ class LammpsSimulation(object):
             string += "\nBondAngle Coeffs\n\n"
             for key in sorted(self.unique_angle_types.keys()):
                 a, b, c, angle = self.unique_angle_types[key]
-                atom_a, atom_b, atom_c = self.graph.node[a],\
-                                         self.graph.node[b],\
-                                         self.graph.node[c]
+                atom_a, atom_b, atom_c = self.graph.nodes[a],\
+                                         self.graph.nodes[b],\
+                                         self.graph.nodes[c]
                 if (angle['potential'].name!="class2"):
                     string += "%5i skip  "%(key)
                     string += "# %s %s %s\n"%(atom_a['force_field_type'],
@@ -707,10 +707,10 @@ class LammpsSimulation(object):
             string +=  "\nDihedral Coeffs\n\n"
             for key in sorted(self.unique_dihedral_types.keys()):
                 a, b, c, d, dihedral = self.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
-                                                 self.graph.node[b], \
-                                                 self.graph.node[c], \
-                                                 self.graph.node[d]
+                atom_a, atom_b, atom_c, atom_d = self.graph.nodes[a], \
+                                                 self.graph.nodes[b], \
+                                                 self.graph.nodes[c], \
+                                                 self.graph.nodes[d]
                 if dihedral['potential'] is None:
                     no_dihedral.append("%5i : %s %s %s %s"%(key,
                                        atom_a['force_field_type'],
@@ -730,10 +730,10 @@ class LammpsSimulation(object):
             string += "\nMiddleBondTorsion Coeffs\n\n"
             for key in sorted(self.unique_dihedral_types.keys()):
                 a, b, c, d, dihedral = self.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
-                                                 self.graph.node[b], \
-                                                 self.graph.node[c], \
-                                                 self.graph.node[d]
+                atom_a, atom_b, atom_c, atom_d = self.graph.nodes[a], \
+                                                 self.graph.nodes[b], \
+                                                 self.graph.nodes[c], \
+                                                 self.graph.nodes[d]
 
                 if (dihedral['potential'].name!="class2"):
                     string += "%5i skip "%(key)
@@ -753,10 +753,10 @@ class LammpsSimulation(object):
             string += "\nEndBondTorsion Coeffs\n\n"
             for key in sorted(self.unique_dihedral_types.keys()):
                 a, b, c, d, dihedral = self.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
-                                                 self.graph.node[b], \
-                                                 self.graph.node[c], \
-                                                 self.graph.node[d]
+                atom_a, atom_b, atom_c, atom_d = self.graph.nodes[a], \
+                                                 self.graph.nodes[b], \
+                                                 self.graph.nodes[c], \
+                                                 self.graph.nodes[d]
                 if (dihedral['potential'].name!="class2"):
                     string += "%5i skip "%(key)
                     string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
@@ -775,10 +775,10 @@ class LammpsSimulation(object):
             string += "\nAngleTorsion Coeffs\n\n"
             for key in sorted(self.unique_dihedral_types.keys()):
                 a, b, c, d, dihedral = self.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
-                                                 self.graph.node[b], \
-                                                 self.graph.node[c], \
-                                                 self.graph.node[d]
+                atom_a, atom_b, atom_c, atom_d = self.graph.nodes[a], \
+                                                 self.graph.nodes[b], \
+                                                 self.graph.nodes[c], \
+                                                 self.graph.nodes[d]
                 if (dihedral['potential'].name!="class2"):
                     string += "%5i skip "%(key)
                     string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
@@ -797,10 +797,10 @@ class LammpsSimulation(object):
             string += "\nAngleAngleTorsion Coeffs\n\n"
             for key in sorted(self.unique_dihedral_types.keys()):
                 a, b, c, d, dihedral = self.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
-                                                 self.graph.node[b], \
-                                                 self.graph.node[c], \
-                                                 self.graph.node[d]
+                atom_a, atom_b, atom_c, atom_d = self.graph.nodes[a], \
+                                                 self.graph.nodes[b], \
+                                                 self.graph.nodes[c], \
+                                                 self.graph.nodes[d]
                 if (dihedral['potential'].name!="class2"):
                     string += "%5i skip "%(key)
                     string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
@@ -819,10 +819,10 @@ class LammpsSimulation(object):
             string += "\nBondBond13 Coeffs\n\n"
             for key in sorted(self.unique_dihedral_types.keys()):
                 a, b, c, d, dihedral = self.unique_dihedral_types[key]
-                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
-                                                 self.graph.node[b], \
-                                                 self.graph.node[c], \
-                                                 self.graph.node[d]
+                atom_a, atom_b, atom_c, atom_d = self.graph.nodes[a], \
+                                                 self.graph.nodes[b], \
+                                                 self.graph.nodes[c], \
+                                                 self.graph.nodes[d]
                 if (dihedral['potential'].name!="class2"):
                     string += "%5i skip "%(key)
                     string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
@@ -845,10 +845,10 @@ class LammpsSimulation(object):
             string += "\nImproper Coeffs\n\n"
             for key in sorted(self.unique_improper_types.keys()):
                 a, b, c, d, improper = self.unique_improper_types[key]
-                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
-                                                 self.graph.node[b], \
-                                                 self.graph.node[c], \
-                                                 self.graph.node[d]
+                atom_a, atom_b, atom_c, atom_d = self.graph.nodes[a], \
+                                                 self.graph.nodes[b], \
+                                                 self.graph.nodes[c], \
+                                                 self.graph.nodes[d]
 
                 if improper['potential'] is None:
                     no_improper.append("%5i : %s %s %s %s"%(key,
@@ -868,10 +868,10 @@ class LammpsSimulation(object):
             string += "\nAngleAngle Coeffs\n\n"
             for key in sorted(self.unique_improper_types.keys()):
                 a, b, c, d, improper = self.unique_improper_types[key]
-                atom_a, atom_b, atom_c, atom_d = self.graph.node[a], \
-                                                 self.graph.node[b], \
-                                                 self.graph.node[c], \
-                                                 self.graph.node[d]
+                atom_a, atom_b, atom_c, atom_d = self.graph.nodes[a], \
+                                                 self.graph.nodes[b], \
+                                                 self.graph.nodes[c], \
+                                                 self.graph.nodes[d]
                 if (improper['potential'].name!="class2"):
                     string += "%5i skip "%(key)
                     string += "# %s %s %s %s\n"%(atom_a['force_field_type'],
@@ -891,7 +891,7 @@ class LammpsSimulation(object):
         if((len(self.unique_pair_types.keys()) > 0) and (self.pair_in_data)):
             string += "\nPair Coeffs\n\n"
             for key, (n,pair) in sorted(self.unique_atom_types.items()):
-                #pair = self.graph.node[n]
+                #pair = self.graph.nodes[n]
                 string += "%5i %s "%(key, pair['pair_potential'])
                 string += "# %s %s\n"%(pair['force_field_type'],
                                        pair['force_field_type'])
@@ -927,7 +927,7 @@ class LammpsSimulation(object):
         if(len(self.unique_atom_types.keys()) > 0):
             string += "\nAtoms\n\n"
             for node in sorted_nodes:
-                atom = self.graph.node[node]
+                atom = self.graph.nodes[node]
                 string += "%8i %8i %8i %11.5f %10.5f %10.5f %10.5f\n"%(node,
                                                                        atom['molid'],
                                                                        atom['ff_type_index'],
@@ -952,7 +952,7 @@ class LammpsSimulation(object):
             string += "\nAngles\n\n"
             idx = 0
             for node in sorted_nodes:
-                atom = self.graph.node[node]
+                atom = self.graph.nodes[node]
                 try:
                     for (a, c), angle in list(atom['angles'].items()):
                         idx += 1
@@ -985,7 +985,7 @@ class LammpsSimulation(object):
             string += "\nImpropers\n\n"
             idx = 0
             for node in sorted_nodes:
-                atom = self.graph.node[node]
+                atom = self.graph.nodes[node]
                 try:
                     for (a, c, d), improper in list(atom['impropers'].items()):
                         idx += 1
@@ -1046,18 +1046,18 @@ class LammpsSimulation(object):
                     if pair[2] == 'hb':
                         inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff",
                             pair[0], pair[1], data['h_bond_potential'],
-                            self.graph.node[n1]['force_field_type'],
-                            self.graph.node[n2]['force_field_type'])
+                            self.graph.nodes[n1]['force_field_type'],
+                            self.graph.nodes[n2]['force_field_type'])
                     elif pair[2] == 'table':
                         inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff",
                             pair[0], pair[1], data['table_potential'],
-                            self.graph.node[n1]['force_field_type'],
-                            self.graph.node[n2]['force_field_type'])
+                            self.graph.nodes[n1]['force_field_type'],
+                            self.graph.nodes[n2]['force_field_type'])
                     else:
                         inp_str += "%-15s %-4i %-4i %s # %s %s\n"%("pair_coeff",
                             pair[0], pair[1], data['pair_potential'],
-                            self.graph.node[n1]['force_field_type'],
-                            self.graph.node[n2]['force_field_type'])
+                            self.graph.nodes[n1]['force_field_type'],
+                            self.graph.nodes[n2]['force_field_type'])
                 except IndexError:
                     pass
             inp_str += "#### END Pair Coefficients ####\n\n"

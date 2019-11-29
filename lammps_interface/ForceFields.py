@@ -57,7 +57,7 @@ class ForceField(object):
         self.compute_improper_terms()
 
     def compute_atomic_pair_terms(self):
-        charges = not np.allclose(0.0, [float(self.graph.node[i]['charge']) for i in list(self.graph.nodes)], atol=0.00001)
+        charges = not np.allclose(0.0, [float(self.graph.nodes[i]['charge']) for i in list(self.graph.nodes)], atol=0.00001)
         for n, data in self.graph.nodes_iter2(data=True):
             self.pair_terms(n, data, self.cutoff, charges=charges)
 
@@ -766,7 +766,7 @@ class BTW_FF(ForceField):
 
             if atom['force_field_type'] is None:
                 type_assigned = False
-                neighbours = [self.graph.node[i] for i in self.graph.neighbors(node)]
+                neighbours = [self.graph.nodes[i] for i in self.graph.neighbors(node)]
                 neighbour_elements = [a['element'] for a in neighbours]
                 special = False
                 if 'special_flag' in atom:
@@ -868,8 +868,8 @@ class BTW_FF(ForceField):
 
         # Assigning force field type of bonds
         for a, b, bond in self.graph.edges_iter2(data=True):
-            a_atom = self.graph.node[a]
-            b_atom = self.graph.node[b]
+            a_atom = self.graph.nodes[a]
+            b_atom = self.graph.nodes[b]
             atom_a_fflabel, atom_b_fflabel = a_atom['force_field_type'], b_atom['force_field_type']
             bond_fflabel1 = atom_a_fflabel+"_"+atom_b_fflabel
             bond_fflabel2 = atom_b_fflabel+"_"+atom_a_fflabel
@@ -888,9 +888,9 @@ class BTW_FF(ForceField):
                 missing_angles=[]
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
-                    a_atom = self.graph.node[a]
+                    a_atom = self.graph.nodes[a]
                     b_atom = data
-                    c_atom = self.graph.node[c]
+                    c_atom = self.graph.nodes[c]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
                     atom_c_fflabel = c_atom['force_field_type']
@@ -920,10 +920,10 @@ class BTW_FF(ForceField):
                 missing_dihedral=[]
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
-                    a_atom = self.graph.node[a]
-                    b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c]
-                    d_atom = self.graph.node[d]
+                    a_atom = self.graph.nodes[a]
+                    b_atom = self.graph.nodes[b]
+                    c_atom = self.graph.nodes[c]
+                    d_atom = self.graph.nodes[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
                     atom_c_fflabel = c_atom['force_field_type']
@@ -952,10 +952,10 @@ class BTW_FF(ForceField):
                 missing_improper=[]
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
-                    a_atom = self.graph.node[a]
-                    b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c]
-                    d_atom = self.graph.node[d]
+                    a_atom = self.graph.nodes[a]
+                    b_atom = self.graph.nodes[b]
+                    c_atom = self.graph.nodes[c]
+                    d_atom = self.graph.nodes[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
                     atom_c_fflabel = c_atom['force_field_type']
@@ -1003,9 +1003,9 @@ class BTW_FF(ForceField):
             data['potential'].B = 1
             data['potential'].n = 4
             return 1
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
         ab_bond = self.graph[a][b]
         bc_bond = self.graph[b][c]
         atom_a_fflabel = a_data['force_field_type']
@@ -1093,10 +1093,10 @@ class BTW_FF(ForceField):
     def improper_term(self, improper):
         """class2 improper"""
         a,b,c,d, data = improper
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
-        d_data = self.graph.node[d]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
+        d_data = self.graph.nodes[d]
         atom_a_fflabel=a_data['force_field_type']
         atom_b_fflabel=b_data['force_field_type']
         atom_c_fflabel=c_data['force_field_type']
@@ -1234,7 +1234,7 @@ class MOF_FF(ForceField):
 
             if atom['force_field_type'] is None:
                 type_assigned = False
-                neighbours = [self.graph.node[i] for i in self.graph.neighbors(node)]
+                neighbours = [self.graph.nodes[i] for i in self.graph.neighbors(node)]
                 neighbour_elements = [a['element'] for a in neighbours]
                 special = False
                 if 'special_flag' in atom:
@@ -1326,8 +1326,8 @@ class MOF_FF(ForceField):
         # TODO(Mohammad): make this easier to read.
         #Assigning force field type of bonds
         for a, b, bond in self.graph.edges_iter2(data=True):
-            a_atom = self.graph.node[a]
-            b_atom = self.graph.node[b]
+            a_atom = self.graph.nodes[a]
+            b_atom = self.graph.nodes[b]
             atom_a_fflabel, atom_b_fflabel = a_atom['force_field_type'], b_atom['force_field_type']
             bond1_fflabel=atom_a_fflabel+"_"+atom_b_fflabel
             bond2_fflabel=atom_b_fflabel+"_"+atom_a_fflabel
@@ -1345,9 +1345,9 @@ class MOF_FF(ForceField):
                 missing_angles=[]
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
-                    a_atom = self.graph.node[a]
+                    a_atom = self.graph.nodes[a]
                     b_atom = data
-                    c_atom = self.graph.node[c]
+                    c_atom = self.graph.nodes[c]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
                     atom_c_fflabel = c_atom['force_field_type']
@@ -1380,10 +1380,10 @@ class MOF_FF(ForceField):
                 missing_dihedral=[]
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
-                    a_atom = self.graph.node[a]
-                    b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c]
-                    d_atom = self.graph.node[d]
+                    a_atom = self.graph.nodes[a]
+                    b_atom = self.graph.nodes[b]
+                    c_atom = self.graph.nodes[c]
+                    d_atom = self.graph.nodes[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
                     atom_c_fflabel = c_atom['force_field_type']
@@ -1412,10 +1412,10 @@ class MOF_FF(ForceField):
                 missing_improper=[]
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
-                    a_atom = self.graph.node[a]
-                    b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c]
-                    d_atom = self.graph.node[d]
+                    a_atom = self.graph.nodes[a]
+                    b_atom = self.graph.nodes[b]
+                    c_atom = self.graph.nodes[c]
+                    d_atom = self.graph.nodes[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
                     atom_c_fflabel = c_atom['force_field_type']
@@ -1490,9 +1490,9 @@ class MOF_FF(ForceField):
             data['potential'].n = 4
             return 1
 
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
         ab_bond = self.graph[a][b]
         bc_bond = self.graph[b][c]
         atom_a_fflabel = a_data['force_field_type']
@@ -1691,7 +1691,7 @@ class FMOFCu(ForceField):
             flag_coordination=False
             if atom['force_field_type'] is None:
                 type_assigned=False
-                neighbours = [self.graph.node[i] for i in self.graph.neighbors(node)]
+                neighbours = [self.graph.nodes[i] for i in self.graph.neighbors(node)]
                 neighbour_elements = [a['element'] for a in neighbours]
                 if atom['element'] in FMOFCu_organics:
                     if (atom['element'] == "O"):
@@ -1700,13 +1700,13 @@ class FMOFCu(ForceField):
                             atom['charge']=FMOFCu_atoms[atom['force_field_type']][6]
                         elif ("C" in neighbour_elements): # Carboxylate
                             for i in self.graph.neighbors(node):
-                                if (self.graph.node[i]['element']=="C"):
+                                if (self.graph.nodes[i]['element']=="C"):
                                     neighboursofneighbour = self.graph.neighbors(i)
-                                    neighboursofneighbour_elements=[self.graph.node[at]['element'] for at in neighboursofneighbour]
+                                    neighboursofneighbour_elements=[self.graph.nodes[at]['element'] for at in neighboursofneighbour]
 
                             for atom1 in neighboursofneighbour:
-                                if (self.graph.node[atom1]['element']=="O"):
-                                    bondeds=[self.graph.node[j] for j in self.graph.neighbors(atom1)]
+                                if (self.graph.nodes[atom1]['element']=="O"):
+                                    bondeds=[self.graph.nodes[j] for j in self.graph.neighbors(atom1)]
                                     bondeds_elements=[at['element'] for at in bondeds]
                                     if("H" in bondeds_elements):
                                         flag_coordination=True
@@ -1752,7 +1752,7 @@ class FMOFCu(ForceField):
                         elif (set(neighbour_elements)<=set(["C"])):
                             for i in self.graph.neighbors(node):
                                 neighboursofneighbour = self.graph.neighbors(i)
-                                neighboursofneighbour_elements=[self.graph.node[at]['element'] for at in neighboursofneighbour]
+                                neighboursofneighbour_elements=[self.graph.nodes[at]['element'] for at in neighboursofneighbour]
                                 if ("O" in neighboursofneighbour_elements):
                                     atom['force_field_type']="902"
                                     atom['charge']=FMOFCu_atoms[atom['force_field_type']][6]
@@ -1785,8 +1785,8 @@ class FMOFCu(ForceField):
         Assigning force field type of bonds
         """ """  """  """ """
         for a, b, bond in self.graph.edges_iter2(data=True):
-            a_atom = self.graph.node[a]
-            b_atom = self.graph.node[b]
+            a_atom = self.graph.nodes[a]
+            b_atom = self.graph.nodes[b]
             atom_a_fflabel, atom_b_fflabel = a_atom['force_field_type'], b_atom['force_field_type']
             bond1_fflabel=atom_a_fflabel+"_"+atom_b_fflabel
             bond2_fflabel=atom_b_fflabel+"_"+atom_a_fflabel
@@ -1808,9 +1808,9 @@ class FMOFCu(ForceField):
                 missing_angles=[]
                 ang_data = data['angles']
                 for (a, c), val in ang_data.items():
-                    a_atom = self.graph.node[a]
+                    a_atom = self.graph.nodes[a]
                     b_atom = data
-                    c_atom = self.graph.node[c]
+                    c_atom = self.graph.nodes[c]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
                     atom_c_fflabel = c_atom['force_field_type']
@@ -1847,10 +1847,10 @@ class FMOFCu(ForceField):
                 missing_dihedral=[]
                 dihed_data = data['dihedrals']
                 for (a, d), val in dihed_data.items():
-                    a_atom = self.graph.node[a]
-                    b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c]
-                    d_atom = self.graph.node[d]
+                    a_atom = self.graph.nodes[a]
+                    b_atom = self.graph.nodes[b]
+                    c_atom = self.graph.nodes[c]
+                    d_atom = self.graph.nodes[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
                     atom_c_fflabel = c_atom['force_field_type']
@@ -1881,10 +1881,10 @@ class FMOFCu(ForceField):
                 missing_improper=[]
                 imp_data = data['impropers']
                 for (a, c, d), val in imp_data.items():
-                    a_atom = self.graph.node[a]
-                    b_atom = self.graph.node[b]
-                    c_atom = self.graph.node[c]
-                    d_atom = self.graph.node[d]
+                    a_atom = self.graph.nodes[a]
+                    b_atom = self.graph.nodes[b]
+                    c_atom = self.graph.nodes[c]
+                    d_atom = self.graph.nodes[d]
                     atom_a_fflabel = a_atom['force_field_type']
                     atom_b_fflabel = b_atom['force_field_type']
                     atom_c_fflabel = c_atom['force_field_type']
@@ -1938,9 +1938,9 @@ class FMOFCu(ForceField):
             data['potential'].n = 4
             return 1
 
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
         ab_bond = self.graph[a][b]
         bc_bond = self.graph[b][c]
         atom_a_fflabel = a_data['force_field_type']
@@ -2032,10 +2032,10 @@ class FMOFCu(ForceField):
     def improper_term(self, improper):
         """class2 diherdral"""
         a,b,c,d, data = improper
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
-        d_data = self.graph.node[d]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
+        d_data = self.graph.nodes[d]
         atom_a_fflabel=a_data['force_field_type']
         atom_b_fflabel=b_data['force_field_type']
         atom_c_fflabel=c_data['force_field_type']
@@ -2132,7 +2132,7 @@ class UFF(ForceField):
     def bond_term(self, edge):
         """Harmonic assumed"""
         n1, n2, data = edge
-        n1_data, n2_data = self.graph.node[n1], self.graph.node[n2]
+        n1_data, n2_data = self.graph.nodes[n1], self.graph.nodes[n2]
         fflabel1, fflabel2 = n1_data['force_field_type'], n2_data['force_field_type']
         r_1 = UFF_DATA[fflabel1][0]
         r_2 = UFF_DATA[fflabel2][0]
@@ -2188,9 +2188,9 @@ class UFF(ForceField):
         sf = ['linear', 'trigonal-planar', 'square-planar', 'octahedral']
         a, b, c, data = angle
         angle_type = self.uff_angle_type(b)
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
         ab_bond = self.graph[a][b]
         bc_bond = self.graph[b][c]
 
@@ -2277,7 +2277,7 @@ class UFF(ForceField):
         return 1
 
     def uff_angle_type(self, b):
-        name = self.graph.node[b]['force_field_type']
+        name = self.graph.nodes[b]['force_field_type']
         try:
             coord_type = name[2]
         except IndexError:
@@ -2313,10 +2313,10 @@ class UFF(ForceField):
         NB: the d term must be negated to recover the UFF potential.
         """
         a,b,c,d, data = dihedral
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
-        d_data = self.graph.node[d]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
+        d_data = self.graph.nodes[d]
 
         torsiontype = self.graph[b][c]['order']
 
@@ -2423,10 +2423,10 @@ class UFF(ForceField):
         NB: not sure if keep metal geometry is important here.
         """
         a, b, c, d, data = improper
-        b_data = self.graph.node[b]
-        a_ff = self.graph.node[a]['force_field_type']
-        c_ff = self.graph.node[c]['force_field_type']
-        d_ff = self.graph.node[d]['force_field_type']
+        b_data = self.graph.nodes[b]
+        a_ff = self.graph.nodes[a]['force_field_type']
+        c_ff = self.graph.nodes[c]['force_field_type']
+        d_ff = self.graph.nodes[d]['force_field_type']
         if not b_data['atomic_number'] in (6, 7, 8, 15, 33, 51, 83):
             return None
         if b_data['force_field_type'] in ('N_3', 'N_2', 'N_R', 'O_2', 'O_R'):
@@ -2491,7 +2491,7 @@ class UFF(ForceField):
                     if data['hybridization'] == "sp3":
                         data['force_field_type'] = "%s_3"%data['element']
                         if data['element'] == "O" and self.graph.degree(node) >= 2:
-                            neigh_elem = set([self.graph.node[i]['element'] for i in self.graph.neighbors(node)])
+                            neigh_elem = set([self.graph.nodes[i]['element'] for i in self.graph.neighbors(node)])
                             if neigh_elem <= metals and self.graph.degree(node) == 2:
                                 data['force_field_type'] = "O_2"
                             elif neigh_elem <= metals and self.graph.degree(node) == 3:
@@ -2587,7 +2587,7 @@ class Dreiding(ForceField):
         """
         n1, n2, data = edge
 
-        n1_data, n2_data = self.graph.node[n1], self.graph.node[n2]
+        n1_data, n2_data = self.graph.nodes[n1], self.graph.nodes[n2]
         fflabel1, fflabel2 = n1_data['force_field_type'], n2_data['force_field_type']
         R1 = DREIDING_DATA[fflabel1][0]
         R2 = DREIDING_DATA[fflabel2][0]
@@ -2648,7 +2648,7 @@ class Dreiding(ForceField):
         """
         a, b, c, data = angle
         K = 100.0
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
+        a_data, b_data, c_data = self.graph.nodes[a], self.graph.nodes[b], self.graph.nodes[c]
         btype = b_data['force_field_type']
         theta0 = DREIDING_DATA[btype][1]
 
@@ -2707,10 +2707,10 @@ class Dreiding(ForceField):
 
         monovalent = ["Na", "F_", "Cl", "Br", "I_", "K"]
         a,b,c,d, data = dihedral
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
-        d_data = self.graph.node[d]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
+        d_data = self.graph.nodes[d]
 
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
@@ -2860,10 +2860,10 @@ class Dreiding(ForceField):
         """
         a, b, c, d, data = improper
 
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
-        d_data = self.graph.node[d]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
+        d_data = self.graph.nodes[d]
 
         btype = b_data['force_field_type']
         # special case: ignore N column
@@ -2920,7 +2920,7 @@ class Dreiding(ForceField):
         data['pair_potential'].cutoff = cutoff
         if data['h_bond_donor']:
             for n in self.graph.neighbors(node):
-                if self.graph.node[n]['force_field_type'] == "H__HB":
+                if self.graph.nodes[n]['force_field_type'] == "H__HB":
                     data['h_bond_function'] = self.hbond_pot(node, hbpot, n)
                     break
 
@@ -2954,8 +2954,8 @@ class Dreiding(ForceField):
             pass
         def hbond_pair(node2, graph, flipped=False):
             potential = PairPotential.HbondDreidingMorse()
-            data = graph.node[node]
-            data2 = graph.node[node2]
+            data = graph.nodes[node]
+            data2 = graph.nodes[node2]
             if(flipped):
                 potential.donor = 'j'
                 data1 = data2.copy()
@@ -2970,8 +2970,8 @@ class Dreiding(ForceField):
             # generic HB
             D0 = 9.5
             R0 = 2.75
-            ineigh = [graph.node[q]['element'] for q in graph.neighbors(node1)]
-            jneigh = [graph.node[q]['element'] for q in graph.neighbors(node2)]
+            ineigh = [graph.nodes[q]['element'] for q in graph.neighbors(node1)]
+            jneigh = [graph.nodes[q]['element'] for q in graph.neighbors(node2)]
             if(ff1 == "N_3") or (ff1 == "N_R" and ineigh.count("H") == 2):
                 # tertiary amine
                 if ((ineigh.count("H") < 3) and (len(ineigh) == 4)or
@@ -3059,7 +3059,7 @@ class Dreiding(ForceField):
                     else:
                         D0 = 1.25
                         R0 = 3.15
-            potential.htype = graph.node[hnode]['ff_type_index']
+            potential.htype = graph.nodes[hnode]['ff_type_index']
             potential.D0 = D0
             potential.alpha = 10.0/ 2. / R0
             potential.R0 = R0
@@ -3105,8 +3105,8 @@ class Dreiding(ForceField):
                     data['force_field_type'] = "H_"
                     if self.h_bonding:
                         for n in self.graph.neighbors(node):
-                            if self.graph.node[n]['element'] in electro_neg_atoms:
-                                self.graph.node[n]['h_bond_donor'] = True
+                            if self.graph.nodes[n]['element'] in electro_neg_atoms:
+                                self.graph.nodes[n]['h_bond_donor'] = True
                                 data['force_field_type'] = "H__HB"
 
                 elif data['element'] in halides:
@@ -3158,7 +3158,7 @@ class UFF4MOF(ForceField):
     def bond_term(self, edge):
         """Harmonic assumed"""
         n1, n2, data = edge
-        n1_data, n2_data = self.graph.node[n1], self.graph.node[n2]
+        n1_data, n2_data = self.graph.nodes[n1], self.graph.nodes[n2]
         fflabel1, fflabel2 = n1_data['force_field_type'], n2_data['force_field_type']
         r_1 = UFF4MOF_DATA[fflabel1][0]
         r_2 = UFF4MOF_DATA[fflabel2][0]
@@ -3215,9 +3215,9 @@ class UFF4MOF(ForceField):
         a, b, c, data = angle
         angle_type = self.uff_angle_type(b)
 
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
         ab_bond = self.graph[a][b]
         bc_bond = self.graph[b][c]
 
@@ -3304,7 +3304,7 @@ class UFF4MOF(ForceField):
             return 1
 
     def uff_angle_type(self, b):
-        name = self.graph.node[b]['force_field_type']
+        name = self.graph.nodes[b]['force_field_type']
         try:
             coord_type = name[2]
         except IndexError:
@@ -3340,10 +3340,10 @@ class UFF4MOF(ForceField):
         NB: the d term must be negated to recover the UFF potential.
         """
         a,b,c,d, data = dihedral
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
-        d_data = self.graph.node[d]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
+        d_data = self.graph.nodes[d]
 
         torsiontype = self.graph[b][c]['order']
 
@@ -3446,10 +3446,10 @@ class UFF4MOF(ForceField):
         E = K*[C_0 + C_1*cos(w) + C_2*cos(2*w)]
         """
         a, b, c, d, data = improper
-        b_data = self.graph.node[b]
-        a_ff = self.graph.node[a]['force_field_type']
-        c_ff = self.graph.node[c]['force_field_type']
-        d_ff = self.graph.node[d]['force_field_type']
+        b_data = self.graph.nodes[b]
+        a_ff = self.graph.nodes[a]['force_field_type']
+        c_ff = self.graph.nodes[c]['force_field_type']
+        d_ff = self.graph.nodes[d]['force_field_type']
         if not b_data['atomic_number'] in (6, 7, 8, 15, 33, 51, 83):
             return None
         if b_data['force_field_type'] in ('N_3', 'N_2', 'N_R', 'O_2', 'O_R'):
@@ -3524,16 +3524,16 @@ class UFF4MOF(ForceField):
                         for n in self.graph.neighbors(node):
                             self.graph[node][n]['order'] = 0.5
                             # woops! this is correct only for the M3O type SBUs
-                            #if self.graph.node[n]['special_flag'] == "O_z_Zn4O":
+                            #if self.graph.nodes[n]['special_flag'] == "O_z_Zn4O":
                             #    self.graph[node][n]['order'] = 1.0
                             #else:
                             #    self.graph[node][n]['order'] = 0.5
                     elif data['special_flag'] == "C_Zn4O":
                         data['force_field_type'] = "C_R"
                         for n in self.graph.neighbors(node):
-                            if self.graph.node[n]['element'] == "O":
+                            if self.graph.nodes[n]['element'] == "O":
                                 self.graph[node][n]['order'] = 1.5
-                            elif self.graph.node[n]['element'] == "C":
+                            elif self.graph.nodes[n]['element'] == "C":
                                 self.graph[node][n]['order'] = 1
                     elif data['special_flag'] == "O_c_Zn4O":
                         data['force_field_type'] = 'O_2'
@@ -3544,16 +3544,16 @@ class UFF4MOF(ForceField):
                     elif data['special_flag'] == "Cu_pdw":
                         data['force_field_type'] = 'Cu4+2'
                         for n in self.graph.neighbors(node):
-                            if self.graph.node[n]['element'] == "Cu":
+                            if self.graph.nodes[n]['element'] == "Cu":
                                 self.graph[node][n]['order'] = 0.25
                             else:
                                 self.graph[node][n]['order'] = 0.5
                     elif data['special_flag'] == "C_Cu_pdw":
                         data['force_field_type'] = 'C_R'
                         for n in self.graph.neighbors(node):
-                            if self.graph.node[n]['element'] == "O":
+                            if self.graph.nodes[n]['element'] == "O":
                                 self.graph[node][n]['order'] = 1.5
-                            elif self.graph.node[n]['element'] == "C":
+                            elif self.graph.nodes[n]['element'] == "C":
                                 self.graph[node][n]['order'] = 1
 
                     # Zn Paddlewheel TODO(pboyd): generalize these cases...
@@ -3562,16 +3562,16 @@ class UFF4MOF(ForceField):
                     elif data['special_flag'] == "Zn_pdw":
                         data['force_field_type'] = 'Zn4+2'
                         for n in self.graph.neighbors(node):
-                            if self.graph.node[n]['element'] == "Zn":
+                            if self.graph.nodes[n]['element'] == "Zn":
                                 self.graph[node][n]['order'] = 0.25
                             else:
                                 self.graph[node][n]['order'] = 0.5
                     elif data['special_flag'] == "C_Zn_pdw":
                         data['force_field_type'] = 'C_R'
                         for n in self.graph.neighbors(node):
-                            if self.graph.node[n]['element'] == "O":
+                            if self.graph.nodes[n]['element'] == "O":
                                 self.graph[node][n]['order'] = 1.5
-                            elif self.graph.node[n]['element'] == "C":
+                            elif self.graph.nodes[n]['element'] == "C":
                                 self.graph[node][n]['order'] = 1
 
                     # Al Pillar TODO(pboyd): generalize these cases...
@@ -3586,9 +3586,9 @@ class UFF4MOF(ForceField):
                     elif data['special_flag'] == "C_Al_pillar":
                         data['force_field_type'] = 'C_R'
                         for n in self.graph.neighbors(node):
-                            if self.graph.node[n]['element'] == "O":
+                            if self.graph.nodes[n]['element'] == "O":
                                 self.graph[node][n]['order'] = 1.5
-                            elif self.graph.node[n]['element'] == "C":
+                            elif self.graph.nodes[n]['element'] == "C":
                                 self.graph[node][n]['order'] = 1
 
                     # V Pillar TODO(pboyd): generalize these cases...
@@ -3601,13 +3601,13 @@ class UFF4MOF(ForceField):
                     elif data['special_flag'] == "C_V_pillar":
                         data['force_field_type'] = 'C_R'
                         for n in self.graph.neighbors(node):
-                            if self.graph.node[n]['element'] == "O":
+                            if self.graph.nodes[n]['element'] == "O":
                                 self.graph[node][n]['order'] = 1.5
-                            elif self.graph.node[n]['element'] == "C":
+                            elif self.graph.nodes[n]['element'] == "C":
                                 self.graph[node][n]['order'] = 1
 
                 elif data['element'] in organics:
-                    neigh_elem = set([self.graph.node[i]['element'] for i in self.graph.neighbors(node)])
+                    neigh_elem = set([self.graph.nodes[i]['element'] for i in self.graph.neighbors(node)])
                     if data['hybridization'] == "sp3":
                         data['force_field_type'] = "%s_3"%data['element']
 
@@ -3680,9 +3680,9 @@ class UFF4MOF(ForceField):
                         except KeyError:
                             pass
                     for n in self.graph.neighbors(node):
-                        if self.graph.node[n]['element'] in metals:
+                        if self.graph.nodes[n]['element'] in metals:
                             self.graph[node][n]['order'] = 0.25
-                        elif self.graph.node[n]['element'] == "O":
+                        elif self.graph.nodes[n]['element'] == "O":
                             self.graph[node][n]['order'] = 0.5
                         # else: bond order stays = 1
 
@@ -3721,8 +3721,8 @@ class Dubbeldam(ForceField):
 
         """
         n1, n2, data = edge
-        type1 = self.graph.node[n1]['force_field_type']
-        type2 = self.graph.node[n2]['force_field_type']
+        type1 = self.graph.nodes[n1]['force_field_type']
+        type2 = self.graph.nodes[n2]['force_field_type']
         string = "_".join([type1, type2])
         if type1 == "Zn" or type2 == "Zn":
             #data['potential'] = BondPotential.Harmonic()
@@ -3747,7 +3747,7 @@ class Dubbeldam(ForceField):
         """
         a, b, c, data = angle
         K = 100.0
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
+        a_data, b_data, c_data = self.graph.nodes[a], self.graph.nodes[b], self.graph.nodes[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
@@ -3781,10 +3781,10 @@ class Dubbeldam(ForceField):
         """
 
         a,b,c,d, data = dihedral
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
-        d_data = self.graph.node[d]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
+        d_data = self.graph.nodes[d]
 
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
@@ -3824,10 +3824,10 @@ class Dubbeldam(ForceField):
         """
         a, b, c, d, data = improper
 
-        a_data = self.graph.node[a]
-        b_data = self.graph.node[b]
-        c_data = self.graph.node[c]
-        d_data = self.graph.node[d]
+        a_data = self.graph.nodes[a]
+        b_data = self.graph.nodes[b]
+        c_data = self.graph.nodes[c]
+        d_data = self.graph.nodes[d]
 
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
@@ -3964,7 +3964,7 @@ class SPC_E(ForceField):
         """
         a, b, c, data = angle
         K = 100.0
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
+        a_data, b_data, c_data = self.graph.nodes[a], self.graph.nodes[b], self.graph.nodes[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
@@ -4084,7 +4084,7 @@ class TIP3P(ForceField):
 
         """
         a, b, c, data = angle
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
+        a_data, b_data, c_data = self.graph.nodes[a], self.graph.nodes[b], self.graph.nodes[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
@@ -4173,7 +4173,7 @@ class TIP4P(ForceField, TIP4P_Water):
 
         """
         n1, n2, data = edge
-        n1data, n2data = self.graph.node[n1], self.graph.node[n2]
+        n1data, n2data = self.graph.nodes[n1], self.graph.nodes[n2]
         n1fftype, n2fftype = n1data['force_field_type'], n2data['force_field_type']
 
         data['potential'] = BondPotential.Harmonic()
@@ -4203,7 +4203,7 @@ class TIP4P(ForceField, TIP4P_Water):
 
         """
         a, b, c, data = angle
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
+        a_data, b_data, c_data = self.graph.nodes[a], self.graph.nodes[b], self.graph.nodes[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
@@ -4307,8 +4307,8 @@ class TIP5P(ForceField):
         """
         n1, n2, data = edge
 
-        n1data = self.graph.node[n1]
-        n2data = self.graph.node[n2]
+        n1data = self.graph.nodes[n1]
+        n2data = self.graph.nodes[n2]
         data['potential'] = BondPotential.Harmonic()
         if (n1data['force_field_type'] == "X") or (n2data['force_field_type'] == "X"):
             data['potential'].R0 = 0.7
@@ -4334,7 +4334,7 @@ class TIP5P(ForceField):
 
         """
         a, b, c, data = angle
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
+        a_data, b_data, c_data = self.graph.nodes[a], self.graph.nodes[b], self.graph.nodes[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
@@ -4431,8 +4431,8 @@ class EPM2_CO2(ForceField):
         """
         n1, n2, data = edge
 
-        n1data = self.graph.node[n1]
-        n2data = self.graph.node[n2]
+        n1data = self.graph.nodes[n1]
+        n2data = self.graph.nodes[n2]
         data['potential'] = BondPotential.Harmonic()
         data['potential'].R0 = 1.149
         data['potential'].K = 450000.0 # strong bond potential to ensure that the structure
@@ -4450,7 +4450,7 @@ class EPM2_CO2(ForceField):
 
         """
         a, b, c, data = angle
-        a_data, b_data, c_data = self.graph.node[a], self.graph.node[b], self.graph.node[c]
+        a_data, b_data, c_data = self.graph.nodes[a], self.graph.nodes[b], self.graph.nodes[c]
         atype = a_data['force_field_type']
         btype = b_data['force_field_type']
         ctype = c_data['force_field_type']
