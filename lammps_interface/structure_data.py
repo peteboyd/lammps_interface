@@ -1162,7 +1162,7 @@ class MolecularGraph(nx.Graph):
                             # found cluster
                             # update the 'hybridization' data
                             for i,j in clique:
-                                self.nodes[i]['special_flag'] = cluster.node[j]['special_flag']
+                                self.nodes[i]['special_flag'] = cluster.nodes[j]['special_flag']
                             cluster_found = True
                             print("Found %s"%(name))
                             store_sbus.setdefault(name, []).append([i for (i,j) in clique])
@@ -1281,13 +1281,13 @@ class MolecularGraph(nx.Graph):
 
             # keep track of original index value from the unit cell.
             for i in range(1, totatomlen+1):
-                graph_image.node[unit_node_ids[i-1]+offset]['image'] = unit_node_ids[i-1]
+                graph_image.nodes[unit_node_ids[i-1]+offset]['image'] = unit_node_ids[i-1]
             if track_molecule:
                 self.molecule_images.append(graph_image.nodes())
                 graph_image.molecule_id = orig_copy.molecule_id + mol_offset
             # update cartesian coordinates for each node in the image
             for node in graph_image.nodes():
-                data = graph_image.node[node] 
+                data = graph_image.nodes[node] 
                 n_orig = data['image']
                 if track_molecule:
                     data['molid'] = graph_image.molecule_id
@@ -1353,8 +1353,8 @@ class MolecularGraph(nx.Graph):
                 n1,n2 = graph_image.sorted_edge_dict[(v1,v2)]
                 # flag boundary crossings, and determine updated nodes.
                 # check symmetry flags if they need to be updated,
-                n1_data = graph_image.node[n1]
-                n2_data = graph_image.node[n2]
+                n1_data = graph_image.nodes[n1]
+                n2_data = graph_image.nodes[n2]
                 try:
                     n1_orig = n1_data['image']
                     n2_orig = n2_data['image']
@@ -1454,7 +1454,7 @@ class MolecularGraph(nx.Graph):
                 union_graphs.append(graph_image)
         for G in union_graphs:
             for node in G.nodes():
-                data = G.node[node]
+                data = G.nodes[node]
                 self.add_node(node, **data)
            #once nodes are added, add edges.
         for G in union_graphs:
@@ -1649,8 +1649,8 @@ def write_CIF(graph, cell):
         sym = data['symflag']
 
 
-        label1 = "%s%i"%(graph.node[n1]['element'], n1)
-        label2 = "%s%i"%(graph.node[n2]['element'], n2)
+        label1 = "%s%i"%(graph.nodes[n1]['element'], n1)
+        label2 = "%s%i"%(graph.nodes[n2]['element'], n2)
         c.add_data("bonds", _geom_bond_atom_site_label_1=
                                     CIF.geom_bond_atom_site_label_1(label1))
         c.add_data("bonds", _geom_bond_atom_site_label_2=
@@ -1831,8 +1831,8 @@ def write_RASPA_CIF(graph, cell,classifier=0):
     #    sym = data['symflag']
 
 
-    #    label1 = "%s%i"%(graph.node[n1]['element'], n1)
-    #    label2 = "%s%i"%(graph.node[n2]['element'], n2)
+    #    label1 = "%s%i"%(graph.nodes[n1]['element'], n1)
+    #    label2 = "%s%i"%(graph.nodes[n2]['element'], n2)
     #    c.add_data("bonds", _geom_bond_atom_site_label_1=
     #                                CIF.geom_bond_atom_site_label_1(label1))
     #    c.add_data("bonds", _geom_bond_atom_site_label_2=
@@ -1879,7 +1879,7 @@ def write_RASPA_sim_files(lammps_sim,classifier=0):
 
             if(int(data['image']) > max_image):
                 max_image = int(data['image'])
-            #keys.append(lammps_sim.graph.node[n]['force_field_type'])
+            #keys.append(lammps_sim.graph.nodes[n]['force_field_type'])
 
     elif(classifier == 1):
         for node, data in sorted(lammps_sim.graph.nodes_iter2(data=True)):
@@ -1890,7 +1890,7 @@ def write_RASPA_sim_files(lammps_sim,classifier=0):
 
             if(int(data['image']) > max_image):
                 max_image = int(data['image'])
-            #keys.append(lammps_sim.graph.node[n]['force_field_type'])
+            #keys.append(lammps_sim.graph.nodes[n]['force_field_type'])
 
     print(max_image)
     for i in range(len(data_list)):

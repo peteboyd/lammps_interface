@@ -101,13 +101,13 @@ class LammpsSimulation(object):
             if data['force_field_type'] is None:
                 if data['h_bond_donor']:
                     # add neighbors to signify type of hbond donor
-                    label = (data['element'], data['h_bond_donor'], molid, tuple(sorted([g.node[j]['element'] for j in g.neighbors(node)])))
+                    label = (data['element'], data['h_bond_donor'], molid, tuple(sorted([g.nodes[j]['element'] for j in g.neighbors(node)])))
                 else:
                     label = (data['element'], data['h_bond_donor'], molid)
             else:
                 if data['h_bond_donor']:
                     # add neighbors to signify type of hbond donor
-                    label = (data['force_field_type'], data['h_bond_donor'], molid, tuple(sorted([g.node[j]['element'] for j in g.neighbors(node)])))
+                    label = (data['force_field_type'], data['h_bond_donor'], molid, tuple(sorted([g.nodes[j]['element'] for j in g.neighbors(node)])))
                 else:
                     label = (data['force_field_type'], data['h_bond_donor'], molid)
 
@@ -447,7 +447,7 @@ class LammpsSimulation(object):
             # prompt for ForceField?
             rep = self.subgraphs[self.molecule_types[mtype][0]]
             #response = input("Would you like to apply a new force field to molecule type %i with atoms (%s)? [y/n]: "%
-            #        (mtype, ", ".join([rep.node[j]['element'] for j in rep.nodes()])))
+            #        (mtype, ", ".join([rep.nodes[j]['element'] for j in rep.nodes()])))
             #ff = self.options.force_field
             #if response.lower() in ['y','yes']:
             #    ff = input("Please enter the name of the force field: ")
@@ -459,7 +459,7 @@ class LammpsSimulation(object):
             ff = self.options.mol_ff
             if ff is None:
                 ff = self.options.force_field
-                atoms = ", ".join([rep.node[j]['element'] for j in rep.nodes()])
+                atoms = ", ".join([rep.nodes[j]['element'] for j in rep.nodes()])
                 print("WARNING: Molecule %s with atoms (%s) will be using the %s force field as no "%(mtype,atoms,ff)+
                       " value was set for molecules. To prevent this warning "+
                       "set --molecule-ff=[some force field] on the command line.")
@@ -531,7 +531,7 @@ class LammpsSimulation(object):
                 # prompt for replication of this molecule in the supercell.
                 rep = self.subgraphs[self.molecule_types[mtype][0]]
                 response = input("Would you like to replicate molceule %i with atoms (%s) in the supercell? [y/n]: "%
-                        (mtype, ", ".join([rep.node[j]['element'] for j in rep.nodes()])))
+                        (mtype, ", ".join([rep.nodes[j]['element'] for j in rep.nodes()])))
                 if response in ['y', 'Y', 'yes']:
                     for m in self.molecule_types[mtype]:
                         self.subgraphs[m].build_supercell(supercell, self.cell, track_molecule=True, molecule_len=molcount)
