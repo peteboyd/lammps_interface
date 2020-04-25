@@ -28,7 +28,11 @@ setup(
         'docs': [ 'sphinx>=2,<3', 'sphinx-rtd-theme>=0.4,<1' ],
         'tests': [ 'pytest' ]
     },
+    entry_points={
+        'console_scripts': [
+            'lammps-interface = lammps_interface.cli:main'
+        ]
+    },
     include_package_data=True,
     packages=find_packages(),
-    scripts=['lammps-interface'],
 )
