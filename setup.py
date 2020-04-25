@@ -6,6 +6,17 @@ with open('requirements.txt') as f:
 setup(
     name="lammps-interface",
     author="Peter Boyd, Mohamad Moosavi, Matthew Witman",
+    classifiers=[
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: Microsoft :: Windows",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+    ],
     version="0.1.2",
     license="MIT",
     url="https://github.com/peteboyd/lammps_interface",
@@ -14,7 +25,8 @@ setup(
     long_description_content_type='text/markdown',
     install_requires=requirements,
     extras_require={
-        'docs': [ 'sphinx>=2,<3', 'sphinx-rtd-theme>=0.4,<1' ]
+        'docs': [ 'sphinx>=2,<3', 'sphinx-rtd-theme>=0.4,<1' ],
+        'tests': [ 'pytest' ]
     },
     include_package_data=True,
     packages=find_packages(),
