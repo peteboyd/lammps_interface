@@ -50,6 +50,7 @@ jobs:
         pip install -e .[tests]
 
     - name: Run basic tests
+      shell: cmd
       run: lammps-interface --help
 
   docs:

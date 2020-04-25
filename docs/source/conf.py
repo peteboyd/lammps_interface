@@ -22,7 +22,8 @@ copyright = '2019, Peter Boyd, Mohamad Moosavi, Matthew Witman'
 author = 'Peter Boyd, Mohamad Moosavi, Matthew Witman'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.1'
+from lammps_interface import __version__
+release = __version__
 
 
 # -- General configuration ---------------------------------------------------
