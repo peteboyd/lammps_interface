@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 from .lammps_main import LammpsSimulation
-from .structure_data import from_CIF, write_CIF, write_PDB, write_RASPA_CIF, write_RASPA_sim_files, MDMC_config
+from .structure_data import ase_from_CIF, from_CIF, write_CIF, write_PDB, write_RASPA_CIF, write_RASPA_sim_files, MDMC_config
 from .InputHandler import Options
 
 def main():
@@ -9,7 +9,8 @@ def main():
     # command line parsing
     options = Options()
     sim = LammpsSimulation(options)
-    cell, graph = from_CIF(options.cif_file)
+    #cell, graph = from_CIF(options.cif_file)
+    cell, graph = ase_from_CIF(options.cif_file)
     sim.set_cell(cell)
     sim.set_graph(graph)
     sim.split_graph()

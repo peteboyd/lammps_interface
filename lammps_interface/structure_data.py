@@ -1575,11 +1575,24 @@ class MolecularGraph(nx.Graph):
 def del_parenth(string):
     return re.sub(r'\([^)]*\)', '' , string)
 
+def ase_from_CIF(cifname):
+    '''
+    Try to read the cif file using the ase environment. They have considerations for space groups. 
+    We don't. 
+
+    '''
+    from ase.io import read
+    ase_cif = read(cifname)
+    mg = MolecularGraph(name=clean(cifname))
+    for atom in ase_cif:
+        print(atom)
+
 def from_CIF(cifname):
     """Reads the structure data from the CIF
     - currently does not read the symmetry of the cell
     - does not unpack the assymetric unit (assumes P1)
     - assumes that the appropriate keys are in the cifobj (no error checking)
+
     """
 
     cifobj = CIF()
