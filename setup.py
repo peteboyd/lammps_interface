@@ -17,7 +17,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
-    version="0.1.2",
+    version="0.1.3",
     license="MIT",
     url="https://github.com/peteboyd/lammps_interface",
     description="Automatic generation of LAMMPS input files for molecular dynamics simulations of MOFs",

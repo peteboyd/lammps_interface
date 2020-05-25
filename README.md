@@ -40,10 +40,10 @@ lammps-interface cif_file.cif
 This will create [Lammps] simulation files with UFF parameters.
 
 ### Jupyter notebook
-In order to implement module to your project check out Jupyter notebooks provided in this repository in `/notebooks` for usage examples.
+In order to integrate lammps-interface into your project, check out the Jupyter notebooks provided in [`/notebooks`](./notebooks) for usage examples.
 
-## Licence
-MIT licence (see LICENCE file)
+## License
+MIT license (see [LICENSE](LICENSE))
 
 ## Citation
 The publication associated with this code is found here:
