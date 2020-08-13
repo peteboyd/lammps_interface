@@ -28,6 +28,8 @@ jobs:
     - name: Run basic tests
       run: lammps-interface --help
 
+    - name: Run tests
+      run: pytest
 
   windows:
     runs-on: windows-latest
@@ -52,6 +54,10 @@ jobs:
     - name: Run basic tests
       shell: cmd
       run: lammps-interface --help
+
+    - name: Run tests
+      shell: cmd
+      run: pytest
 
   docs:
     runs-on: ubuntu-latest

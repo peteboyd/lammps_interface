@@ -6,6 +6,7 @@ with open('requirements.txt') as f:
 setup(
     name="lammps-interface",
     author="Peter Boyd, Mohamad Moosavi, Matthew Witman",
+    python_requires=">=3.5",
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Operating System :: POSIX :: Linux",
