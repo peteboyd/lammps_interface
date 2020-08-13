@@ -367,7 +367,6 @@ class LammpsSimulation(object):
 
     def set_graph(self, graph):
         self.graph = graph
-
         try:
             if(not self.options.force_field == "UFF") and (not self.options.force_field == "Dreiding") and \
                     (not self.options.force_field == "UFF4MOF"):
@@ -377,6 +376,7 @@ class LammpsSimulation(object):
             self.graph.compute_topology_information(self.cell, self.options.tol, self.options.neighbour_size)
         except AttributeError:
             # no cell set yet
+            # FIXME(pboyd): THIS BREAKS THE CODE!!
             pass
 
     def set_cell(self, cell):

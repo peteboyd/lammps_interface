@@ -9,8 +9,8 @@ def main():
     # command line parsing
     options = Options()
     sim = LammpsSimulation(options)
-    #cell, graph = from_CIF(options.cif_file)
-    cell, graph = ase_from_CIF(options.cif_file)
+    cell, graph = from_CIF(options.cif_file)
+    #cell, graph = ase_from_CIF(options.cif_file)
     sim.set_cell(cell)
     sim.set_graph(graph)
     sim.split_graph()

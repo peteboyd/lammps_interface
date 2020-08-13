@@ -23,6 +23,7 @@ from .uff import UFF_DATA
 import networkx as nx
 import operator
 import time
+from time import perf_counter as clock
 
 try:
     import networkx as nx
@@ -988,39 +989,39 @@ class MolecularGraph(nx.Graph):
                 data.setdefault('impropers',{}).update({(a,c,d):{'potential':None}})
 
     def compute_topology_information(self, cell, tol, num_neighbours):
-        t0 = time.clock()
+        t0 = clock()
         print("compute_topology_information()")
         self.compute_cartesian_coordinates(cell)
-        print("func: {}; Elps. {:.3f}s".format("cartesian_coordinates", time.clock() - t0))
+        print("func: {}; Elps. {:.3f}s".format("cartesian_coordinates", clock() - t0))
         
         self.compute_min_img_distances(cell)
-        print("func: {}; Elps. {:.3f}s".format("min_img_distances", time.clock() - t0))
+        print("func: {}; Elps. {:.3f}s".format("min_img_distances", clock() - t0))
         
         self.compute_bonding(cell)
-        print("func: {}; Elps. {:.3f}s".format("compute_bonding", time.clock() - t0))
+        print("func: {}; Elps. {:.3f}s".format("compute_bonding", clock() - t0))
         
         self.compute_init_typing()
-        print("func: {}; Elps. {:.3f}s".format("init_typing", time.clock() - t0))
+        print("func: {}; Elps. {:.3f}s".format("init_typing", clock() - t0))
         
         self.compute_bond_typing()
-        print("func: {}; Elps. {:.3f}s".format("bond_typing", time.clock() - t0))
+        print("func: {}; Elps. {:.3f}s".format("bond_typing", clock() - t0))
 
         if (self.find_metal_sbus):
             self.detect_clusters(num_neighbours, tol) # num neighbors determines how many nodes from the metal element to cut out for comparison
-            print("func: {}; Elps. {:.3f}s".format("detect_clusters", time.clock() - t0))
+            print("func: {}; Elps. {:.3f}s".format("detect_clusters", clock() - t0))
         
         if (self.find_organic_sbus):
             self.detect_clusters(num_neighbours, tol,  type="Organic")
-            print("func: {}; Elps. {:.3f}s".format("detect_clusters", time.clock() - t0))
+            print("func: {}; Elps. {:.3f}s".format("detect_clusters", clock() - t0))
         
         self.compute_angles()
-        print("func: {}; Elps. {:.3f}s".format("angles", time.clock() - t0))
+        print("func: {}; Elps. {:.3f}s".format("angles", clock() - t0))
 
         self.compute_dihedrals()
-        print("func: {}; Elps. {:.3f}s".format("dihedrals", time.clock() - t0))
+        print("func: {}; Elps. {:.3f}s".format("dihedrals", clock() - t0))
 
         self.compute_improper_dihedrals()
-        print("func: {}; Elps. {:.3f}s".format("improper_dihedrals", time.clock() - t0))
+        print("func: {}; Elps. {:.3f}s".format("improper_dihedrals", clock() - t0))
 
     def sorted_node_list(self):
         return [n[1] for n in sorted([(data['index'], node) for node, data in self.nodes_iter2(data=True)])]
