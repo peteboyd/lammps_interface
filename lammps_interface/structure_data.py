@@ -574,7 +574,7 @@ class MolecularGraph(nx.Graph):
         cycles = []
         cycle_shortest_path_cutoff = 10
         for node, data in self.nodes_iter2(data=True):
-            for n in self.neighbors(node):
+            for n in list(self.neighbors(node)):
                 # fastest way I could think of..
                 edge = self[node][n].copy()
                 self.remove_edge(node, n)
