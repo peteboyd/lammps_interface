@@ -342,11 +342,11 @@ class AnglePotential(object):
 
         def __str__(self):
             if self.reduced:
-                return "%15.6f %15i %15i"%(self.C,
+                return "%15.6f %15i %15i"%(self.C/2.,
                                           self.B,
                                           self.n)
             return "%28s %15.6f %15i %15i"%(self.name,
-                                            self.C,
+                                            self.C/2.,
                                             self.B,
                                             self.n)
 
