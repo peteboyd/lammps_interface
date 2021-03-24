@@ -3676,6 +3676,7 @@ class UFF4MOF(ForceField):
                         try:
                             fftype = fftype.replace("f", "+")
                             UFF4MOF_DATA[fftype]
+                            data['force_field_type'] = fftype
                         except KeyError:
                             pass
                     for n in self.graph.neighbors(node):
