@@ -2320,7 +2320,7 @@ class UFF(ForceField):
 
         torsiontype = self.graph[b][c]['order']
 
-        coord_bc = (self.graph.degree(b), self.graph.degree(c))
+        coord_bc = (self.graph.degree(b)-1, self.graph.degree(c)-1)
         bc = (b_data['force_field_type'], c_data['force_field_type'])
         M = mul(*coord_bc)
         V = 0
@@ -2360,7 +2360,6 @@ class UFF(ForceField):
                 vj = 6.8
                 n = 2
                 phi0 = 90.0
-
             V = (vi*vj)**0.5
 
         elif all_sp2:
@@ -3347,7 +3346,7 @@ class UFF4MOF(ForceField):
 
         torsiontype = self.graph[b][c]['order']
 
-        coord_bc = (self.graph.degree(b), self.graph.degree(c))
+        coord_bc = (self.graph.degree(b)-1, self.graph.degree(c)-1)
         bc = (b_data['force_field_type'], c_data['force_field_type'])
         M = mul(*coord_bc)
         V = 0
