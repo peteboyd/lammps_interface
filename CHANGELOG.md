@@ -1,3 +1,11 @@
+## v0.2.1
+
+### Bug fixes
+ * fix for accurate step reporting in min.csv file 11bd2e5c7b3a03a1b1f2b0387a4e76ad64b0f1ef
+ * The dihedral force constant was underestimated for UFF and UFF4MOF #44 e9349627e60481c98b3ac15da0e06183e06d2192
+ * Fix UFF4MOF bug where it can't find the correct metal ff type #46 2b53caab48ca3610cc05cd5cf444df6b2c79579c
+ * Adjust for undocumented factor of 2 in discovered in the LAMMPS source code leading to too large angle bending constants #47 cc12a4233f9657a69e9c64a26deca76e5bdd0b42
+
 ## v0.2.0
 
 ### Bug fixes
