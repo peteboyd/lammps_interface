@@ -1,3 +1,8 @@
+## v0.2.2
+
+### Bug fixes
+ * fix issue with unicode on windows [1cde93ed57a3293455a40a1adc2b69881116b1dc](https://github.com/peteboyd/lammps_interface/commit/1cde93ed57a3293455a40a1adc2b69881116b1dc)
+
 ## v0.2.1
 
 ### Bug fixes
