@@ -21,7 +21,7 @@ setup(
     license="MIT",
     url="https://github.com/peteboyd/lammps_interface",
     description="Automatic generation of LAMMPS input files for molecular dynamics simulations of MOFs",
-    long_description=open('README.md').read(),
+    long_description=open('README.md', encoding='utf-8').read(),
     long_description_content_type='text/markdown',
     install_requires=requirements,
     extras_require={
