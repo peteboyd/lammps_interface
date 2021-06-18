@@ -39,6 +39,8 @@ lammps-interface cif_file.cif
 ```
 This will create [Lammps] simulation files with UFF parameters.
 
+Note: lammps-interface expects CIF files in P1 symmetry.
+
 ### Jupyter notebook
 In order to integrate lammps-interface into your project, check out the Jupyter notebooks provided in [`/notebooks`](./notebooks) for usage examples.
 
