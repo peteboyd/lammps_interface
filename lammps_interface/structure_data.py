@@ -40,7 +40,7 @@ from .ccdc import CCDC_BOND_ORDERS
 
 
 DEG2RAD = np.pi / 180.
-
+MAX_RECURSION = 500
 
 class MolecularGraph(nx.Graph):
     """Contains all information relating a structure file to a fully described classical system.
@@ -813,7 +813,7 @@ class MolecularGraph(nx.Graph):
         while double_check:
             n = double_check.pop()
             # rewind this atom to a 'terminal' connected atom
-            for i in self.recurse_bonds_to_end(n, pool=[], visited=[]):
+            for i in self.recurse_bonds_to_end(n, start_node=n, pool=[], visited=[]):
                 start = i
                 try:
                     idn = double_check.index(i)
@@ -910,16 +910,16 @@ class MolecularGraph(nx.Graph):
         for x in self.recurse_linear_chains(nde, visited, excluded):
             yield x
 
-    def recurse_bonds_to_end(self, node, pool=[], visited=[]):
-        if self.nodes[node]['element'] == 'H':
+    def recurse_bonds_to_end(self, node, start_node=None, pool=[], visited=[], rcount=0):
+        if (self.nodes[node]['element'] == 'H') or ((rcount > 0) and (node == start_node)):
             return
         visited.append(node)
         neighbors = [i for i in self.neighbors(node) if i not in visited and self.nodes[i]['element'] != "H"]
         pool += neighbors
         yield node
-        if (not pool) or (self.nodes[node]['element'] in list(metals)):
+        if (not pool) or (self.nodes[node]['element'] in list(metals)) or (rcount >= MAX_RECURSION):
             return
-        for x in self.recurse_bonds_to_end(pool[0], pool[1:], visited):
+        for x in self.recurse_bonds_to_end(pool[0], start_node=start_node, pool=pool[1:], visited=visited, rcount=rcount+1):
             yield x
 
     def atomic_node_sanity_check(self):
