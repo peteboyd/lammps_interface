@@ -12,9 +12,12 @@ def git_revision_hash():
     try:
         src_dir = os.path.dirname(os.path.abspath(__file__))
         os.chdir(src_dir)
-        rev_no = len(subprocess.check_output(['git', 'rev-list', 'HEAD'], universal_newlines=True).strip().split("\n"))
-        commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], universal_newlines=True).strip()
+        os.chdir("..")
+        v = open("VERSION_INFO").read().split("\n")
+        rev_no = int(v[0].strip())
+        commit = v[1].strip() 
     except:
+        print("ERROR finding VERSION_INFO in base directory, version does not reflect latest release!")
         # catchall in case the code is downloaded via a zip file
         rev_no = 1.0
         commit = "abcdefghijklmnop"
