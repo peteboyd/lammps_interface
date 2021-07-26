@@ -1,4 +1,5 @@
 """
 Lammps interface.
 """
-__version__ = "0.2.2"
+from . import _version
+__version__ = _version.get_versions()['version']

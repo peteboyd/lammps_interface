@@ -1,1 +1,3 @@
 include requirements.txt
+include versioneer.py
+include lammps_interface/_version.py
