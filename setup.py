@@ -1,4 +1,5 @@
 from setuptools import setup, find_packages
+import versioneer
 
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
@@ -17,7 +18,8 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
-    version="0.2.2",
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     license="MIT",
     url="https://github.com/peteboyd/lammps_interface",
     description="Automatic generation of LAMMPS input files for molecular dynamics simulations of MOFs",
