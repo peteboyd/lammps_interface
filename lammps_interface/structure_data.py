@@ -965,7 +965,8 @@ class MolecularGraph(nx.Graph):
             c_neighbours = [k for k in self.neighbors(c) if k != b]
             for a in b_neighbours:
                 for d in c_neighbours:
-                    data.setdefault('dihedrals',{}).update({(a, d):{'potential':None}})
+                    if not a==d:
+                        data.setdefault('dihedrals',{}).update({(a, d):{'potential':None}})
 
     def compute_improper_dihedrals(self):
         """Improper Dihedrals are attached to specific nodes in the graph.

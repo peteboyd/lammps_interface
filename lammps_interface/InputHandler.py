@@ -120,7 +120,17 @@ class Options(object):
                                       dest="minimize",
                                       default=False,
                                       help="Request input files necessary for"
-                                      + " a geometry optimization. Default off")
+                                      + " a full geometry optimization, including crystal cell and shape. Default off")
+        simulation_group.add_argument("--thermal-anneal", action="store_true",
+                                      dest="thermal_anneal",
+                                      default=False,
+                                      help="Request input files necessary for"
+                                      + " a simulated annealing optimization with no cell optimisation. Default off")
+        simulation_group.add_argument("--relax", action="store_true",
+                                      dest="relax",
+                                      default=False,
+                                      help="Request input files necessary for"
+                                      + " a geometry optimization with no cell optimisation. Default off")
         simulation_group.add_argument("--bulk-moduli", action="store_true",
                                       dest="bulk_moduli",
                                       default=False,
