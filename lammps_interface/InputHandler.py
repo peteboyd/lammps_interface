@@ -5,29 +5,7 @@ Argument parser for command line interface.
 from argparse import ArgumentParser
 import os
 import subprocess
-
-
-def git_revision_hash():
-    wrk_dir = os.getcwd()
-    try:
-        src_dir = os.path.dirname(os.path.abspath(__file__))
-        os.chdir(src_dir)
-        os.chdir("..")
-        v = open("VERSION_INFO").read().split("\n")
-        rev_no = int(v[0].strip())
-        commit = v[1].strip() 
-    except:
-        print("ERROR finding VERSION_INFO in base directory, version does not reflect latest release!")
-        # catchall in case the code is downloaded via a zip file
-        rev_no = 1.0
-        commit = "abcdefghijklmnop"
-    finally:
-        os.chdir(wrk_dir)
-    return (rev_no, commit)
-rev_no, commit = git_revision_hash()
-__version_info__ = (0, 0, rev_no, "%s"%commit)
-__version__ = "%i.%i.%i.%s"%__version_info__
-
+from . import __version__
 
 class Options(object):
 
