@@ -1,5 +1,5 @@
 numpy
 scipy
-networkx>=2.4
+networkx>=2.4,<3
 ase
 versioneer
