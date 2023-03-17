@@ -27,7 +27,7 @@ setup(
     long_description_content_type='text/markdown',
     install_requires=requirements,
     extras_require={
-        'docs': [ 'sphinx>=2,<3', 'sphinx-rtd-theme>=0.4,<1' ],
+        'docs': [ 'sphinx', 'sphinx-rtd-theme' ],
         'tests': [ 'pytest' ]
     },
     entry_points={
