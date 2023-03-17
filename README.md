@@ -2,6 +2,9 @@
 [![Docs status](https://readthedocs.org/projects/lammps-interface/badge)](http://lammps-interface.readthedocs.io/)
 [![PyPI version](https://badge.fury.io/py/lammps-interface.svg)](https://badge.fury.io/py/)
 # LAMMPS Interface
+
+**This package is currently unmaintained. See [here](https://github.com/peteboyd/lammps_interface/issues/61) if you are interested in helping out.**
+
 ## Authors
 
 -   Peter Boyd
