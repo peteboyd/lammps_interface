@@ -303,7 +303,7 @@ class LammpsSimulation(object):
 
     def define_styles(self):
         # should be more robust, some of the styles require multiple parameters specified on these lines
-        charges = not np.allclose(0.0, [float(self.graph.nodes[i]['charge']) for i in list(self.graph.nodes)], atol=0.00001)
+        charges = not np.allclose(0.0, [float(self.graph.nodes[i]['charge']) for i in list(self.graph.nodes())], atol=0.00001)
         if(charges):
             self.kspace_style = "ewald %f"%(0.000001)
         bonds = set([j['potential'].name for n1, n2, j in list(self.unique_bond_types.values())])
