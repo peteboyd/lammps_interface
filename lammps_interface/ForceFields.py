@@ -57,7 +57,7 @@ class ForceField(object):
         self.compute_improper_terms()
 
     def compute_atomic_pair_terms(self):
-        charges = not np.allclose(0.0, [float(self.graph.nodes[i]['charge']) for i in list(self.graph.nodes)], atol=0.00001)
+        charges = not np.allclose(0.0, [float(self.graph.nodes[i]['charge']) for i in list(self.graph.nodes())], atol=0.00001)
         for n, data in self.graph.nodes_iter2(data=True):
             self.pair_terms(n, data, self.cutoff, charges=charges)
 
